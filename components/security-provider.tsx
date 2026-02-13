@@ -1,0 +1,12 @@
+"use client"
+
+import { useEffect } from 'react'
+import { initSecurity } from '@/lib/security'
+
+export function SecurityProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    initSecurity()
+  }, [])
+
+  return <>{children}</>
+}
