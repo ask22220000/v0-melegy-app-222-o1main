@@ -1,5 +1,4 @@
 const PERPLEXITY_API_ENDPOINT = "https://api.perplexity.ai/chat/completions"
-const PERPLEXITY_API_KEY = "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"
 
 const ULTRA_SHORT_PROMPT = `أنت ميليجي - مساعد ذكي مصري ودود.
 
@@ -34,17 +33,17 @@ interface Message {
   content: string
 }
 
-const POLLINATIONS_ENDPOINT = "https://api.pollinations.ai/generate" // Assuming the endpoint for Pollinations AI
-const FREE_MODEL = "free-model" // Assuming the free model name for Pollinations AI
-
-const GEMINI_API_KEYS = ["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"] // Assuming the Gemini API keys array
-const GEMINI_API_ENDPOINT = "https://api.gemini.com/generate" // Assuming the Gemini API endpoint
-
 import { getDailyTip, checkIfDailyTipRequest } from "./dailyTips"
 
 export async function generatePollinationsResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
   try {
     console.log("[v0] Generating response with Perplexity...")
+
+    const apiKey = process.env.PERPLEXITY_API_KEY
+
+    if (!apiKey) {
+      throw new Error("PERPLEXITY_API_KEY is not configured")
+    }
 
     if (checkIfDailyTipRequest(userInput)) {
       const dailyTip = getDailyTip()
@@ -70,7 +69,7 @@ export async function generatePollinationsResponse(userInput: string, conversati
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: "sonar-small-online",

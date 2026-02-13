@@ -7,7 +7,7 @@ interface Message {
   content: string
 }
 
-export async function generateGeminiResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
+export async function generatePerplexityResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
   const MAX_RETRIES = 3
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -27,9 +27,10 @@ export async function generateGeminiResponse(userInput: string, conversationHist
         },
       ]
 
+      // Add conversation history (last 5 messages)
       const recentHistory = conversationHistory.slice(-5)
       let lastRole: string | null = null
-
+      
       for (const msg of recentHistory) {
         if ((msg.role === "user" || msg.role === "assistant") && msg.role !== lastRole) {
           messages.push({
@@ -40,14 +41,18 @@ export async function generateGeminiResponse(userInput: string, conversationHist
         }
       }
 
+      // Remove last message if it's from user (to avoid user->user)
       if (messages.length > 1 && messages[messages.length - 1].role === "user") {
         messages.pop()
       }
 
+      // Add current user message
       messages.push({
         role: "user",
         content: userInput,
       })
+
+      console.log("[v0] Sending request to Perplexity with", messages.length, "messages")
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 25000)
@@ -61,25 +66,25 @@ export async function generateGeminiResponse(userInput: string, conversationHist
         body: JSON.stringify({
           model: "sonar",
           messages,
-          max_tokens: 600,
-          temperature: 0.8,
+          max_tokens: 800,
+          temperature: 0.7,
         }),
         signal: controller.signal,
       })
 
       clearTimeout(timeoutId)
 
-      if (response.status === 429) {
-        console.log(`[v0] Rate limit exceeded, retrying...`)
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-        continue
-      }
-
       if (!response.ok) {
         const errorBody = await response.text()
         console.error(`[v0] Perplexity API error: ${response.status}`, errorBody)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        continue
+
+        if (response.status === 429) {
+          console.log("[v0] Rate limit exceeded, retrying...")
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+          continue
+        }
+
+        throw new Error(`API error: ${response.status}`)
       }
 
       const data = await response.json()
@@ -92,6 +97,7 @@ export async function generateGeminiResponse(userInput: string, conversationHist
         continue
       }
 
+      // Clean up response
       generatedText = generatedText
         .replace(/\*\*/g, "")
         .replace(/\[\d+\]/g, "")
@@ -122,8 +128,9 @@ export async function generateStreamingResponse(
   return new ReadableStream({
     async start(controller) {
       try {
-        const response = await generateGeminiResponse(userInput, conversationHistory)
+        const response = await generatePerplexityResponse(userInput, conversationHistory)
 
+        // Stream the response character by character
         for (let i = 0; i < response.length; i++) {
           controller.enqueue(encoder.encode(response[i]))
           await new Promise((resolve) => setTimeout(resolve, 1))

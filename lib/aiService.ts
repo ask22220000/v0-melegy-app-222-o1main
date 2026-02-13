@@ -1,6 +1,4 @@
-import { apiKeyManager } from "./apiKeyManager"
-
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+const PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 
 interface Message {
   role: "user" | "assistant"
@@ -13,7 +11,13 @@ export async function generateNaturalResponse(userInput: string, conversationHis
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      console.log(`[v0] Attempt ${attempt + 1}/${maxRetries}`)
+      console.log(`[v0] Attempt ${attempt + 1}/${maxRetries} - Using Perplexity API`)
+
+      const apiKey = process.env.PERPLEXITY_API_KEY
+
+      if (!apiKey) {
+        throw new Error("PERPLEXITY_API_KEY is not configured")
+      }
 
       const now = new Date()
       const dateStr = now.toLocaleDateString("ar-EG", {
@@ -28,58 +32,64 @@ export async function generateNaturalResponse(userInput: string, conversationHis
         hour12: true,
       })
 
-      const recentMessages = conversationHistory.slice(-8)
-
-      let contextPrompt = `أنت ميليجي، مساعد ذكي مصري ودود.
+      const messages: any[] = [
+        {
+          role: "system",
+          content: `أنت ميليجي، مساعد ذكي مصري ودود.
 
 التاريخ والوقت: ${dateStr} - ${timeStr}
 
 **تعليمات اللغة:**
 - استخدم اللهجة المصرية الطبيعية
 - رد بنفس أسلوب المستخدم
-- كن ودوداً ومساعداً
-
-المحادثة:
-`
-
-      recentMessages.forEach((msg) => {
-        contextPrompt += `${msg.role === "user" ? "User" : "Melegy"}: ${msg.content}\n`
-      })
-
-      contextPrompt += `\nUser: ${userInput}\nMelegy:`
-
-      const requestBody = {
-        contents: [
-          {
-            parts: [{ text: contextPrompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.8,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
+- كن ودوداً ومساعداً`,
         },
+      ]
+
+      const recentMessages = conversationHistory.slice(-6)
+      let lastRole: string | null = null
+
+      for (const msg of recentMessages) {
+        if ((msg.role === "user" || msg.role === "assistant") && msg.role !== lastRole) {
+          messages.push({
+            role: msg.role,
+            content: msg.content.substring(0, 500),
+          })
+          lastRole = msg.role
+        }
       }
 
-      const currentApiKey = apiKeyManager.getCurrentKey()
-      const keyInfo = apiKeyManager.getKeyInfo()
-      console.log(`[v0] Using API key ${keyInfo.index}/${keyInfo.totalKeys}`)
+      // Remove last message if it's from user (to avoid user->user)
+      if (messages.length > 1 && messages[messages.length - 1].role === "user") {
+        messages.pop()
+      }
 
-      const response = await fetch(`${GEMINI_API_URL}?key=${currentApiKey}`, {
+      messages.push({
+        role: "user",
+        content: userInput,
+      })
+
+      const response = await fetch(PERPLEXITY_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "sonar",
+          messages,
+          max_tokens: 1024,
+          temperature: 0.7,
+        }),
       })
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error(`[v0] API error ${response.status}:`, errorText)
-        apiKeyManager.reportError(response.status)
+        console.error(`[v0] Perplexity API error ${response.status}:`, errorText)
 
-        // If quota exceeded, retry immediately with new key
         if (response.status === 429 && attempt < maxRetries - 1) {
-          console.log("[v0] Retrying with next API key...")
+          console.log("[v0] Rate limit exceeded, retrying...")
+          await new Promise((resolve) => setTimeout(resolve, 2000))
           continue
         }
 
@@ -88,9 +98,15 @@ export async function generateNaturalResponse(userInput: string, conversationHis
 
       const data = await response.json()
 
-      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        apiKeyManager.reportSuccess()
-        return data.candidates[0].content.parts[0].text.trim()
+      if (data.choices?.[0]?.message?.content) {
+        let text = data.choices[0].message.content.trim()
+        // Clean up response
+        text = text
+          .replace(/\*\*/g, "")
+          .replace(/\[\d+\]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+        return text
       }
 
       throw new Error("No response generated")

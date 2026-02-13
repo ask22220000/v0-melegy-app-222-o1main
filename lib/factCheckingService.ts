@@ -1,5 +1,3 @@
-import { apiKeyManager } from "./apiKeyManager"
-
 export interface FactCheckResult {
   claim: string
   verdict: "true" | "false" | "partially-true" | "unverified"
@@ -10,33 +8,47 @@ export interface FactCheckResult {
 
 export async function checkFact(claim: string): Promise<FactCheckResult> {
   try {
-    const apiKey = apiKeyManager.getCurrentKey()
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: `تحقق من صحة هذا الادعاء: ${claim}` }],
-            },
-          ],
-        }),
+    const apiKey = process.env.PERPLEXITY_API_KEY
+
+    if (!apiKey) {
+      throw new Error("PERPLEXITY_API_KEY is not configured")
+    }
+
+    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
       },
-    )
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          {
+            role: "system",
+            content: "أنت مساعد متخصص في التحقق من الحقائق والمعلومات بدقة.",
+          },
+          {
+            role: "user",
+            content: `تحقق من صحة هذا الادعاء واعطني تحليل دقيق: ${claim}`,
+          },
+        ],
+        max_tokens: 1000,
+        temperature: 0.5,
+      }),
+    })
 
     if (!response.ok) {
-      apiKeyManager.reportError()
       throw new Error(`API error: ${response.status}`)
     }
 
     const data = await response.json()
-    const analysis = data.candidates?.[0]?.content?.parts?.[0]?.text || ""
+    let analysis = data.choices?.[0]?.message?.content || ""
 
-    apiKeyManager.reportSuccess()
+    analysis = analysis
+      .replace(/\*\*/g, "")
+      .replace(/\[\d+\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
 
     return {
       claim,
@@ -46,6 +58,7 @@ export async function checkFact(claim: string): Promise<FactCheckResult> {
       sources: [],
     }
   } catch (error) {
+    console.error("[v0] Fact checking error:", error)
     return {
       claim,
       verdict: "unverified",

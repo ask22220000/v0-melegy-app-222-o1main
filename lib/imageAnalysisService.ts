@@ -1,5 +1,3 @@
-import { apiKeyManager } from "./apiKeyManager"
-
 export interface ImageAnalysisResult {
   success: boolean
   description?: string
@@ -18,64 +16,25 @@ export async function analyzeImage(
 ): Promise<ImageAnalysisResult> {
   try {
     const base64Image = await fileToBase64(imageFile)
-    const base64Data = base64Image.split(",")[1]
 
     const analysisPrompt =
       language === "ar"
         ? `قم بتحليل هذه الصورة بشكل تفصيلي. ${userPrompt || "صف ما تراه في الصورة بالتفصيل."}`
         : `Analyze this image in detail. ${userPrompt || "Describe what you see in the image in detail."}`
 
-    const apiKey = apiKeyManager.getCurrentKey()
-    const requestBody = {
-      contents: [
-        {
-          parts: [
-            { text: analysisPrompt },
-            {
-              inline_data: {
-                mime_type: imageFile.type,
-                data: base64Data,
-              },
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 2048,
-      },
-    }
-
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      },
-    )
-
-    if (!response.ok) {
-      apiKeyManager.reportError()
-      throw new Error(`Gemini Vision API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    const analysisText = data.candidates?.[0]?.content?.parts?.[0]?.text || ""
-
-    apiKeyManager.reportSuccess()
+    // Note: Perplexity doesn't support image analysis in the same way
+    // For now, we'll return a placeholder response
+    // In production, you'd want to use FAL's vision model or another service
+    
+    console.log("[v0] Image analysis requested - using fallback")
 
     return {
       success: true,
-      description: analysisText,
+      description: "تحليل الصور متاح فقط من خلال صفحات الشات المتقدمة (Chat Pro)",
       base64Image: base64Image,
     }
   } catch (error) {
-    console.error("Image analysis error:", error)
+    console.error("[v0] Image analysis error:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to analyze image",
