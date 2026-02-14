@@ -158,7 +158,7 @@ export default function ChatPage() {
     reader.readAsDataURL(file)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
