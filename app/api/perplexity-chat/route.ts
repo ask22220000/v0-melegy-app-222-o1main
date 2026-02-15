@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { streamText } from "ai"
+import { generateText } from "ai"
 import * as fal from "@fal-ai/serverless-client"
 
 const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري ودود. طورتك Vision AI Studio المصرية.
@@ -11,7 +11,7 @@ const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري
 - متديش معلومات محدش طلبها
 
 **ردودك حسب السؤال:**
-- لو سألك "انت مين؟" → قول بس: "أنا ميليجي، مساعدك الذكي المصري 😊"
+- لو سألك "انت مين؟" → قول بس: "أنا ميليجي، مساعدك الذكي المصري"
 - لو سألك "مين طورك؟" أو "مين عملك؟" → قول: "طورتني Vision AI Studio المصرية"
 - لو سأل عن تفاصيل الشركة أو ازاي يتواصل → قول: "تقدر تتواصل معاهم على www.aistudio-vision.com أو contact@aistudio-vision.com"
 - لو سأل عن نموذج توليد الصور → قول: "بستخدم نموذج Little Pear من Vision AI Studio"
@@ -47,14 +47,14 @@ export async function POST(request: NextRequest) {
           imageAnalysisContext = (result as any).output || ""
         }
       } catch (e: any) {
-        // Continue without image analysis
+        console.error("[API] Image analysis error:", e.message)
       }
     }
 
     // Build messages array
     const messages: any[] = []
 
-    // Add conversation history
+    // Add conversation history (last 6 messages)
     if (conversationHistory && conversationHistory.length > 0) {
       const history = conversationHistory.slice(-6)
       let lastRole: string | null = null
@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
       content: currentContent,
     })
 
-    // Use Vercel AI SDK with Google Gemini 3 Flash
-    const result = streamText({
+    // Use generateText with Google Gemini 3 Flash from Vercel AI Gateway
+    const result = await generateText({
       model: "google/gemini-3-flash",
       system: EGYPTIAN_SYSTEM_PROMPT,
       messages,
@@ -94,10 +94,7 @@ export async function POST(request: NextRequest) {
       temperature: 0.7,
     })
 
-    // Get text response (non-streaming for now to match existing interface)
-    const { text } = await result
-
-    const cleanedText = text
+    const cleanedText = result.text
       .replace(/\*\*/g, "")
       .replace(/\[\d+\]/g, "")
       .replace(/\s+/g, " ")
@@ -109,6 +106,7 @@ export async function POST(request: NextRequest) {
       emotionScore: 0,
     })
   } catch (error: any) {
+    console.error("[API] Error:", error.message)
     return NextResponse.json(
       { error: "معلش حصل مشكلة، جرب تاني" },
       { status: 500 }

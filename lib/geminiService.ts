@@ -1,6 +1,5 @@
+import { generateText } from "ai"
 import { EGYPTIAN_DIALECT_INSTRUCTIONS } from "./egyptianDialect"
-
-const PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 
 interface Message {
   role: "user" | "assistant" | "system"
@@ -12,24 +11,14 @@ export async function generateGeminiResponse(userInput: string, conversationHist
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Perplexity API`)
+      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Google Gemini 3 Flash via Vercel AI Gateway`)
 
-      const apiKey = process.env.PERPLEXITY_API_KEY
+      const messages: any[] = []
 
-      if (!apiKey) {
-        throw new Error("PERPLEXITY_API_KEY is not configured")
-      }
-
-      const messages: any[] = [
-        {
-          role: "system",
-          content: EGYPTIAN_DIALECT_INSTRUCTIONS,
-        },
-      ]
-
+      // Add conversation history (last 5 messages)
       const recentHistory = conversationHistory.slice(-5)
       let lastRole: string | null = null
-
+      
       for (const msg of recentHistory) {
         if ((msg.role === "user" || msg.role === "assistant") && msg.role !== lastRole) {
           messages.push({
@@ -40,58 +29,36 @@ export async function generateGeminiResponse(userInput: string, conversationHist
         }
       }
 
-      if (messages.length > 1 && messages[messages.length - 1].role === "user") {
+      // Remove last message if it's from user (to avoid user->user)
+      if (messages.length > 0 && messages[messages.length - 1].role === "user") {
         messages.pop()
       }
 
+      // Add current user message
       messages.push({
         role: "user",
         content: userInput,
       })
 
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 25000)
+      console.log("[v0] Sending request to Gemini with", messages.length, "messages")
 
-      const response = await fetch(PERPLEXITY_API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "sonar",
-          messages,
-          max_tokens: 600,
-          temperature: 0.8,
-        }),
-        signal: controller.signal,
+      const result = await generateText({
+        model: "google/gemini-3-flash",
+        system: EGYPTIAN_DIALECT_INSTRUCTIONS,
+        messages,
+        maxTokens: 500,
+        temperature: 0.7,
       })
 
-      clearTimeout(timeoutId)
+      let generatedText = result.text
+      console.log("[v0] ✅ Received response from Gemini successfully")
 
-      if (response.status === 429) {
-        console.log(`[v0] Rate limit exceeded, retrying...`)
-        await new Promise((resolve) => setTimeout(resolve, 2000))
+      if (!generatedText || generatedText.length < 3) {
+        console.log("[v0] Empty response from Gemini, retrying...")
         continue
       }
 
-      if (!response.ok) {
-        const errorBody = await response.text()
-        console.error(`[v0] Perplexity API error: ${response.status}`, errorBody)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        continue
-      }
-
-      const data = await response.json()
-      console.log("[v0] ✅ Received response from Perplexity successfully")
-
-      let generatedText = data.choices?.[0]?.message?.content || ""
-
-      if (!generatedText) {
-        console.log("[v0] Empty response from Perplexity, retrying...")
-        continue
-      }
-
+      // Clean up response
       generatedText = generatedText
         .replace(/\*\*/g, "")
         .replace(/\[\d+\]/g, "")
@@ -110,7 +77,7 @@ export async function generateGeminiResponse(userInput: string, conversationHist
     }
   }
 
-  throw new Error("فشل الاتصال بـ Perplexity API")
+  throw new Error("فشل الاتصال")
 }
 
 export async function generateStreamingResponse(
@@ -124,6 +91,7 @@ export async function generateStreamingResponse(
       try {
         const response = await generateGeminiResponse(userInput, conversationHistory)
 
+        // Stream the response character by character
         for (let i = 0; i < response.length; i++) {
           controller.enqueue(encoder.encode(response[i]))
           await new Promise((resolve) => setTimeout(resolve, 1))
