@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     
     console.log("[v0] Final messages array:", JSON.stringify(messages.map(m => ({ role: m.role, contentLength: m.content.length }))))
 
-    // Use Pollinations AI with perplexity-fast model
+    // Use Pollinations AI with openai model (GPT-5 Nano - faster and more up-to-date)
     const pollinationsResponse = await fetch("https://text.pollinations.ai/", {
       method: "POST",
       headers: {
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         messages,
-        model: "perplexity-fast",
+        model: "openai",
         seed: Math.floor(Math.random() * 99999),
         jsonMode: false,
       }),

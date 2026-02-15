@@ -27,7 +27,7 @@ export async function translateToEnglish(text: string): Promise<string> {
             content: text,
           },
         ],
-        model: "perplexity-fast",
+        model: "openai",
         seed: Math.floor(Math.random() * 99999),
         jsonMode: false,
       }),
@@ -57,7 +57,7 @@ export async function enhancePromptForImageGeneration(prompt: string): Promise<s
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "perplexity-fast",
+        model: "openai",
         messages: [
           {
             role: "system",
@@ -106,7 +106,7 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "perplexity-fast",
+        model: "openai",
         messages: [
           {
             role: "system",

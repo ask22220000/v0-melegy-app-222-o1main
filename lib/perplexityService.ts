@@ -10,7 +10,7 @@ export async function generatePerplexityResponse(userInput: string, conversation
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Pollinations AI (perplexity-fast)`)
+      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Pollinations AI (openai model - GPT-5 Nano)`)
 
       const messages: any[] = [
         {
@@ -55,7 +55,7 @@ export async function generatePerplexityResponse(userInput: string, conversation
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "perplexity-fast",
+          model: "openai",
           messages,
           seed: Math.floor(Math.random() * 99999),
           jsonMode: false,

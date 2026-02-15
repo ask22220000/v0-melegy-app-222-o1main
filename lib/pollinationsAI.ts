@@ -37,7 +37,7 @@ import { getDailyTip, checkIfDailyTipRequest } from "./dailyTips"
 
 export async function generatePollinationsResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
   try {
-    console.log("[v0] Generating response with Pollinations AI (perplexity-fast model)...")
+    console.log("[v0] Generating response with Pollinations AI (openai model - GPT-5 Nano)...")
 
     if (checkIfDailyTipRequest(userInput)) {
       const dailyTip = getDailyTip()
@@ -65,7 +65,7 @@ export async function generatePollinationsResponse(userInput: string, conversati
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "perplexity-fast",
+        model: "openai",
         messages: messages,
         temperature: 0.7,
         max_tokens: 80,

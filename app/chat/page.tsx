@@ -63,7 +63,7 @@ export default function ChatPage() {
     {
       id: "welcome",
       role: "assistant",
-      content: "أهلاً بيك في ميليجي! 👋 أنا مساعدك الذكي، معاك 10 رسائل و3 صور يومياً في الخطة المجانية. كيف أقدر أساعدك؟",
+      content: "أهلاً بيك في ميليجي! 👋 أنا مساعدك الذكي. كيف أقدر أساعدك النهاردة؟",
     },
   ])
   const [input, setInput] = useState("")
@@ -794,7 +794,7 @@ export default function ChatPage() {
       </div>
 
       {showUsageCard && (
-        <div className="fixed right-0 top-16 z-40 p-4 w-64 hidden md:block">
+        <div className="fixed left-4 top-32 z-40 w-64 hidden md:block">
           <UsageIndicator />
         </div>
       )}
@@ -1049,7 +1049,7 @@ export default function ChatPage() {
               </div>
               <h3 className="text-xl font-bold mb-2 text-white">وصلت للحد المجاني!</h3>
               <p className="text-gray-300 mb-6">
-                ترقى لباقة مدفوعة واستمتع بمميزات أكثر ورسائل وصور غير محدودة!
+                ترق�� لباقة مدفوعة واستمتع بمميزات أكثر ورسائل وصور غير محدودة!
               </p>
               <div className="flex gap-3">
                 <Button
