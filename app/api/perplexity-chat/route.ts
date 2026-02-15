@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
       content: currentContent,
     })
 
-    // Use generateText for simple non-streaming response
+    // Use generateText with Google Gemini 3 Flash from Vercel AI Gateway
     const result = await generateText({
-      model: "google/gemini-flash-1.5",
+      model: "google/gemini-3-flash",
       system: EGYPTIAN_SYSTEM_PROMPT,
       messages,
       maxTokens: 500,
