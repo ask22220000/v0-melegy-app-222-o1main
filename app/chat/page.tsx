@@ -515,7 +515,6 @@ export default function ChatPage() {
         content: msg.content,
       }))
 
-      console.log("[v0] Sending request to /api/perplexity-chat with prompt:", currentInput)
       const response = await fetch("/api/perplexity-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -525,12 +524,9 @@ export default function ChatPage() {
         }),
       })
 
-      console.log("[v0] Response status:", response.status)
       const data = await response.json()
-      console.log("[v0] Response data:", data)
 
       if (!response.ok || data.error) {
-        console.error("[v0] API error:", data.error || "Unknown error")
         throw new Error(data.error || "API error")
       }
 
