@@ -37,13 +37,7 @@ import { getDailyTip, checkIfDailyTipRequest } from "./dailyTips"
 
 export async function generatePollinationsResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
   try {
-    console.log("[v0] Generating response with Perplexity...")
-
-    const apiKey = process.env.PERPLEXITY_API_KEY
-
-    if (!apiKey) {
-      throw new Error("PERPLEXITY_API_KEY is not configured")
-    }
+    console.log("[v0] Generating response with Pollinations AI (perplexity-fast model)...")
 
     if (checkIfDailyTipRequest(userInput)) {
       const dailyTip = getDailyTip()
@@ -65,33 +59,33 @@ export async function generatePollinationsResponse(userInput: string, conversati
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 20000)
 
-    const response = await fetch(PERPLEXITY_API_ENDPOINT, {
+    const response = await fetch("https://text.pollinations.ai", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "sonar-small-online",
+        model: "perplexity-fast",
         messages: messages,
         temperature: 0.7,
         max_tokens: 80,
+        seed: Math.floor(Math.random() * 99999),
+        jsonMode: false,
       }),
       signal: controller.signal,
     })
 
     clearTimeout(timeoutId)
 
-    console.log("[v0] Perplexity Response status:", response.status)
+    console.log("[v0] Pollinations Response status:", response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error("[v0] Perplexity Error:", errorText)
-      throw new Error(`Perplexity API returned ${response.status}`)
+      console.error("[v0] Pollinations Error:", errorText)
+      throw new Error(`Pollinations API returned ${response.status}`)
     }
 
-    const data = await response.json()
-    let responseText = data.choices?.[0]?.message?.content || ""
+    let responseText = await response.text()
 
     // Remove unnecessary asterisks and formatting
     let cleanedResponse = responseText

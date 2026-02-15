@@ -773,7 +773,31 @@ export default function ChatPage() {
       </div>
 
       <div className="fixed right-0 top-16 z-40 p-4 w-64 hidden md:block">
-        <UsageIndicator />
+        <div className="flex items-start gap-2">
+          <Link href="/pricing">
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-none shadow-lg"
+              title="ترقية الباقة"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </Button>
+          </Link>
+          <UsageIndicator />
+        </div>
       </div>
 
       {showChatHistory && (
