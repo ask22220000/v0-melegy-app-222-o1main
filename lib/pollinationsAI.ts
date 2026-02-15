@@ -1,5 +1,4 @@
 const PERPLEXITY_API_ENDPOINT = "https://api.perplexity.ai/chat/completions"
-const PERPLEXITY_API_KEY = "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"
 
 const ULTRA_SHORT_PROMPT = `أنت ميليجي - مساعد ذكي مصري ودود.
 
@@ -34,17 +33,11 @@ interface Message {
   content: string
 }
 
-const POLLINATIONS_ENDPOINT = "https://api.pollinations.ai/generate" // Assuming the endpoint for Pollinations AI
-const FREE_MODEL = "free-model" // Assuming the free model name for Pollinations AI
-
-const GEMINI_API_KEYS = ["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"] // Assuming the Gemini API keys array
-const GEMINI_API_ENDPOINT = "https://api.gemini.com/generate" // Assuming the Gemini API endpoint
-
 import { getDailyTip, checkIfDailyTipRequest } from "./dailyTips"
 
 export async function generatePollinationsResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
   try {
-    console.log("[v0] Generating response with Perplexity...")
+    console.log("[v0] Generating response with Pollinations AI (perplexity-fast model)...")
 
     if (checkIfDailyTipRequest(userInput)) {
       const dailyTip = getDailyTip()
@@ -66,33 +59,33 @@ export async function generatePollinationsResponse(userInput: string, conversati
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 20000)
 
-    const response = await fetch(PERPLEXITY_API_ENDPOINT, {
+    const response = await fetch("https://text.pollinations.ai", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "sonar-small-online",
+        model: "perplexity-fast",
         messages: messages,
         temperature: 0.7,
         max_tokens: 80,
+        seed: Math.floor(Math.random() * 99999),
+        jsonMode: false,
       }),
       signal: controller.signal,
     })
 
     clearTimeout(timeoutId)
 
-    console.log("[v0] Perplexity Response status:", response.status)
+    console.log("[v0] Pollinations Response status:", response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error("[v0] Perplexity Error:", errorText)
-      throw new Error(`Perplexity API returned ${response.status}`)
+      console.error("[v0] Pollinations Error:", errorText)
+      throw new Error(`Pollinations API returned ${response.status}`)
     }
 
-    const data = await response.json()
-    let responseText = data.choices?.[0]?.message?.content || ""
+    let responseText = await response.text()
 
     // Remove unnecessary asterisks and formatting
     let cleanedResponse = responseText

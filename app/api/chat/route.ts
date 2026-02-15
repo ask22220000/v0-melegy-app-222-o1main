@@ -1,4 +1,4 @@
-import { generateStreamingResponse } from "@/lib/pollinationsAI"
+import { generateStreamingResponse } from "@/lib/perplexityService"
 
 export const maxDuration = 30
 
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
       content: m.content,
     }))
 
-    console.log("[v0] Generating response with Gemini...")
+    console.log("[v0] Generating response with Perplexity...")
 
     const stream = await generateStreamingResponse(userMessage, conversationHistory)
 

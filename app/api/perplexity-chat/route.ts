@@ -121,33 +121,31 @@ export async function POST(request: NextRequest) {
     
     console.log("[v0] Final messages array:", JSON.stringify(messages.map(m => ({ role: m.role, contentLength: m.content.length }))))
 
-    const apiKey = process.env.PERPLEXITY_API_KEY
-
-    if (!apiKey) {
-      return NextResponse.json({ error: "API key not configured" }, { status: 500 })
-    }
-
-    const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+    // Use Pollinations AI with perplexity-fast model
+    const pollinationsResponse = await fetch("https://text.pollinations.ai", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "sonar",
         messages,
-        max_tokens: 2000,
+        model: "perplexity-fast",
+        seed: Math.floor(Math.random() * 99999),
+        jsonMode: false,
       }),
     })
 
-    if (!perplexityResponse.ok) {
-      const errorText = await perplexityResponse.text()
-      console.error("[v0] Perplexity error:", perplexityResponse.status, errorText)
+    if (!pollinationsResponse.ok) {
+      const errorText = await pollinationsResponse.text()
+      console.error("[v0] Pollinations AI error:", pollinationsResponse.status, errorText)
       return NextResponse.json({ error: "معلش حصل مشكلة، جرب تاني" }, { status: 500 })
     }
 
-    const data = await perplexityResponse.json()
-    let responseText = data.choices?.[0]?.message?.content || "معلش حصل مشكلة"
+    let responseText = await pollinationsResponse.text()
+    
+    if (!responseText || responseText.length < 5) {
+      responseText = "معلش حصل مشكلة، جرب تاني"
+    }
 
     responseText = responseText
       .replace(/\*\*/g, "")

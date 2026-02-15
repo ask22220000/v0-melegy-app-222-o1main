@@ -1,24 +1,16 @@
 import { EGYPTIAN_DIALECT_INSTRUCTIONS } from "./egyptianDialect"
 
-const PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
-
 interface Message {
   role: "user" | "assistant" | "system"
   content: string
 }
 
-export async function generateGeminiResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
+export async function generatePerplexityResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
   const MAX_RETRIES = 3
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Perplexity API`)
-
-      const apiKey = process.env.PERPLEXITY_API_KEY
-
-      if (!apiKey) {
-        throw new Error("PERPLEXITY_API_KEY is not configured")
-      }
+      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Pollinations AI (perplexity-fast)`)
 
       const messages: any[] = [
         {
@@ -27,9 +19,10 @@ export async function generateGeminiResponse(userInput: string, conversationHist
         },
       ]
 
+      // Add conversation history (last 5 messages)
       const recentHistory = conversationHistory.slice(-5)
       let lastRole: string | null = null
-
+      
       for (const msg of recentHistory) {
         if ((msg.role === "user" || msg.role === "assistant") && msg.role !== lastRole) {
           messages.push({
@@ -40,58 +33,60 @@ export async function generateGeminiResponse(userInput: string, conversationHist
         }
       }
 
+      // Remove last message if it's from user (to avoid user->user)
       if (messages.length > 1 && messages[messages.length - 1].role === "user") {
         messages.pop()
       }
 
+      // Add current user message
       messages.push({
         role: "user",
         content: userInput,
       })
 
+      console.log("[v0] Sending request to Pollinations with", messages.length, "messages")
+
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 25000)
 
-      const response = await fetch(PERPLEXITY_API_URL, {
+      const response = await fetch("https://text.pollinations.ai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "sonar",
+          model: "perplexity-fast",
           messages,
-          max_tokens: 600,
-          temperature: 0.8,
+          seed: Math.floor(Math.random() * 99999),
+          jsonMode: false,
         }),
         signal: controller.signal,
       })
 
       clearTimeout(timeoutId)
 
-      if (response.status === 429) {
-        console.log(`[v0] Rate limit exceeded, retrying...`)
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-        continue
-      }
-
       if (!response.ok) {
         const errorBody = await response.text()
-        console.error(`[v0] Perplexity API error: ${response.status}`, errorBody)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        console.error(`[v0] Pollinations API error: ${response.status}`, errorBody)
+
+        if (response.status === 429) {
+          console.log("[v0] Rate limit exceeded, retrying...")
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+          continue
+        }
+
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      let generatedText = await response.text()
+      console.log("[v0] ✅ Received response from Pollinations successfully")
+
+      if (!generatedText || generatedText.length < 3) {
+        console.log("[v0] Empty response from Pollinations, retrying...")
         continue
       }
 
-      const data = await response.json()
-      console.log("[v0] ✅ Received response from Perplexity successfully")
-
-      let generatedText = data.choices?.[0]?.message?.content || ""
-
-      if (!generatedText) {
-        console.log("[v0] Empty response from Perplexity, retrying...")
-        continue
-      }
-
+      // Clean up response
       generatedText = generatedText
         .replace(/\*\*/g, "")
         .replace(/\[\d+\]/g, "")
@@ -110,7 +105,7 @@ export async function generateGeminiResponse(userInput: string, conversationHist
     }
   }
 
-  throw new Error("فشل الاتصال بـ Perplexity API")
+  throw new Error("فشل الاتصال")
 }
 
 export async function generateStreamingResponse(
@@ -122,8 +117,9 @@ export async function generateStreamingResponse(
   return new ReadableStream({
     async start(controller) {
       try {
-        const response = await generateGeminiResponse(userInput, conversationHistory)
+        const response = await generatePerplexityResponse(userInput, conversationHistory)
 
+        // Stream the response character by character
         for (let i = 0; i < response.length; i++) {
           controller.enqueue(encoder.encode(response[i]))
           await new Promise((resolve) => setTimeout(resolve, 1))

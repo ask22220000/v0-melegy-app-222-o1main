@@ -47,15 +47,23 @@ async function enhancePromptWithAI(prompt: string): Promise<string> {
   }
 }
 
-// Translate Arabic to English using Gemini from pollinations.ai
+// Translate Arabic to English using Perplexity
 async function translateArabicToEnglish(arabicText: string): Promise<string> {
   try {
-    const response = await fetch("https://text.pollinations.ai", {
+    const apiKey = process.env.PERPLEXITY_API_KEY
+    if (!apiKey) {
+      console.log("[v0] No API key, using original text")
+      return arabicText
+    }
+
+    const response = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
+        model: "sonar",
         messages: [
           {
             role: "system",
@@ -66,18 +74,17 @@ async function translateArabicToEnglish(arabicText: string): Promise<string> {
             content: arabicText,
           },
         ],
-        model: "gemini",
-        seed: Math.floor(Math.random() * 99999),
-        jsonMode: false,
+        max_tokens: 150,
       }),
     })
 
     if (!response.ok) {
-      console.log("[v0] Gemini translation failed, using fallback")
+      console.log("[v0] Translation failed, using fallback")
       return arabicText
     }
 
-    const translation = await response.text()
+    const data = await response.json()
+    const translation = data.choices?.[0]?.message?.content || arabicText
 
     if (!translation || translation.length < 5) {
       return arabicText
