@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as fal from "@fal-ai/serverless-client"
-import { processPromptForImageGeneration } from "@/lib/prompt-enhancer"
+import { processPromptForImageEditing } from "@/lib/prompt-enhancer"
 
 // Increase body size limit for base64 images (50MB)
 export const maxDuration = 60 // Maximum allowed by Vercel
@@ -44,18 +44,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 2: Translate and enhance prompt
-    const enhancedPrompt = await processPromptForImageGeneration(prompt)
+    // Step 2: Translate and enhance prompt (with character and scene preservation)
+    const enhancedPrompt = await processPromptForImageEditing(prompt)
 
     // Step 3: Edit/combine images with fal-ai/flux-2/turbo/edit (fast and precise)
+    // Lower strength = more preservation of original image (0.3-0.4 preserves identity better)
     let result
     try {
       result = await fal.subscribe("fal-ai/flux-2/turbo/edit", {
         input: {
           prompt: enhancedPrompt,
           image_urls: finalImageUrls, // Pass all images for combination/editing
-          strength: 0.5, // Balance between preservation and editing
-          guidance_scale: 3.5,
+          strength: 0.35, // Lower strength to preserve character features and scene (0.35 = 65% original preserved)
+          guidance_scale: 3.0, // Lower guidance for better preservation
           num_inference_steps: 4, // Turbo model uses fewer steps
           image_size: {
             width: 1080,
