@@ -269,16 +269,35 @@ export default function ChatPage() {
       return
     }
 
-    // For images, show preview
+    // For images, compress and show preview
     if (file.type.startsWith("image/")) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
+      try {
+        // Import compression utility dynamically
+        const { compressImage } = await import("@/lib/imageCompression")
+        
+        toast({
+          title: "جاري ضغط الصورة...",
+          description: "من فضلك انتظر",
+        })
+        
+        const compressedDataUrl = await compressImage(file, 5) // Max 5MB
+        
         setAttachedImage({
-          url: event.target?.result as string,
+          url: compressedDataUrl,
           name: file.name,
         })
+        
+        toast({
+          title: "تم ضغط الصورة بنجاح",
+          description: "يمكنك الآن إرسال رسالتك",
+        })
+      } catch (error: any) {
+        toast({
+          title: "خطأ في معالجة الصورة",
+          description: error.message || "حاول مرة أخرى",
+          variant: "destructive",
+        })
       }
-      reader.readAsDataURL(file)
     } 
     // For other files, process immediately
     else {

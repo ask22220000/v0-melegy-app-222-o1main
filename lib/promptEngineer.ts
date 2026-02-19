@@ -75,25 +75,13 @@ export async function editImage(imageUrl: string | string[], editPrompt: string)
   try {
     console.log("[v0] Editing image with prompt:", editPrompt)
 
-    // الترجمة أولاً إذا كان الوصف بالعربي
-    let englishEditPrompt = editPrompt
-    let isArabicEdit = false
-    for (let i = 0; i < editPrompt.length; i++) {
-      const code = editPrompt.charCodeAt(i)
-      if (code >= 0x0600 && code <= 0x06ff) {
-        isArabicEdit = true
-        break
-      }
-    }
-    if (isArabicEdit) {
-      englishEditPrompt = await enhancePromptToEnglish(editPrompt)
-    }
-
     // Support both single imageUrl and multiple imageUrls
+    // The API will handle translation and enhancement internally
     const body = Array.isArray(imageUrl) 
-      ? { imageUrls: imageUrl, prompt: englishEditPrompt }
-      : { imageUrl, prompt: englishEditPrompt }
+      ? { imageUrls: imageUrl, prompt: editPrompt }
+      : { imageUrl, prompt: editPrompt }
 
+    console.log("[v0] Sending edit request to API...")
     const response = await fetch("/api/edit-image-fal", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -103,14 +91,15 @@ export async function editImage(imageUrl: string | string[], editPrompt: string)
     if (!response.ok) {
       const errorData = await response.json()
       console.error("[v0] Failed to edit image:", errorData)
-      throw new Error(errorData.error || "Image edit failed")
+      throw new Error(errorData.error || "فشل تعديل الصورة")
     }
 
     const data = await response.json()
+    console.log("[v0] Image edited successfully")
     return data.editedImageUrl
-  } catch (error) {
+  } catch (error: any) {
     console.error("[v0] Error editing image:", error)
-    throw error
+    throw new Error(error.message || "فشل تعديل الصورة")
   }
 }
 
