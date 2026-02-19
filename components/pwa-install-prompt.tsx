@@ -17,13 +17,18 @@ export function PWAInstallPrompt() {
   useEffect(() => {
     // Check if already installed
     if (window.matchMedia("(display-mode: standalone)").matches) {
+      console.log("[PWA] Already installed")
       return
     }
 
-    // Check if user dismissed before
-    const dismissed = localStorage.getItem("pwa-install-dismissed")
-    if (dismissed) {
-      return
+    // Check if user dismissed before (only for 7 days)
+    const dismissedTime = localStorage.getItem("pwa-install-dismissed")
+    if (dismissedTime) {
+      const daysSinceDismissed = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60 * 24)
+      if (daysSinceDismissed < 7) {
+        console.log("[PWA] User dismissed recently")
+        return
+      }
     }
 
     // Detect iOS
@@ -31,20 +36,23 @@ export function PWAInstallPrompt() {
     setIsIOS(iOS)
 
     if (iOS) {
-      // Show iOS specific prompt after 3 seconds
+      // Show iOS specific prompt after 5 seconds
+      console.log("[PWA] iOS detected, showing prompt")
       const timer = setTimeout(() => {
         setShowPrompt(true)
-      }, 3000)
+      }, 5000)
       return () => clearTimeout(timer)
     }
 
-    // Handle Android/Chrome
+    // Handle Android/Chrome - prompt appears immediately when available
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log("[PWA] beforeinstallprompt event fired")
       e.preventDefault()
       setDeferredPrompt(e as BeforeInstallPromptEvent)
+      // Show prompt after 5 seconds to not be too intrusive
       setTimeout(() => {
         setShowPrompt(true)
-      }, 3000)
+      }, 5000)
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
@@ -70,7 +78,9 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    localStorage.setItem("pwa-install-dismissed", "true")
+    // Store timestamp instead of boolean for time-based re-showing
+    localStorage.setItem("pwa-install-dismissed", Date.now().toString())
+    console.log("[PWA] User dismissed install prompt")
   }
 
   if (!showPrompt) {
