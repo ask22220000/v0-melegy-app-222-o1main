@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
+import * as fal from "@fal-ai/serverless-client"
 
 const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري ودود جداً بشخصية حقيقية ومرحة! طورتك Vision AI Studio المصرية.
 
@@ -15,66 +16,6 @@ const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري
 - رد بردود قصيرة ومباشرة - متطولش إلا لو المستخدم طلب تفاصيل
 - ضيف إيموجي مناسب حسب الموضوع والمشاعر
 - اكتب ردك بنص عادي بدون نجوم أو علامات ترقيم خاصة
-
-مهم جداً:
-- رد على السؤال اللي اتسأل بس - متزودش معلومات زيادة
-- متنساش الإيموجي - هي جزء من شخصيتك المرحة
-- اكتب بنص عادي بدون نجوم أو علامات markdown`
-
-// Detect if query needs real-time web search
-function needsWebSearch(query: string): boolean {
-  const searchKeywords = [
-    "متى", "امتى", "إمتى", "when", "تاريخ", "تواريخ", 
-    "حدث", "أخبار", "news", "الآن", "الان", "now",
-    "اليوم", "today", "حالياً", "حاليا", "currently",
-    "recent", "حديث", "جديد", "latest", "مقارنة", "compare",
-    "سعر", "اسعار", "price", "معلومات عن", "information",
-    "رمضان", "عيد", "موعد", "وقت", "فين", "where",
-    "كم", "how much", "ازاي", "how"
-  ]
-  
-  return searchKeywords.some(keyword => query.toLowerCase().includes(keyword))
-}
-
-// Search using Pollinations Perplexity API
-async function searchWithPerplexity(query: string): Promise<string> {
-  const startTime = Date.now()
-  
-  try {
-    const response = await fetch("https://text.pollinations.ai/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: "user",
-            content: query
-          }
-        ],
-        model: "perplexity",
-        jsonMode: false,
-        seed: Math.floor(Math.random() * 1000000)
-      }),
-      signal: AbortSignal.timeout(2500) // 2.5 second timeout
-    })
-
-    if (!response.ok) {
-      throw new Error(`Perplexity API error: ${response.status}`)
-    }
-
-    const searchResults = await response.text()
-    const searchTime = Date.now() - startTime
-    
-    console.log(`[v0] Perplexity search completed in ${searchTime}ms`)
-    
-    return searchResults.substring(0, 800) // Limit to 800 chars for speed
-  } catch (error: any) {
-    console.log(`[v0] Perplexity search failed: ${error.message}`)
-    return ""
-  }
-}
 
 الإيموجي:
 - استخدم 1-3 إيموجي في كل رد حسب السياق
@@ -103,8 +44,6 @@ async function searchWithPerplexity(query: string): Promise<string> {
 - اكتب بنص عادي بدون نجوم أو علامات markdown`
 
 export async function POST(request: NextRequest) {
-  const requestStartTime = Date.now()
-  
   try {
     const body = await request.json()
     const { prompt, message, conversationHistory = [], imageUrl } = body
@@ -114,21 +53,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid prompt" }, { status: 400 })
     }
 
-    console.log(`[v0] Query: ${userPrompt.substring(0, 50)}...`)
-
-    // Step 1: Check if we need web search
-    const shouldSearch = needsWebSearch(userPrompt)
-    console.log(`[v0] Web search needed: ${shouldSearch}`)
-
-    let searchContext = ""
+    // Determine if we need web search based on the query
+    const needsWebSearch = 
+      /متى|إمتى|امتى|when|تاريخ|تواريخ|حدث|أخبار|news|الآن|الان|now|اليوم|today|حالياً|حاليا|currently|recent|حديث|مقارنة|compare|سعر|اسعار|price|معلومات عن|information about|رمضان|عيد|موعد|وقت|فين|where|كم|how much|ازاي|how/.test(userPrompt.toLowerCase())
     
-    // Step 2: If needed, search with Perplexity (max 2.5s)
-    if (shouldSearch) {
-      searchContext = await searchWithPerplexity(userPrompt)
-      if (searchContext) {
-        console.log(`[v0] Search results: ${searchContext.substring(0, 100)}...`)
-      }
-    }
+    console.log(`[API] Search detection: ${needsWebSearch ? 'YES - Using Perplexity' : 'NO - Using Gemini'}`)
 
     // Analyze image with Gemini vision if available
     let imageAnalysisContext = ""
