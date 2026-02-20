@@ -82,31 +82,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build messages array
+    // Build messages array with proper alternation
     const messages: any[] = []
 
-    // Add conversation history (last 6 messages)
+    // Add conversation history (last 4 messages for better context)
     if (conversationHistory && conversationHistory.length > 0) {
-      const history = conversationHistory.slice(-6)
-      let lastRole: string | null = null
+      const history = conversationHistory.slice(-4)
       
-      for (const msg of history) {
-        if ((msg.role === "user" || msg.role === "assistant") && msg.role !== lastRole) {
-          messages.push({
-            role: msg.role,
-            content: typeof msg.content === "string" ? msg.content.substring(0, 500) : "",
-          })
-          lastRole = msg.role
+      for (let i = 0; i < history.length; i++) {
+        const msg = history[i]
+        const prevMsg = messages.length > 0 ? messages[messages.length - 1] : null
+        
+        // Only add if it's different from previous role
+        if (msg.role === "user" || msg.role === "assistant") {
+          if (!prevMsg || prevMsg.role !== msg.role) {
+            messages.push({
+              role: msg.role,
+              content: typeof msg.content === "string" ? msg.content.substring(0, 400) : "",
+            })
+          }
         }
       }
     }
 
-    // Ensure no consecutive messages from same role
-    if (messages.length > 0 && messages[messages.length - 1].role === "user") {
+    // Ensure last message is from assistant (so we can add user message)
+    // If last message is user, remove it
+    while (messages.length > 0 && messages[messages.length - 1].role === "user") {
       messages.pop()
     }
 
-    // Add current message
+    // Add current user message
     const currentContent = imageAnalysisContext 
       ? `تحليل الصورة: ${imageAnalysisContext.substring(0, 300)}... السؤال: ${userPrompt}`
       : userPrompt
@@ -116,19 +121,27 @@ export async function POST(request: NextRequest) {
       content: currentContent,
     })
 
+    console.log(`[API] Messages structure: ${messages.map(m => m.role).join(' -> ')}`)
+
     // Choose model based on search needs
     const modelToUse = needsWebSearch ? "perplexity/sonar" : "google/gemini-3-flash"
 
     console.log(`[API] Using model: ${modelToUse} for query: ${userPrompt.substring(0, 50)}`)
 
-    // Generate response
-    const result = await generateText({
-      model: modelToUse,
-      system: EGYPTIAN_SYSTEM_PROMPT,
-      messages,
-      maxTokens: 600,
-      temperature: 0.7,
-    })
+    // Generate response with error handling
+    let result
+    try {
+      result = await generateText({
+        model: modelToUse,
+        system: EGYPTIAN_SYSTEM_PROMPT,
+        messages,
+        maxTokens: 600,
+        temperature: 0.7,
+      })
+    } catch (genError: any) {
+      console.error("[API] Generation error:", genError.message)
+      throw new Error(`فشل توليد الرد: ${genError.message}`)
+    }
 
     // Clean markdown formatting and special characters
     const cleanedText = result.text
@@ -148,10 +161,16 @@ export async function POST(request: NextRequest) {
       emotionScore: 0,
     })
   } catch (error: any) {
-    console.error("[API] Error:", error.message)
+    console.error("[API] Error:", error.message || error)
+    
+    // Return a proper error response
     return NextResponse.json(
-      { error: "معلش حصل مشكلة، جرب تاني 😅" },
+      { 
+        error: error.message || "حصل خطأ، جرب تاني",
+        response: null // Don't send response if there's an error
+      },
       { status: 500 }
     )
   }
+}
 }
