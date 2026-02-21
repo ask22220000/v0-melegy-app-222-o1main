@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
-import * as fal from "@fal-ai/serverless-client"
 
 const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري ودود جداً بشخصية حقيقية ومرحة! طورتك Vision AI Studio المصرية.
 
@@ -17,27 +16,6 @@ const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري
 - ضيف إيموجي مناسب حسب الموضوع والمشاعر
 - اكتب ردك بنص عادي بدون نجوم أو علامات ترقيم خاصة
 
-الإيموجي:
-- استخدم 1-3 إيموجي في كل رد حسب السياق
-- لما حد يسأل سؤال استخدم 🤔 أو ❓
-- لما تشرح استخدم 📖 أو ✨  
-- لما حاجة إيجابية استخدم 😊 أو 👍
-- لما معلومة مهمة استخدم 💡 أو ⚡
-- لما حاجة ممتعة استخدم 🎉 أو 😄
-- لما تقدم نصيحة استخدم 💭 أو 🎯
-- لما تقول مرحباً استخدم 👋 أو 😊
-
-معلومات عنك:
-- لو سألك انت مين؟ قول: أنا ميليجي، مساعدك الذكي المصري اللي هيساعدك في أي حاجة تحتاجها
-- لو سألك مين طورك؟ قول: طورتني Vision AI Studio المصرية - شركة مصرية متخصصة في الذكاء الاصطناعي
-- لو سأل عن التواصل قول: تقدر تتواصل معاهم على www.aistudio-vision.com أو contact@aistudio-vision.com
-- لو سأل عن توليد الصور قول: بستخدم نموذج Little Pear من Vision AI Studio - جودة عالية وسريع
-
-معلوماتك:
-- عندك قدرة البحث على الإنترنت في الوقت الفعلي
-- معلوماتك محدثة لحظياً من مصادر موثوقة على الويب
-- لو حد سألك عن تاريخ محدد أو حدث حالي، ابحث وجاوب بدقة
-
 مهم جداً: 
 - رد على السؤال اللي اتسأل بس - متزودش معلومات زيادة
 - متنساش الإيموجي - هي جزء من شخصيتك المرحة
@@ -46,56 +24,34 @@ const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { prompt, message, conversationHistory = [], imageUrl } = body
+    const { prompt, message, conversationHistory = [] } = body
     const userPrompt = prompt || message
 
     if (!userPrompt || typeof userPrompt !== "string") {
       return NextResponse.json({ error: "Invalid prompt" }, { status: 400 })
     }
 
-    // Determine if we need web search based on the query
-    const needsWebSearch = 
-      /متى|إمتى|امتى|when|تاريخ|تواريخ|حدث|أخبار|news|الآن|الان|now|اليوم|today|حالياً|حاليا|currently|recent|حديث|مقارنة|compare|سعر|اسعار|price|معلومات عن|information about|رمضان|عيد|موعد|وقت|فين|where|كم|how much|ازاي|how/.test(userPrompt.toLowerCase())
+    // Determine if we need Perplexity for real-time search
+    const needsPerplexity = 
+      /متى|إمتى|امتى|when|تاريخ|تواريخ|حدث|أخبار|news|الآن|الان|now|اليوم|today|حالياً|حاليا|currently|recent|حديث|مقارنة|compare|سعر|اسعار|price|معلومات عن|information|رمضان|عيد|موعد|وقت|فين|where|كم|how much|ازاي|how/.test(userPrompt.toLowerCase())
     
-    console.log(`[API] Search detection: ${needsWebSearch ? 'YES - Using Perplexity' : 'NO - Using Gemini'}`)
+    // Use Perplexity for search, Gemini for normal chat
+    const modelToUse = needsPerplexity ? "perplexity/sonar" : "google/gemini-3-flash"
+    
+    console.log(`[API] Using ${modelToUse} for: ${userPrompt.substring(0, 50)}`)
 
-    // Analyze image with Gemini vision if available
-    let imageAnalysisContext = ""
-    if (imageUrl) {
-      try {
-        const visionResult = await generateText({
-          model: "google/gemini-3-flash",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: userPrompt || "اوصف الصورة دي بالتفصيل" },
-                { type: "image", image: imageUrl }
-              ]
-            }
-          ],
-          maxTokens: 300,
-        })
-        imageAnalysisContext = visionResult.text
-      } catch (e: any) {
-        console.error("[API] Image analysis error:", e.message)
-      }
-    }
-
-    // Build messages array with STRICT alternation
+    // Build messages array with proper alternation
     const messages: any[] = []
 
-    // Add conversation history with proper alternation check
+    // Add conversation history
     if (conversationHistory && conversationHistory.length > 0) {
       const history = conversationHistory.slice(-4)
       
       for (const msg of history) {
-        // Skip if not user or assistant
         if (msg.role !== "user" && msg.role !== "assistant") continue
         
         const lastMsg = messages[messages.length - 1]
         
-        // Only add if different from last role OR if messages is empty
         if (!lastMsg || lastMsg.role !== msg.role) {
           messages.push({
             role: msg.role,
@@ -105,66 +61,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // CRITICAL: Ensure the last message is from assistant before adding user message
-    // If last is user, we need to remove it to maintain alternation
+    // Ensure last message is assistant (to maintain alternation)
     if (messages.length > 0 && messages[messages.length - 1].role === "user") {
       messages.pop()
     }
 
     // Add current user message
-    const currentContent = imageAnalysisContext 
-      ? `تحليل الصورة: ${imageAnalysisContext.substring(0, 300)}... السؤال: ${userPrompt}`
-      : userPrompt
-
     messages.push({
       role: "user",
-      content: currentContent,
+      content: userPrompt,
     })
 
-    // Log the final structure for debugging
-    const structure = messages.map(m => m.role).join(' -> ')
-    console.log(`[API] Messages: ${structure}`)
-    
-    // Validate alternation
-    for (let i = 1; i < messages.length; i++) {
-      if (messages[i].role === messages[i-1].role) {
-        console.error(`[API] ERROR: Non-alternating messages at index ${i}: ${messages[i-1].role} -> ${messages[i].role}`)
-        // Fix by removing duplicate
-        messages.splice(i, 1)
-        i--
-      }
-    }
+    console.log(`[API] Messages: ${messages.map(m => m.role).join(' -> ')}`)
 
-    // Choose model based on search needs
-    const modelToUse = needsWebSearch ? "perplexity/sonar" : "google/gemini-3-flash"
+    // Generate response
+    const result = await generateText({
+      model: modelToUse,
+      system: EGYPTIAN_SYSTEM_PROMPT,
+      messages,
+      maxTokens: 600,
+      temperature: 0.7,
+    })
 
-    console.log(`[API] Using model: ${modelToUse} for query: ${userPrompt.substring(0, 50)}`)
-
-    // Generate response with error handling
-    let result
-    try {
-      result = await generateText({
-        model: modelToUse,
-        system: EGYPTIAN_SYSTEM_PROMPT,
-        messages,
-        maxTokens: 600,
-        temperature: 0.7,
-      })
-    } catch (genError: any) {
-      console.error("[API] Generation error:", genError.message)
-      throw new Error(`فشل توليد الرد: ${genError.message}`)
-    }
-
-    // Clean markdown formatting and special characters
+    // Clean markdown formatting
     const cleanedText = result.text
-      .replace(/\*\*/g, "")           // Remove bold markers
-      .replace(/\*/g, "")             // Remove asterisks
-      .replace(/\_\_/g, "")           // Remove underline markers
-      .replace(/\_/g, "")             // Remove underscores
-      .replace(/\[\d+\]/g, "")        // Remove citation numbers
-      .replace(/\[(\d+)\]\(.*?\)/g, "") // Remove markdown links
-      .replace(/\#\#\#?/g, "")        // Remove headers
-      .replace(/\n\s*\n\s*\n/g, "\n\n") // Clean extra line breaks
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/\_\_/g, "")
+      .replace(/\_/g, "")
+      .replace(/\[\d+\]/g, "")
+      .replace(/\[(\d+)\]\(.*?\)/g, "")
+      .replace(/\#\#\#?/g, "")
+      .replace(/\n\s*\n\s*\n/g, "\n\n")
       .trim()
 
     return NextResponse.json({
@@ -175,11 +103,10 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("[API] Error:", error.message || error)
     
-    // Return a proper error response
     return NextResponse.json(
       { 
         error: error.message || "حصل خطأ، جرب تاني",
-        response: null // Don't send response if there's an error
+        response: null
       },
       { status: 500 }
     )
