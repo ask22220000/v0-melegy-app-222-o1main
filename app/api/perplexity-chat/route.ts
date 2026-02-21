@@ -82,32 +82,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build messages array with proper alternation
+    // Build messages array with STRICT alternation
     const messages: any[] = []
 
-    // Add conversation history (last 4 messages for better context)
+    // Add conversation history with proper alternation check
     if (conversationHistory && conversationHistory.length > 0) {
       const history = conversationHistory.slice(-4)
       
-      for (let i = 0; i < history.length; i++) {
-        const msg = history[i]
-        const prevMsg = messages.length > 0 ? messages[messages.length - 1] : null
+      for (const msg of history) {
+        // Skip if not user or assistant
+        if (msg.role !== "user" && msg.role !== "assistant") continue
         
-        // Only add if it's different from previous role
-        if (msg.role === "user" || msg.role === "assistant") {
-          if (!prevMsg || prevMsg.role !== msg.role) {
-            messages.push({
-              role: msg.role,
-              content: typeof msg.content === "string" ? msg.content.substring(0, 400) : "",
-            })
-          }
+        const lastMsg = messages[messages.length - 1]
+        
+        // Only add if different from last role OR if messages is empty
+        if (!lastMsg || lastMsg.role !== msg.role) {
+          messages.push({
+            role: msg.role,
+            content: typeof msg.content === "string" ? msg.content.substring(0, 400) : "",
+          })
         }
       }
     }
 
-    // Ensure last message is from assistant (so we can add user message)
-    // If last message is user, remove it
-    while (messages.length > 0 && messages[messages.length - 1].role === "user") {
+    // CRITICAL: Ensure the last message is from assistant before adding user message
+    // If last is user, we need to remove it to maintain alternation
+    if (messages.length > 0 && messages[messages.length - 1].role === "user") {
       messages.pop()
     }
 
@@ -121,7 +121,19 @@ export async function POST(request: NextRequest) {
       content: currentContent,
     })
 
-    console.log(`[API] Messages structure: ${messages.map(m => m.role).join(' -> ')}`)
+    // Log the final structure for debugging
+    const structure = messages.map(m => m.role).join(' -> ')
+    console.log(`[API] Messages: ${structure}`)
+    
+    // Validate alternation
+    for (let i = 1; i < messages.length; i++) {
+      if (messages[i].role === messages[i-1].role) {
+        console.error(`[API] ERROR: Non-alternating messages at index ${i}: ${messages[i-1].role} -> ${messages[i].role}`)
+        // Fix by removing duplicate
+        messages.splice(i, 1)
+        i--
+      }
+    }
 
     // Choose model based on search needs
     const modelToUse = needsWebSearch ? "perplexity/sonar" : "google/gemini-3-flash"
