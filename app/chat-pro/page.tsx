@@ -637,7 +637,7 @@ export default function ChatProPage() {
         content: msg.content,
       }))
 
-      const response = await fetch("/api/perplexity-chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1090,7 +1090,7 @@ export default function ChatProPage() {
             <Card className="max-w-[80%] p-6 bg-gray-800 border-gray-700">
               <div className="flex flex-col items-center gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-                <p className="text-sm text-gray-400">جاري تحليل الصورة...</p>
+                <p className="text-sm text-gray-400">جاري ��حليل الصورة...</p>
               </div>
             </Card>
           </div>

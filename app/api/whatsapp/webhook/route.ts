@@ -156,8 +156,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ status: "success" }, { status: 200 })
         }
 
-        // Generate text response using perplexity-chat API
-        const chatResponse = await fetch(`${request.nextUrl.origin}/api/perplexity-chat`, {
+        // Generate text response using chat API
+        const chatResponse = await fetch(`${request.nextUrl.origin}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

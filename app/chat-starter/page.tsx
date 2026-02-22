@@ -593,7 +593,7 @@ export default function ChatStarterPage() {
         content: msg.content,
       }))
 
-      const response = await fetch("/api/perplexity-chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

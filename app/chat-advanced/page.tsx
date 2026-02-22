@@ -485,7 +485,7 @@ export default function ChatAdvancedPage() {
           content: msg.content,
         }))
 
-        const textResponse = await fetch("/api/perplexity-chat", {
+        const textResponse = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

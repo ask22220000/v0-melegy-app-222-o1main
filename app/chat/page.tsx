@@ -618,7 +618,7 @@ export default function ChatPage() {
         content: msg.content,
       }))
 
-      const response = await fetch("/api/perplexity-chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -927,7 +927,7 @@ export default function ChatPage() {
             </Button>
           </div>
           {chatHistories.length === 0 ? (
-            <p className="p-4 text-gray-500 text-center">لا توجد محادثات سابقة</p>
+            <p className="p-4 text-gray-500 text-center">لا توجد مح��دثات سابقة</p>
           ) : (
             chatHistories.map((chat) => (
               <div
