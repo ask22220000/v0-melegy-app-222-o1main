@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-function getDb() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  )
-}
+import { getServiceRoleClient } from "@/lib/supabase/server"
 
 function generateMlgId(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -21,7 +13,7 @@ function generateMlgId(): string {
 // POST /api/user — create new anonymous user with random ID
 export async function POST() {
   try {
-    const db = getDb()
+    const db = getServiceRoleClient()
 
     // Generate unique random ID
     let mlgUserId = generateMlgId()
@@ -56,7 +48,7 @@ export async function GET(request: NextRequest) {
     const mlgUserId = searchParams.get("id")
     if (!mlgUserId) return NextResponse.json({ error: "Missing id" }, { status: 400 })
 
-    const db = getDb()
+    const db = getServiceRoleClient()
 
     const { data: user, error } = await db
       .from("melegy_users")

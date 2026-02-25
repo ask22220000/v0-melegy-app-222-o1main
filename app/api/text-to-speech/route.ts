@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API
-    const VOICE_ID = "VxSsN5NGusWQZXue7VE9"
+    const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "VxSsN5NGusWQZXue7VE9"
 
     if (!ELEVENLABS_API_KEY) {
       return new Response(
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_multilingual_v2",
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75,
@@ -43,8 +43,6 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const errorData = await response.text()
-      console.error("[v0] ElevenLabs TTS error status:", response.status)
-      console.error("[v0] ElevenLabs TTS error body:", errorData)
       return new Response(
         JSON.stringify({
           error: `ElevenLabs error ${response.status}: ${errorData}`,
