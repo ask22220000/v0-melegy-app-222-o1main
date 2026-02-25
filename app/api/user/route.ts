@@ -9,22 +9,31 @@ function getDb() {
   )
 }
 
-function buildMlgId(seq: number): string {
-  return `mlg-${11121110 + seq}`
+function generateMlgId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+  let id = "mlg-"
+  for (let i = 0; i < 12; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return id
 }
 
-// POST /api/user — create new anonymous user with sequential ID
+// POST /api/user — create new anonymous user with random ID
 export async function POST() {
   try {
     const db = getDb()
 
-    const { count, error: countErr } = await db
-      .from("melegy_users")
-      .select("*", { count: "exact", head: true })
-
-    if (countErr) return NextResponse.json({ error: countErr.message }, { status: 500 })
-
-    const mlgUserId = buildMlgId((count ?? 0) + 1)
+    // Generate unique random ID
+    let mlgUserId = generateMlgId()
+    for (let i = 0; i < 5; i++) {
+      const { data: existing } = await db
+        .from("melegy_users")
+        .select("mlg_user_id")
+        .eq("mlg_user_id", mlgUserId)
+        .maybeSingle()
+      if (!existing) break
+      mlgUserId = generateMlgId()
+    }
 
     const { data, error } = await db
       .from("melegy_users")

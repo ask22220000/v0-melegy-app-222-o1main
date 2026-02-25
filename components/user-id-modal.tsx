@@ -177,7 +177,7 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
             <Input
               value={inputId}
               onChange={(e) => { setInputId(e.target.value); setError("") }}
-              placeholder="mlg-00011121111"
+              placeholder="mlg-xxxxxxxxxxxx"
               className="bg-gray-900 border-gray-700 text-white text-center font-mono text-base py-6 rounded-xl"
               dir="ltr"
               onKeyDown={(e) => e.key === "Enter" && handleEnterExisting()}
