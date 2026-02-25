@@ -306,10 +306,6 @@ export const RichTextInput = React.forwardRef<
             <Paperclip className="w-4 h-4" />
             إرفق ملف
           </Button>
-
-          <div className="text-xs text-muted-foreground self-center">
-            أو اسحب ملف / اضغط Ctrl+V
-          </div>
         </div>
       </div>
     )
