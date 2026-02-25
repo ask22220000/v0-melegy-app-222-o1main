@@ -1,63 +1,71 @@
-import { createClient } from "@supabase/supabase-js"
+import pg from "pg"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
+const client = new pg.Client({
+  connectionString: process.env.POSTGRES_URL_NON_POOLING,
+})
 
 async function run() {
-  console.log("Checking melegy_users table...")
+  await client.connect()
+  console.log("[v0] Connected to Supabase PostgreSQL")
 
-  const { error } = await supabase.from("melegy_users").select("mlg_user_id").limit(1)
+  // Create melegy_users
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS melegy_users (
+      mlg_user_id   TEXT PRIMARY KEY,
+      plan          TEXT NOT NULL DEFAULT 'free',
+      messages_used INTEGER NOT NULL DEFAULT 0,
+      created_at    TIMESTAMPTZ DEFAULT NOW(),
+      last_seen_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+  console.log("[v0] melegy_users table ready")
 
-  if (error && error.code === "42P01") {
-    console.log("  [INFO] melegy_users table does not exist. Please run this SQL in Supabase SQL Editor:")
-    console.log(`
-CREATE TABLE IF NOT EXISTS melegy_users (
-  mlg_user_id TEXT PRIMARY KEY,
-  plan TEXT NOT NULL DEFAULT 'free',
-  messages_used INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  last_seen_at TIMESTAMPTZ DEFAULT NOW()
-);
+  // Create conversations
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id    TEXT NOT NULL REFERENCES melegy_users(mlg_user_id) ON DELETE CASCADE,
+      title      TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+  console.log("[v0] conversations table ready")
 
--- Seed plan limits if not already done
-INSERT INTO plan_limits (plan, daily_messages, label) VALUES
-  ('free',    10,    'مجاني'),
-  ('startup', 100,   'ستارتر'),
-  ('pro',     500,   'برو'),
-  ('vip',     99999, 'VIP')
-ON CONFLICT (plan) DO NOTHING;
-    `)
-  } else if (error) {
-    console.log("  [WARN] Error:", error.message)
-  } else {
-    console.log("  [OK] melegy_users table exists and accessible")
-  }
+  // Create chat_messages
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      role            TEXT NOT NULL CHECK (role IN ('user','assistant')),
+      content         TEXT NOT NULL,
+      created_at      TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+  console.log("[v0] chat_messages table ready")
 
-  // Check plan_limits
-  const { data: plans, error: planErr } = await supabase.from("plan_limits").select("*")
-  if (planErr) {
-    console.log("  [WARN] plan_limits:", planErr.message)
-  } else {
-    console.log("  [OK] plan_limits:", plans)
-  }
+  // Create plan_limits
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS plan_limits (
+      plan           TEXT PRIMARY KEY,
+      daily_messages INTEGER NOT NULL,
+      label          TEXT
+    );
+    INSERT INTO plan_limits (plan, daily_messages, label) VALUES
+      ('free',    10,    'مجاني'),
+      ('startup', 100,   'ستارتر'),
+      ('pro',     500,   'برو'),
+      ('vip',     99999, 'VIP')
+    ON CONFLICT (plan) DO NOTHING;
+  `)
+  console.log("[v0] plan_limits table ready")
 
-  // Check conversations
-  const { error: convErr } = await supabase.from("conversations").select("id").limit(1)
-  if (convErr) {
-    console.log("  [WARN] conversations:", convErr.message)
-  } else {
-    console.log("  [OK] conversations table accessible")
-  }
-
-  // Check chat_messages
-  const { error: msgErr } = await supabase.from("chat_messages").select("id").limit(1)
-  if (msgErr) {
-    console.log("  [WARN] chat_messages:", msgErr.message)
-  } else {
-    console.log("  [OK] chat_messages table accessible")
-  }
+  await client.end()
+  console.log("[v0] Migration complete")
 }
 
-run().catch(console.error)
+run().catch((err) => {
+  console.error("[v0] Migration failed:", err.message)
+  process.exit(1)
+})
