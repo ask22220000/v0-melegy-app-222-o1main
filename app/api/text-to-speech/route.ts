@@ -10,8 +10,7 @@ export async function POST(request: Request) {
     }
 
     const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API
-    // Adam - a reliable default ElevenLabs voice
-    const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB"
+    const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "VxSsN5NGusWQZXue7VE9"
 
     if (!ELEVENLABS_API_KEY) {
       return new Response(
