@@ -700,26 +700,23 @@ export default function ChatPage() {
   }
 
   const speakText = async (text: string, messageId: string) => {
+    // Stop if already playing this message
     if (playingAudio === messageId) {
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel()
-      }
       if (currentAudioRef.current) {
         currentAudioRef.current.pause()
+        currentAudioRef.current.src = ""
         currentAudioRef.current = null
       }
       setPlayingAudio(null)
       return
     }
 
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel()
-    }
+    // Stop any currently playing audio
     if (currentAudioRef.current) {
       currentAudioRef.current.pause()
+      currentAudioRef.current.src = ""
       currentAudioRef.current = null
     }
-
     setPlayingAudio(messageId)
 
     try {
@@ -729,34 +726,40 @@ export default function ChatPage() {
         body: JSON.stringify({ text }),
       })
 
-      const contentType = response.headers.get("content-type")
+      const contentType = response.headers.get("content-type") || ""
 
-      if (contentType?.includes("audio")) {
-        const audioBlob = await response.blob()
-        const audioUrl = URL.createObjectURL(audioBlob)
-        const audio = new Audio(audioUrl)
-        currentAudioRef.current = audio
-
-        audio.onended = () => {
-          setPlayingAudio(null)
-          URL.revokeObjectURL(audioUrl)
-          currentAudioRef.current = null
-        }
-
-        audio.onerror = () => {
-          setPlayingAudio(null)
-          URL.revokeObjectURL(audioUrl)
-          currentAudioRef.current = null
-          fallbackToWebSpeech(text, messageId)
-        }
-
-        await audio.play()
-      } else {
-        fallbackToWebSpeech(text, messageId)
+      if (!contentType.includes("audio")) {
+        // API returned an error JSON
+        const json = await response.json().catch(() => ({}))
+        throw new Error(json.error || "ElevenLabs did not return audio")
       }
-    } catch (error) {
-      console.error("[v0] TTS error:", error)
-      fallbackToWebSpeech(text, messageId)
+
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio()
+      audio.src = audioUrl
+      currentAudioRef.current = audio
+
+      audio.onended = () => {
+        setPlayingAudio(null)
+        URL.revokeObjectURL(audioUrl)
+        currentAudioRef.current = null
+      }
+
+      audio.onerror = (e) => {
+        console.error("[v0] Audio playback error:", e)
+        setPlayingAudio(null)
+        URL.revokeObjectURL(audioUrl)
+        currentAudioRef.current = null
+      }
+
+      await audio.play()
+    } catch (error: any) {
+      console.error("[v0] TTS speakText error:", error?.message)
+      setPlayingAudio(null)
+      if (currentAudioRef.current) {
+        currentAudioRef.current = null
+      }
     }
   }
 
