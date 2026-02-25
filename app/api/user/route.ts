@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import postgres from "postgres"
 
 function getDb() {
-  return postgres(process.env.POSTGRES_URL_NON_POOLING!, {
+  // Use non-pooling URL for direct queries in serverless
+  const connString = process.env.POSTGRES_URL_NON_POOLING
+    || process.env.POSTGRES_URL
+  return postgres(connString!, {
     ssl: "require",
     max: 1,
     idle_timeout: 20,
     connect_timeout: 10,
+    prepare: false,
   })
 }
 
@@ -18,9 +22,12 @@ function buildMlgId(seq: number): string {
 export async function POST() {
   const sql = getDb()
   try {
+    console.log("[v0] POSTGRES_URL_NON_POOLING exists:", !!process.env.POSTGRES_URL_NON_POOLING)
+    console.log("[v0] Connecting to DB...")
     const [{ count }] = await sql`
       SELECT COUNT(*)::int AS count FROM melegy_users
     `
+    console.log("[v0] melegy_users count:", count)
     const mlgUserId = buildMlgId((count as number) + 1)
 
     const [user] = await sql`
