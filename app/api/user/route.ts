@@ -1,55 +1,57 @@
 import { NextRequest, NextResponse } from "next/server"
-import { Pool } from "pg"
+import { createClient } from "@supabase/supabase-js"
 
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL_NON_POOLING,
-  ssl: { rejectUnauthorized: false },
-  max: 1,
-})
-
-function generateMlgId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-  let result = "mlg_"
-  for (let i = 0; i < 12; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return result
+// Use service role client to bypass RLS and schema cache issues
+function getDb() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: "public" }, auth: { persistSession: false } }
+  )
 }
 
-// POST /api/user — create new anonymous user
+// Generate sequential mlg ID: mlg-00011121111, mlg-00011121112, ...
+function buildMlgId(seq: number): string {
+  const base = 11121110
+  const num = base + seq
+  return `mlg-${num}`
+}
+
+// POST /api/user — create new anonymous user with sequential ID
 export async function POST() {
-  const client = await pool.connect()
   try {
-    let mlgUserId = generateMlgId()
+    const db = getDb()
 
-    // Ensure unique ID
-    for (let i = 0; i < 5; i++) {
-      const { rows } = await client.query(
-        "SELECT mlg_user_id FROM melegy_users WHERE mlg_user_id = $1",
-        [mlgUserId]
-      )
-      if (rows.length === 0) break
-      mlgUserId = generateMlgId()
-    }
+    // Get current count to determine next sequential number
+    const { count, error: countErr } = await db
+      .from("melegy_users")
+      .select("*", { count: "exact", head: true })
 
-    const { rows } = await client.query(
-      `INSERT INTO melegy_users (mlg_user_id, plan, messages_used, created_at, last_seen_at)
-       VALUES ($1, 'free', 0, NOW(), NOW())
-       RETURNING mlg_user_id, plan, messages_used, created_at`,
-      [mlgUserId]
-    )
+    if (countErr) throw new Error(countErr.message)
 
-    return NextResponse.json({ user: rows[0] })
+    const nextSeq = (count ?? 0) + 1
+    const mlgUserId = buildMlgId(nextSeq)
+
+    const { data, error } = await db
+      .from("melegy_users")
+      .insert({
+        mlg_user_id: mlgUserId,
+        plan: "free",
+        messages_used: 0,
+      })
+      .select("mlg_user_id, plan, messages_used, created_at")
+      .single()
+
+    if (error) throw new Error(error.message)
+
+    return NextResponse.json({ user: data })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
-  } finally {
-    client.release()
   }
 }
 
-// GET /api/user?id=mlg_xxx — fetch user by mlg_user_id
+// GET /api/user?id=mlg-xxx — fetch user by mlg_user_id
 export async function GET(request: NextRequest) {
-  const client = await pool.connect()
   try {
     const { searchParams } = new URL(request.url)
     const mlgUserId = searchParams.get("id")
@@ -58,40 +60,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 })
     }
 
-    const { rows } = await client.query(
-      `SELECT mlg_user_id, plan, messages_used, created_at, last_seen_at
-       FROM melegy_users WHERE mlg_user_id = $1`,
-      [mlgUserId]
-    )
+    const db = getDb()
 
-    if (rows.length === 0) {
+    const { data: user, error } = await db
+      .from("melegy_users")
+      .select("mlg_user_id, plan, messages_used, created_at, last_seen_at")
+      .eq("mlg_user_id", mlgUserId)
+      .maybeSingle()
+
+    if (error) throw new Error(error.message)
+
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const user = rows[0]
-
     // Get plan limits
-    const { rows: limits } = await client.query(
-      "SELECT daily_messages, label FROM plan_limits WHERE plan = $1",
-      [user.plan]
-    )
+    const { data: limits } = await db
+      .from("plan_limits")
+      .select("daily_messages, label")
+      .eq("plan", user.plan)
+      .maybeSingle()
 
     // Update last_seen_at
-    await client.query(
-      "UPDATE melegy_users SET last_seen_at = NOW() WHERE mlg_user_id = $1",
-      [mlgUserId]
-    )
+    await db
+      .from("melegy_users")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("mlg_user_id", mlgUserId)
 
     return NextResponse.json({
       user: {
         ...user,
-        plan_label: limits[0]?.label || user.plan,
-        daily_limit: limits[0]?.daily_messages || 10,
+        plan_label: limits?.label || user.plan,
+        daily_limit: limits?.daily_messages || 10,
       },
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
-  } finally {
-    client.release()
   }
 }
