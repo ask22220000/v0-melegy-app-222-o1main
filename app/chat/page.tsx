@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { DesignViewer } from "@/components/design-viewer"
+import { RichTextInput } from "@/components/rich-text-input"
 import Link from "next/link"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
@@ -58,6 +59,13 @@ interface ChatHistory {
   messages: Message[]
 }
 
+interface AttachedFile {
+  id: string
+  file: File
+  preview?: string
+  type: "image" | "document" | "audio"
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -70,6 +78,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null)
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const [playingAudio, setPlayingAudio] = useState<string | null>(null)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [countdown, setCountdown] = useState(10)
@@ -106,6 +115,14 @@ export default function ChatPage() {
       setInput(func.prompt)
       setShowFunctionsMenu(false)
     }
+  }
+
+  const handleFilesAttached = async (files: AttachedFile[]) => {
+    setAttachedFiles(files)
+  }
+
+  const handleRemoveFile = (fileId: string) => {
+    setAttachedFiles((prev) => prev.filter((f) => f.id !== fileId))
   }
 
   const recognitionRef = useRef<any>(null)
@@ -1092,69 +1109,68 @@ export default function ChatPage() {
       )}
 
       <form onSubmit={handleSubmit} className="fixed bottom-0 left-0 right-0 p-4 border-t border-border bg-background z-40" style={{ backgroundColor: 'hsl(var(--background))' }}>
-        <div className="flex gap-2 items-center relative">
-          <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 shrink-0">
-            <Send className="h-5 w-5" />
-          </Button>
-          <Textarea
+        <div className="max-w-4xl mx-auto">
+          <RichTextInput
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-              if (e.key === "Enter" && !e.shiftKey && !isMobile) {
-                e.preventDefault()
-                handleSubmit(e as any)
-              }
-            }}
+            onChange={setInput}
+            onFilesAttached={handleFilesAttached}
+            attachedFiles={attachedFiles}
+            onRemoveFile={handleRemoveFile}
+            isLoading={isLoading}
             placeholder="اكتب رسالتك هنا..."
-            className="flex-1 bg-card border-border text-right text-xs font-bold resize-none min-h-[44px] max-h-[200px] overflow-y-auto pr-3"
-            style={{ fontFamily: "Cairo, sans-serif", fontSize: "12px", fontWeight: "bold" }}
-            dir="rtl"
-            rows={1}
+            maxHeight="120px"
           />
-          <div className="relative shrink-0">
+          <div className="flex gap-2 items-center mt-3 justify-between">
+            <div className="flex gap-2">
+              <Button type="submit" disabled={isLoading || (!input.trim() && attachedFiles.length === 0)} className="bg-blue-600 hover:bg-blue-700">
+                <Send className="h-5 w-5 ml-2" />
+                إرسال
+              </Button>
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowFunctionsMenu(!showFunctionsMenu)}
+                  className="text-gray-400 hover:text-white border border-gray-600 rounded-lg"
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+                {showFunctionsMenu && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-auto min-w-[160px] bg-background border border-border rounded-xl shadow-xl z-[90] overflow-hidden max-h-[300px] overflow-y-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
+                    <div className="p-1 sm:p-2">
+                      {functionsList.map((func) => (
+                        <button
+                          key={func.id}
+                          type="button"
+                          onClick={() => handleFunctionSelect(func)}
+                          className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 hover:bg-accent rounded-lg transition-colors text-right"
+                        >
+                          <func.icon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 shrink-0" />
+                          <span className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Cairo, sans-serif" }}>{func.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setShowFunctionsMenu(!showFunctionsMenu)}
-              className="text-gray-400 hover:text-white border border-gray-600 rounded-lg"
+              onClick={toggleListening}
+              className={`shrink-0 ${isListening ? "text-red-500" : "text-gray-400"}`}
             >
-              <Plus className="h-5 w-5" />
+              {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </Button>
-            {showFunctionsMenu && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-auto min-w-[160px] bg-background border border-border rounded-xl shadow-xl z-[90] overflow-hidden max-h-[300px] overflow-y-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
-                <div className="p-1 sm:p-2">
-                  {functionsList.map((func) => (
-                    <button
-                      key={func.id}
-                      type="button"
-                      onClick={() => handleFunctionSelect(func)}
-                      className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 hover:bg-accent rounded-lg transition-colors text-right"
-                    >
-                      <func.icon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 shrink-0" />
-                      <span className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Cairo, sans-serif" }}>{func.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={toggleListening}
-            className={`shrink-0 ${isListening ? "text-red-500" : "text-gray-400"}`}
-          >
-            {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </Button>
-          <input 
-            ref={fileInputRef} 
-            type="file" 
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,audio/*" 
-            onChange={handleFileUpload} 
-            className="hidden" 
-          />
         </div>
+        <input 
+          ref={fileInputRef} 
+          type="file" 
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,audio/*" 
+          onChange={handleFileUpload} 
+          className="hidden" 
+        />
       </form>
 
       {showUpgradeModal && (
