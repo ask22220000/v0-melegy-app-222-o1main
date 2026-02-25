@@ -10,7 +10,8 @@ export async function POST(request: Request) {
     }
 
     const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API
-    const VOICE_ID = "VxSsN5NGusWQZXue7VE9"
+    // Adam - a reliable default ElevenLabs voice
+    const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB"
 
     if (!ELEVENLABS_API_KEY) {
       return new Response(
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_multilingual_v2",
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75,
