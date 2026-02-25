@@ -254,10 +254,10 @@ export const RichTextInput = React.forwardRef<
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative border-2 rounded-lg transition-all ${
+          className={`relative rounded-lg transition-all ${
             isDragging
-              ? "border-primary bg-primary/10 scale-105"
-              : "border-input hover:border-primary/50"
+              ? "border-2 border-primary bg-primary/10"
+              : "border border-transparent hover:border-primary/30"
           }`}
         >
           <textarea
