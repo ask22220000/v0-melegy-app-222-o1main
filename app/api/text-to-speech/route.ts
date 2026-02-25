@@ -9,7 +9,7 @@ export async function POST(request: Request) {
       })
     }
 
-    const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API || "sk_7f840ba03a03ae693676ec219acaa0f8f3c63c7909afbf1b"
+    const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API
     const VOICE_ID = "VxSsN5NGusWQZXue7VE9"
 
     if (!ELEVENLABS_API_KEY) {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_multilingual_v2",
+        model_id: "eleven_flash_v2_5",
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75,

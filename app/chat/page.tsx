@@ -618,12 +618,25 @@ export default function ChatPage() {
         content: msg.content,
       }))
 
+      const now = new Date()
+      const clientDateTime = now.toLocaleString("ar-EG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZoneName: "short",
+      })
+
       const response = await fetch("/api/perplexity-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: currentInput,
           conversationHistory,
+          clientDateTime,
         }),
       })
 

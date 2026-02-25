@@ -1,6 +1,7 @@
 import { generateText } from "ai"
 import { EGYPTIAN_DIALECT_INSTRUCTIONS } from "./egyptianDialect"
 import { SearchService } from "./searchService"
+import { detectSearchQuery } from "./webSearch"
 
 interface Message {
   role: "user" | "assistant" | "system"
