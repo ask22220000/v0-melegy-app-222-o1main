@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 const WHATSAPP_ACCESS_TOKEN = process.env.META_BUSINESS_API_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "melegy_verify_token"
-const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || "1411043180529628"
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
+const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 
 /**
  * WhatsApp Webhook verification (for Meta Business setup)

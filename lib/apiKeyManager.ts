@@ -1,14 +1,7 @@
-const API_KEYS = [
-  "AIzaSyDf8EVGmZKHt_bhfkKwbfkELwqMEhGSUF4",
-  "AIzaSyDzwm0SIFNrR0qhq1yM1wxNbV5mTFonums",
-  "AIzaSyAOYi5jSvJGKTTqNnSIUyoMDxUcFZH7EZQ",
-  "AIzaSyCQLDltoOHQA-f_Es4Njn765jit_ECmXlo",
-  "AIzaSyAk3L0Lx6F3vfmThjP6xuIg5GVq6CQ3his",
-  "AIzaSyDOyVzJ6dmLCJqjqmCKx2Usz4kttLsiGyY",
-  "AIzaSyAp9qjJK8edecvy0DyN2HTmhmWBE0y5T0Y",
-  "AIzaSyBsKgus7WAR6aVwFh5Nwwf4xSyjdYtDmYk",
-  "AIzaSyDxOvvJp58VahTzWXSKrT99KHYrYNSA8rc",
-]
+const API_KEYS: string[] = (process.env.GEMINI_API_KEYS || "")
+  .split(",")
+  .map((k) => k.trim())
+  .filter(Boolean)
 
 const ROTATION_INTERVAL = 8 * 60 * 60 * 1000 // 8 hours
 

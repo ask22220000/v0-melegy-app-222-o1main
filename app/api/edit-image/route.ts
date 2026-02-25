@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as fal from "@fal-ai/serverless-client"
 
-// Perplexity API key for translation
-const PERPLEXITY_API_KEY = "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"
+const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY
 
 async function translateWithPerplexity(arabicPrompt: string): Promise<string> {
   try {
