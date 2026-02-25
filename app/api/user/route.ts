@@ -1,57 +1,44 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import postgres from "postgres"
 
-// Use service role client to bypass RLS and schema cache issues
 function getDb() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { db: { schema: "public" }, auth: { persistSession: false } }
-  )
+  return postgres(process.env.POSTGRES_URL_NON_POOLING!, {
+    ssl: "require",
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  })
 }
 
-// Generate sequential mlg ID: mlg-00011121111, mlg-00011121112, ...
 function buildMlgId(seq: number): string {
-  const base = 11121110
-  const num = base + seq
-  return `mlg-${num}`
+  return `mlg-${11121110 + seq}`
 }
 
 // POST /api/user — create new anonymous user with sequential ID
 export async function POST() {
+  const sql = getDb()
   try {
-    const db = getDb()
+    const [{ count }] = await sql`
+      SELECT COUNT(*)::int AS count FROM melegy_users
+    `
+    const mlgUserId = buildMlgId((count as number) + 1)
 
-    // Get current count to determine next sequential number
-    const { count, error: countErr } = await db
-      .from("melegy_users")
-      .select("*", { count: "exact", head: true })
-
-    if (countErr) throw new Error(countErr.message)
-
-    const nextSeq = (count ?? 0) + 1
-    const mlgUserId = buildMlgId(nextSeq)
-
-    const { data, error } = await db
-      .from("melegy_users")
-      .insert({
-        mlg_user_id: mlgUserId,
-        plan: "free",
-        messages_used: 0,
-      })
-      .select("mlg_user_id, plan, messages_used, created_at")
-      .single()
-
-    if (error) throw new Error(error.message)
-
-    return NextResponse.json({ user: data })
+    const [user] = await sql`
+      INSERT INTO melegy_users (mlg_user_id, plan, messages_used, created_at, last_seen_at)
+      VALUES (${mlgUserId}, 'free', 0, NOW(), NOW())
+      RETURNING mlg_user_id, plan, messages_used, created_at
+    `
+    return NextResponse.json({ user })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
+  } finally {
+    await sql.end()
   }
 }
 
 // GET /api/user?id=mlg-xxx — fetch user by mlg_user_id
 export async function GET(request: NextRequest) {
+  const sql = getDb()
   try {
     const { searchParams } = new URL(request.url)
     const mlgUserId = searchParams.get("id")
@@ -60,32 +47,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 })
     }
 
-    const db = getDb()
-
-    const { data: user, error } = await db
-      .from("melegy_users")
-      .select("mlg_user_id, plan, messages_used, created_at, last_seen_at")
-      .eq("mlg_user_id", mlgUserId)
-      .maybeSingle()
-
-    if (error) throw new Error(error.message)
+    const [user] = await sql`
+      SELECT mlg_user_id, plan, messages_used, created_at, last_seen_at
+      FROM melegy_users WHERE mlg_user_id = ${mlgUserId}
+    `
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Get plan limits
-    const { data: limits } = await db
-      .from("plan_limits")
-      .select("daily_messages, label")
-      .eq("plan", user.plan)
-      .maybeSingle()
+    const [limits] = await sql`
+      SELECT daily_messages, label FROM plan_limits WHERE plan = ${user.plan}
+    `
 
-    // Update last_seen_at
-    await db
-      .from("melegy_users")
-      .update({ last_seen_at: new Date().toISOString() })
-      .eq("mlg_user_id", mlgUserId)
+    await sql`
+      UPDATE melegy_users SET last_seen_at = NOW() WHERE mlg_user_id = ${mlgUserId}
+    `
 
     return NextResponse.json({
       user: {
@@ -96,5 +73,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
+  } finally {
+    await sql.end()
   }
 }
