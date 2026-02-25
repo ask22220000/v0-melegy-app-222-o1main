@@ -730,6 +730,12 @@ export default function ChatPage() {
       })
 
       const contentType = response.headers.get("content-type")
+      console.log("[v0] TTS response status:", response.status, "content-type:", contentType)
+
+      if (!contentType?.includes("audio")) {
+        const json = await response.clone().json().catch(() => ({}))
+        console.log("[v0] TTS non-audio response:", json)
+      }
 
       if (contentType?.includes("audio")) {
         const audioBlob = await response.blob()

@@ -43,10 +43,11 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const errorData = await response.text()
-      console.error("[v0] ElevenLabs TTS error:", errorData)
+      console.error("[v0] ElevenLabs TTS error status:", response.status)
+      console.error("[v0] ElevenLabs TTS error body:", errorData)
       return new Response(
         JSON.stringify({
-          error: "ElevenLabs quota exceeded or API error",
+          error: `ElevenLabs error ${response.status}: ${errorData}`,
           fallback: true,
         }),
         {
