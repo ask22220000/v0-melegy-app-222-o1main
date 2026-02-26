@@ -21,7 +21,7 @@ const translations = {
     // Hero
     heroTitle: "Melegy",
     heroSubtitle: "مساعدك الذكي المتطور",
-    heroVersion: "(v2.2)",
+    heroVersion: "(v2.3)",
     heroDescription: "مساعد ذكاء اصطناعي متطور يوفر لك إجابات دقيقة، بحث متقدم، وتوليد محتوى إبداعي",
     startChat: "ابدأ المحادثة 🧠",
     // Features
@@ -59,7 +59,7 @@ const translations = {
     // Hero
     heroTitle: "Melegy",
     heroSubtitle: "Your Advanced Smart Assistant",
-    heroVersion: "(v2.2)",
+    heroVersion: "(v2.3)",
     heroDescription:
       "An advanced AI assistant providing accurate answers, advanced search, and creative content generation",
     startChat: "Start Chat 🧠",
