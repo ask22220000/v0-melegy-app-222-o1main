@@ -36,10 +36,11 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
 
   return (
     <>
-      {/* Fixed button row — always top-left, completely immune to dir="rtl" */}
+      {/* Fixed button row — uses inline style for physical left so RTL cannot flip it */}
       <div
         dir="ltr"
-        className="fixed top-3 left-3 sm:top-4 sm:left-4 md:top-6 md:left-6 z-50 flex items-center gap-2"
+        className="fixed z-50 flex items-center gap-2"
+        style={{ top: "16px", left: "16px" }}
       >
         {/* Theme toggle */}
         <Button
