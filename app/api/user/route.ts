@@ -27,6 +27,11 @@ function generateMlgId(): string {
 // POST /api/user — create new anonymous user with random ID
 export async function POST() {
   try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    console.log("[v0] SUPABASE_URL:", url ? url.substring(0, 30) : "MISSING")
+    console.log("[v0] SERVICE_ROLE_KEY:", key ? key.substring(0, 20) + "..." : "MISSING")
+
     let mlgUserId = generateMlgId()
 
     // Check uniqueness
@@ -53,9 +58,11 @@ export async function POST() {
       }),
     })
 
+    console.log("[v0] INSERT status:", res.status)
     if (!res.ok) {
       const err = await res.json()
-      return NextResponse.json({ error: err.message || "Insert failed" }, { status: 500 })
+      console.log("[v0] INSERT error:", JSON.stringify(err))
+      return NextResponse.json({ error: err.message || err.details || JSON.stringify(err) }, { status: 500 })
     }
 
     const rows = await res.json()
