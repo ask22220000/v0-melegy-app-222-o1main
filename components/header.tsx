@@ -35,58 +35,60 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6">
-      <div className="container mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Theme toggle */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleTheme}
-            className="bg-card backdrop-blur-md border-border/50 flex items-center gap-2 text-foreground hover:text-foreground"
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
+    <>
+      {/* Fixed button row — always top-left, completely immune to dir="rtl" */}
+      <div
+        dir="ltr"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 md:top-6 md:left-6 z-50 flex items-center gap-2"
+      >
+        {/* Theme toggle */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleTheme}
+          className="bg-card backdrop-blur-md border-border/50 flex items-center gap-2 text-foreground hover:text-foreground"
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
 
-          {/* Language toggle — always visible on every page */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleLanguage}
-            className="bg-card backdrop-blur-md border-2 border-cyan-500/70 text-cyan-400 hover:text-cyan-300 hover:border-cyan-400 flex items-center gap-1.5 font-bold min-w-[52px]"
-            aria-label={language === "ar" ? "Switch to English" : "Switch to Arabic"}
-          >
-            <Languages className="h-4 w-4 shrink-0" />
-            <span className="text-xs">{translations.languageToggle}</span>
-          </Button>
+        {/* Language toggle */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleLanguage}
+          className="bg-card backdrop-blur-md border-2 border-cyan-500/70 text-cyan-400 hover:text-cyan-300 hover:border-cyan-400 flex items-center gap-1.5 font-bold min-w-[52px]"
+          aria-label={language === "ar" ? "Switch to English" : "Switch to Arabic"}
+        >
+          <Languages className="h-4 w-4 shrink-0" />
+          <span className="text-xs">{translations.languageToggle}</span>
+        </Button>
 
-          {showHomeButton && (
-            <Link href="/">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/20 backdrop-blur-md border-border/50 flex items-center gap-2 text-white hover:text-white"
-              >
-                <Home className="h-4 w-4" />
-                <span className="hidden sm:inline">{translations.home}</span>
-              </Button>
-            </Link>
-          )}
-
-          {showChatHistory && (
+        {showHomeButton && (
+          <Link href="/">
             <Button
               variant="outline"
               size="sm"
-              onClick={onChatHistoryClick}
               className="bg-background/20 backdrop-blur-md border-border/50 flex items-center gap-2 text-white hover:text-white"
             >
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">{translations.history}</span>
+              <Home className="h-4 w-4" />
+              <span className="hidden sm:inline">{translations.home}</span>
             </Button>
-          )}
-        </div>
+          </Link>
+        )}
+
+        {showChatHistory && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onChatHistoryClick}
+            className="bg-background/20 backdrop-blur-md border-border/50 flex items-center gap-2 text-white hover:text-white"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">{translations.history}</span>
+          </Button>
+        )}
       </div>
-    </header>
+    </>
   )
 }
