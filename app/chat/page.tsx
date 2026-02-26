@@ -736,8 +736,13 @@ export default function ChatPage() {
 
       const audioBlob = await response.blob()
       const audioUrl = URL.createObjectURL(audioBlob)
-      const audio = new Audio()
-      audio.src = audioUrl
+
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause()
+        currentAudioRef.current = null
+      }
+
+      const audio = new Audio(audioUrl)
       currentAudioRef.current = audio
 
       audio.onended = () => {
@@ -746,20 +751,24 @@ export default function ChatPage() {
         currentAudioRef.current = null
       }
 
-      audio.onerror = (e) => {
-        console.error("[v0] Audio playback error:", e)
+      audio.onerror = () => {
         setPlayingAudio(null)
         URL.revokeObjectURL(audioUrl)
         currentAudioRef.current = null
       }
 
-      await audio.play()
-    } catch (error: any) {
-      console.error("[v0] TTS speakText error:", error?.message)
-      setPlayingAudio(null)
-      if (currentAudioRef.current) {
+      try {
+        await audio.play()
+      } catch (playErr: any) {
+        console.error("[v0] play() error:", playErr?.message)
+        setPlayingAudio(null)
+        URL.revokeObjectURL(audioUrl)
         currentAudioRef.current = null
       }
+    } catch (error: any) {
+      console.error("[v0] TTS fetch error:", error?.message)
+      setPlayingAudio(null)
+      currentAudioRef.current = null
     }
   }
 
