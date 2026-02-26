@@ -19,13 +19,13 @@ export default function proxy(request: NextRequest) {
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://checkouts.kashier.io https://www.paypal.com https://www.paypalobjects.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://vercel.live https://*.vercel.live https://checkouts.kashier.io https://www.paypal.com https://www.paypalobjects.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https: http:",
     "media-src 'self' data: blob: https:",
-    "connect-src 'self' https://api.perplexity.ai https://api.groq.com https://api.elevenlabs.io https://checkouts.kashier.io https://image.pollinations.ai https://va.vercel-scripts.com wss: https:",
-    "frame-src 'self' https://www.paypal.com https://checkouts.kashier.io",
+    "connect-src 'self' https://api.perplexity.ai https://api.groq.com https://api.elevenlabs.io https://*.supabase.co wss://*.supabase.co https://checkouts.kashier.io https://image.pollinations.ai https://va.vercel-scripts.com https://vercel.live wss: https:",
+    "frame-src 'self' https://www.paypal.com https://checkouts.kashier.io https://vercel.live https://*.vercel.live",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
     "form-action 'self' https://checkouts.kashier.io",
