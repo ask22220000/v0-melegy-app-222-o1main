@@ -44,19 +44,16 @@ const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { prompt, message, conversationHistory = [], imageUrl, clientDateTime } = body
+    const { prompt, message, conversationHistory = [], imageUrl } = body
     const userPrompt = prompt || message
 
     if (!userPrompt || typeof userPrompt !== "string") {
       return NextResponse.json({ error: "Invalid prompt" }, { status: 400 })
     }
 
-    // Questions about current time/date are answered from clientDateTime - no web search needed
-    const isDateTimeQuestion = /النهاردة|اليوم|الوقت|الساعة|كام في الشهر|today|what time|what date|كم الساعة/.test(userPrompt.toLowerCase())
-
     // Determine if we need web search based on the query
-    const needsWebSearch = !isDateTimeQuestion &&
-      /متى|إمتى|when|حدث|أخبار|news|الآن|now|حالياً|currently|recent|مقارنة|compare|سعر|price|معلومات عن|information about/.test(userPrompt.toLowerCase())
+    const needsWebSearch = 
+      /متى|إمتى|when|تاريخ|حدث|أخبار|news|الآن|now|اليوم|today|حالياً|currently|recent|مقارنة|compare|سعر|price|معلومات عن|information about/.test(userPrompt.toLowerCase())
 
     // Analyze image with Gemini vision if available
     let imageAnalysisContext = ""
@@ -115,13 +112,6 @@ export async function POST(request: NextRequest) {
       content: currentContent,
     })
 
-    // Inject real datetime from client device
-    const dateTimeContext = clientDateTime
-      ? `\n\n**التاريخ والوقت الحالي من جهاز المستخدم:** ${clientDateTime}\nاستخدم هذا التاريخ والوقت دايماً لما حد يسأل عن التاريخ أو الوقت.`
-      : ""
-
-    const systemWithDateTime = EGYPTIAN_SYSTEM_PROMPT + dateTimeContext
-
     // Choose model based on search needs
     const modelToUse = needsWebSearch ? "perplexity/sonar" : "google/gemini-3-flash"
 
@@ -130,7 +120,7 @@ export async function POST(request: NextRequest) {
     // Generate response
     const result = await generateText({
       model: modelToUse,
-      system: systemWithDateTime,
+      system: EGYPTIAN_SYSTEM_PROMPT,
       messages,
       maxTokens: 600,
       temperature: 0.7,
