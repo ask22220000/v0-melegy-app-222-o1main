@@ -48,20 +48,18 @@ export async function POST(request: NextRequest) {
     const enhancedPrompt = await processPromptForImageEditing(prompt)
 
     // Step 3: Edit image via fal-ai/flux-2/turbo/edit
-    // strength < 0.5 = more preservation of original identity/scene
+    // Required: prompt + image_urls (array). No strength/num_inference_steps in this model.
     let result: any
     try {
       result = await fal.subscribe("fal-ai/flux-2/turbo/edit", {
         input: {
           prompt: enhancedPrompt,
-          image_url: finalImageUrls[0], // primary image (person / product)
-          // Pass additional reference images if provided
-          ...(finalImageUrls.length > 1 ? { image_urls: finalImageUrls } : {}),
-          strength: 0.35, // 65% original preserved — keeps facial/product features intact
-          guidance_scale: 3.0,
-          num_inference_steps: 4,
-          image_size: { width: 1080, height: 1350 }, // 4:5 portrait
+          image_urls: finalImageUrls, // must be an array — image_url (singular) is not supported
+          image_size: "portrait_4_3",
+          guidance_scale: 2.5,
+          num_images: 1,
           enable_safety_checker: false,
+          output_format: "jpeg",
         },
       })
     } catch (falError: any) {
@@ -85,9 +83,9 @@ export async function POST(request: NextRequest) {
       throw new Error(`فشل تعديل الصورة: ${errorMsg}`)
     }
 
-    // fal-ai/flux-2/turbo/edit may return images at result.images or result.data.images
+    // fal JS client wraps response in result.data — images are at result.data.images
     const editedImageUrl: string | undefined =
-      result?.images?.[0]?.url ?? result?.data?.images?.[0]?.url
+      result?.data?.images?.[0]?.url ?? result?.images?.[0]?.url
 
     if (!editedImageUrl) {
       throw new Error("FAL API did not return an edited image")
