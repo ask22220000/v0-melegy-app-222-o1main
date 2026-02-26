@@ -36,11 +36,15 @@ export async function POST(request: NextRequest) {
 
     const extractedText = textContent || extractTextFromPrompt(imagePrompt)
 
+    console.log("[v0] generate-design received imagePrompt:", imagePrompt)
+
     // Step 1: Use Gemini 3 Flash as Prompt Engineer to enhance the user's description
     const enhancedPrompt = await processPromptForImageGeneration(imagePrompt)
 
     // Step 2: Build final FAL prompt — no text overlays, high quality
     const falPrompt = `${enhancedPrompt}, professional photography, vibrant colors, highly detailed, no text overlay, no watermarks, 8k quality`
+
+    console.log("[v0] Final FAL prompt:", falPrompt)
 
     // Step 3: Generate image via fal-ai/flux/schnell
     let result: any

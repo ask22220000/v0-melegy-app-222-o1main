@@ -29,6 +29,7 @@ export async function translateToEnglish(text: string): Promise<string> {
 export async function processPromptForImageGeneration(userPrompt: string): Promise<string> {
   try {
     const hasArabic = /[\u0600-\u06FF]/.test(userPrompt)
+    console.log("[v0] processPromptForImageGeneration - input:", userPrompt, "| hasArabic:", hasArabic)
 
     const systemPrompt = hasArabic
       ? "You are a professional translator and AI image prompt engineer specializing in photorealistic generation. Translate the Arabic text to English, then enhance it with rich visual details: lighting, composition, color palette, mood, camera angle, and photographic style. IMPORTANT: Do NOT include any text overlays or typography instructions. Return ONLY the final enhanced English prompt in under 120 words."
@@ -42,9 +43,10 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
       temperature: 0.7,
     })
 
+    console.log("[v0] Gemini enhanced prompt:", result.text.trim())
     return result.text.trim() || userPrompt
   } catch (error) {
-    console.error("[generate] Prompt processing error:", error)
+    console.error("[v0] Gemini processPromptForImageGeneration ERROR:", error)
     // Fallback: return original prompt so FAL still runs
     return userPrompt
   }
