@@ -54,8 +54,10 @@ export async function POST() {
     })
 
     if (!res.ok) {
-      const err = await res.json()
-      return NextResponse.json({ error: err.message || err.details || JSON.stringify(err) }, { status: 500 })
+      const errText = await res.text()
+      let errMsg = errText
+      try { errMsg = JSON.parse(errText)?.message || JSON.parse(errText)?.details || errText } catch {}
+      return NextResponse.json({ error: errMsg, status: res.status, url: supabaseUrl("melegy_users").replace(/key=.+/, "key=HIDDEN") }, { status: 500 })
     }
 
     const rows = await res.json()
