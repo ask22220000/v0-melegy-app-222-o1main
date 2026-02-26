@@ -24,7 +24,7 @@ export default function proxy(request: NextRequest) {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https: http:",
     "media-src 'self' data: blob: https:",
-    "connect-src 'self' https://api.perplexity.ai https://api.groq.com https://checkouts.kashier.io https://image.pollinations.ai https://va.vercel-scripts.com wss: https:",
+    "connect-src 'self' https://api.perplexity.ai https://api.groq.com https://api.elevenlabs.io https://checkouts.kashier.io https://image.pollinations.ai https://va.vercel-scripts.com wss: https:",
     "frame-src 'self' https://www.paypal.com https://checkouts.kashier.io",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
