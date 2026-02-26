@@ -8,10 +8,10 @@ import Link from "next/link"
 import { useApp } from "@/lib/contexts/AppContext"
 
 export default function HomePage() {
-  const { translations } = useApp()
+  const { translations, language } = useApp()
 
   return (
-    <div className="min-h-screen bg-background homepage-dark-bg">
+    <div className="min-h-screen bg-background homepage-dark-bg" dir={language === "ar" ? "rtl" : "ltr"}>
       <Header />
       <Hero />
       <Features />

@@ -179,8 +179,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (savedLang) setLanguageState(savedLang)
       if (savedTheme) setThemeState(savedTheme)
-    } catch (error) {
-      console.error("[v0] Error loading from localStorage:", error)
+    } catch {
+      // silently ignore localStorage errors
     }
   }, [])
 
@@ -200,22 +200,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setLanguage = (lang: Language) => {
     setLanguageState(lang)
     if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("language", lang)
-      } catch (error) {
-        console.error("[v0] Error saving language:", error)
-      }
+      try { localStorage.setItem("language", lang) } catch { /* ignore */ }
     }
   }
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme)
     if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("theme", newTheme)
-      } catch (error) {
-        console.error("[v0] Error saving theme:", error)
-      }
+      try { localStorage.setItem("theme", newTheme) } catch { /* ignore */ }
     }
   }
 
