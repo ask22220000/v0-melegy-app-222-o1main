@@ -24,7 +24,9 @@ export default function proxy(request: NextRequest) {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https: http:",
     "media-src 'self' data: blob: https:",
-    "connect-src 'self' https://api.perplexity.ai https://api.groq.com https://api.elevenlabs.io https://*.supabase.co wss://*.supabase.co https://checkouts.kashier.io https://image.pollinations.ai https://va.vercel-scripts.com https://vercel.live wss: https:",
+    // Only allow browser connections to our own API routes and required 3rd-party SDKs.
+    // All secret API calls (Groq, FAL, ElevenLabs, Perplexity) are server-side only.
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://va.vercel-scripts.com https://vercel.live wss:",
     "frame-src 'self' https://www.paypal.com https://checkouts.kashier.io https://vercel.live https://*.vercel.live",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",

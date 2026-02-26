@@ -36,8 +36,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Image URL is required" }, { status: 400 })
     }
 
+    if (!process.env.FAL_KEY) {
+      return NextResponse.json({ error: "FAL_KEY is not configured" }, { status: 500 })
+    }
     fal.config({
-      credentials: process.env.FAL_KEY || "7656ce49-ce2f-4c7e-bd70-9a5a9fbd851c:142d3a3ef185a83b14b2a49ae10736e6",
+      credentials: process.env.FAL_KEY,
     })
 
     let finalPrompt = prompt || "Animate this image naturally with smooth motion"
