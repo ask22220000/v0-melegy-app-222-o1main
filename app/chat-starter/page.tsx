@@ -12,6 +12,7 @@ import Link from "next/link"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
 import { UsageIndicator } from "@/components/usage-indicator"
+import { UserIdModal } from "@/components/user-id-modal"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
 import {
   Send,
@@ -91,6 +92,8 @@ export default function ChatStarterPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
+  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
+  const [showUserModal, setShowUserModal] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // قائمة الوظائف المتاحة
@@ -126,14 +129,22 @@ export default function ChatStarterPage() {
   const MAX_WORDS = 30000
   const MAX_IMAGES = 10
 
+  // Initialize user from localStorage
+  useEffect(() => {
+    const storedId = localStorage.getItem("mlg_user_id")
+    if (storedId) {
+      setMlgUserId(storedId)
+    } else {
+      setShowUserModal(true)
+    }
+  }, [])
+
   // Set plan and check subscription access on mount
   useEffect(() => {
-  // Set active subscription to startup plan
-  setActiveSubscription('startup')
-  
-  const checkAccess = async () => {
-  const accessResult = await checkSubscriptionAccess('startup')
-  if (!accessResult.hasAccess) {
+    setActiveSubscription('startup')
+    const checkAccess = async () => {
+      const accessResult = await checkSubscriptionAccess('startup')
+      if (!accessResult.hasAccess) {
         toast({
           title: "انتهت صلاحية الاشتراك",
           description: accessResult.message,
@@ -1161,6 +1172,14 @@ export default function ChatStarterPage() {
         </div>
       )}
       <Toaster />
+      {showUserModal && (
+        <UserIdModal
+          onUserReady={(userId, plan, isNew) => {
+            setMlgUserId(userId)
+            setShowUserModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

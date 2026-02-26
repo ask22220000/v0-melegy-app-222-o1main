@@ -13,7 +13,7 @@ export async function checkSubscriptionAccess(planType: 'startup' | 'pro' | 'vip
   daysRemaining?: number
 }> {
   try {
-    const userId = localStorage.getItem('userId')
+    const userId = localStorage.getItem('mlg_user_id')
     if (!userId) {
       return {
         hasAccess: false,
