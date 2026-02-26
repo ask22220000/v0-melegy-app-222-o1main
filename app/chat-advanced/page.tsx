@@ -10,7 +10,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
-import { UserIdModal } from "@/components/user-id-modal"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
 import {
   Send,
@@ -99,8 +98,6 @@ export default function ChatAdvancedPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
-  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
 
   // قائمة الوظائف المتاحة
   const functionsList = [
@@ -128,18 +125,9 @@ export default function ChatAdvancedPage() {
     }
   }
 
-  // Initialize user from localStorage
-  useEffect(() => {
-    const storedId = localStorage.getItem("mlg_user_id")
-    if (storedId) {
-      setMlgUserId(storedId)
-    } else {
-      setShowUserModal(true)
-    }
-  }, [])
-
   // Set plan and check subscription access on mount
   useEffect(() => {
+    // Set active subscription to vip plan
     setActiveSubscription('vip')
     
     const checkAccess = async () => {
@@ -1380,14 +1368,6 @@ export default function ChatAdvancedPage() {
         </div>
         <Toaster />
       </div>
-      {showUserModal && (
-        <UserIdModal
-          onUserReady={(userId, plan, isNew) => {
-            setMlgUserId(userId)
-            setShowUserModal(false)
-          }}
-        />
-      )}
     </div>
   )
 }
