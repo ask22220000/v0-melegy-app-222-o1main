@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import pg from "pg"
+import { createClient } from "@supabase/supabase-js"
 
-const { Client } = pg
-
-async function getClient() {
-  const connString = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL
-  const client = new Client({
-    connectionString: connString,
-    ssl: { rejectUnauthorized: false },
-  })
-  await client.connect()
-  return client
+// Fresh client per request — no singleton, no schema cache issues
+function db() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      db: { schema: "public" },
+    }
+  )
 }
 
 function generateMlgId(): string {
@@ -22,81 +22,90 @@ function generateMlgId(): string {
   return id
 }
 
-// POST /api/user — create new anonymous user with random ID
+// POST /api/user — create new anonymous user
 export async function POST() {
-  let client
   try {
-    client = await getClient()
-
+    const supabase = db()
     let mlgUserId = generateMlgId()
 
-    // Ensure uniqueness
+    // Ensure unique ID
     for (let i = 0; i < 5; i++) {
-      const { rows } = await client.query(
-        "SELECT 1 FROM melegy_users WHERE mlg_user_id = $1",
-        [mlgUserId]
-      )
-      if (rows.length === 0) break
+      const { data } = await supabase
+        .from("melegy_users")
+        .select("mlg_user_id")
+        .eq("mlg_user_id", mlgUserId)
+        .maybeSingle()
+      if (!data) break
       mlgUserId = generateMlgId()
     }
 
-    const { rows } = await client.query(
-      `INSERT INTO melegy_users (mlg_user_id, plan, messages_used, created_at, last_seen_at)
-       VALUES ($1, 'free', 0, NOW(), NOW())
-       RETURNING mlg_user_id, plan, messages_used, created_at`,
-      [mlgUserId]
-    )
+    const { data, error } = await supabase
+      .from("melegy_users")
+      .insert({
+        mlg_user_id: mlgUserId,
+        plan: "free",
+        messages_used: 0,
+        created_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+      })
+      .select("mlg_user_id, plan, messages_used, created_at")
+      .single()
 
-    return NextResponse.json({ user: rows[0] })
+    if (error) {
+      console.error("[user/POST] Supabase error:", error.code, error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ user: data })
   } catch (err: any) {
+    console.error("[user/POST] unexpected error:", err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
-  } finally {
-    if (client) await client.end().catch(() => {})
   }
 }
 
 // GET /api/user?id=mlg-xxx
 export async function GET(request: NextRequest) {
-  let client
   try {
     const { searchParams } = new URL(request.url)
     const mlgUserId = searchParams.get("id")
     if (!mlgUserId) return NextResponse.json({ error: "Missing id" }, { status: 400 })
 
-    client = await getClient()
+    const supabase = db()
 
-    const { rows } = await client.query(
-      `SELECT mlg_user_id, plan, messages_used, created_at, last_seen_at
-       FROM melegy_users WHERE mlg_user_id = $1`,
-      [mlgUserId]
-    )
+    const { data: user, error } = await supabase
+      .from("melegy_users")
+      .select("mlg_user_id, plan, messages_used, created_at, last_seen_at")
+      .eq("mlg_user_id", mlgUserId)
+      .maybeSingle()
 
-    if (rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    if (error) {
+      console.error("[user/GET] Supabase error:", error.code, error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const user = rows[0]
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
-    const { rows: limits } = await client.query(
-      "SELECT daily_messages, label FROM plan_limits WHERE plan = $1",
-      [user.plan]
-    )
+    const { data: limits } = await supabase
+      .from("plan_limits")
+      .select("daily_messages, label")
+      .eq("plan", user.plan)
+      .maybeSingle()
 
-    await client.query(
-      "UPDATE melegy_users SET last_seen_at = NOW() WHERE mlg_user_id = $1",
-      [mlgUserId]
-    )
+    // Update last_seen_at async — don't await
+    supabase
+      .from("melegy_users")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("mlg_user_id", mlgUserId)
 
     return NextResponse.json({
       user: {
         ...user,
-        plan_label: limits[0]?.label || user.plan,
-        daily_limit: limits[0]?.daily_messages || 10,
+        plan_label: limits?.label || user.plan,
+        daily_limit: limits?.daily_messages || 10,
       },
     })
   } catch (err: any) {
+    console.error("[user/GET] unexpected error:", err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
-  } finally {
-    if (client) await client.end().catch(() => {})
   }
 }
