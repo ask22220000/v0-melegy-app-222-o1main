@@ -13,8 +13,7 @@ type HeaderProps = {
 }
 
 export function Header({ showChatHistory = false, onChatHistoryClick, showHomeButton = false }: HeaderProps) {
-  const { translations, language, setLanguage } = useApp()
-  // Default to "dark" — synced from localStorage after mount so no flash
+  const { translations, language, setLanguage, mounted } = useApp()
   const [theme, setTheme] = useState<"light" | "dark">("dark")
 
   useEffect(() => {
@@ -34,13 +33,24 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
     setLanguage(language === "ar" ? "en" : "ar")
   }
 
+  // Render a stable skeleton on server / before hydration to avoid mismatch
+  if (!mounted) {
+    return (
+      <>
+        <div className="fixed z-50" style={{ top: "12px", left: "12px" }}>
+          <div className="h-8 w-[52px] rounded-md bg-card border border-border/50" />
+        </div>
+        <div className="fixed z-50" style={{ top: "12px", right: "12px" }}>
+          <div className="h-8 w-8 rounded-md bg-card border border-border/50" />
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       {/* Language toggle — physically pinned to top-LEFT, immune to dir="rtl" */}
-      <div
-        className="fixed z-50"
-        style={{ top: "12px", left: "12px" }}
-      >
+      <div className="fixed z-50" style={{ top: "12px", left: "12px" }}>
         <Button
           variant="outline"
           size="sm"
