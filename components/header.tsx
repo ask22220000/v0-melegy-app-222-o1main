@@ -48,9 +48,11 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
           size="sm"
           onClick={toggleTheme}
           className="bg-card backdrop-blur-md border-border/50 flex items-center gap-2 text-foreground hover:text-foreground"
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          suppressHydrationWarning
         >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <span suppressHydrationWarning>
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </span>
         </Button>
 
         {/* Language toggle */}
@@ -59,10 +61,10 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
           size="sm"
           onClick={toggleLanguage}
           className="bg-card backdrop-blur-md border-2 border-cyan-500/70 text-cyan-400 hover:text-cyan-300 hover:border-cyan-400 flex items-center gap-1.5 font-bold min-w-[52px]"
-          aria-label={language === "ar" ? "Switch to English" : "Switch to Arabic"}
+          suppressHydrationWarning
         >
           <Languages className="h-4 w-4 shrink-0" />
-          <span className="text-xs">{translations.languageToggle}</span>
+          <span className="text-xs" suppressHydrationWarning>{translations.languageToggle}</span>
         </Button>
 
         {showHomeButton && (
