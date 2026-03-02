@@ -42,17 +42,16 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
         className="fixed z-50 flex items-center gap-2"
         style={{ top: "16px", left: "16px" }}
       >
-        {/* Theme toggle */}
+        {/* Theme toggle — both icons always rendered, CSS controls visibility to avoid hydration mismatch */}
         <Button
           variant="outline"
           size="sm"
           onClick={toggleTheme}
           className="bg-card backdrop-blur-md border-border/50 flex items-center gap-2 text-foreground hover:text-foreground"
-          suppressHydrationWarning
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
-          <span suppressHydrationWarning>
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </span>
+          <Sun className={`h-4 w-4 ${theme === "dark" ? "block" : "hidden"}`} />
+          <Moon className={`h-4 w-4 ${theme === "dark" ? "hidden" : "block"}`} />
         </Button>
 
         {/* Language toggle */}
@@ -61,6 +60,7 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
           size="sm"
           onClick={toggleLanguage}
           className="bg-card backdrop-blur-md border-2 border-cyan-500/70 text-cyan-400 hover:text-cyan-300 hover:border-cyan-400 flex items-center gap-1.5 font-bold min-w-[52px]"
+          aria-label={language === "ar" ? "Switch to English" : "Switch to Arabic"}
           suppressHydrationWarning
         >
           <Languages className="h-4 w-4 shrink-0" />
