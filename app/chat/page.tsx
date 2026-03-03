@@ -74,7 +74,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
-  const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null)
+  const [attachedImages, setAttachedImages] = useState<{ url: string; name: string }[]>([])
   const [playingAudio, setPlayingAudio] = useState<string | null>(null)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [countdown, setCountdown] = useState(10)
@@ -306,10 +306,18 @@ export default function ChatPage() {
       return
     }
 
-    // For images, compress and show preview
+    // For images, compress and show preview (max 3 images)
     if (file.type.startsWith("image/")) {
+      if (attachedImages.length >= 3) {
+        toast({
+          title: "الحد الأقصى 3 صور",
+          description: "يمكنك إرفاق حتى 3 صور فقط للدمج",
+          variant: "destructive",
+        })
+        return
+      }
+      
       try {
-        // Import compression utility dynamically
         const { compressImage } = await import("@/lib/imageCompression")
         
         toast({
@@ -317,16 +325,16 @@ export default function ChatPage() {
           description: "من فضلك انتظر",
         })
         
-        const compressedDataUrl = await compressImage(file, 5) // Max 5MB
+        const compressedDataUrl = await compressImage(file, 5)
         
-        setAttachedImage({
+        setAttachedImages(prev => [...prev, {
           url: compressedDataUrl,
           name: file.name,
-        })
+        }])
         
         toast({
-          title: "تم ضغط الصورة بنجاح",
-          description: "يمكنك الآن إرسال رسالتك",
+          title: "تم إضافة الصورة",
+          description: `${attachedImages.length + 1}/3 صور مرفقة`,
         })
       } catch (error: any) {
         toast({
@@ -484,7 +492,7 @@ export default function ChatPage() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault()
-    if ((!input.trim() && !attachedImage) || isLoading) return
+    if ((!input.trim() && attachedImages.length === 0) || isLoading) return
 
     const messageCheck = canSendMessage()
     if (!messageCheck.allowed) {
@@ -501,7 +509,7 @@ export default function ChatPage() {
     setInput("")
     setIsLoading(true)
 
-    if (attachedImage && detectImageEditRequest(messageToSend, true)) {
+    if (attachedImages.length > 0 && detectImageEditRequest(messageToSend, true)) {
       const imageCheck = canGenerateImage()
       if (!imageCheck.allowed) {
         toast({
@@ -518,13 +526,13 @@ export default function ChatPage() {
         id: Date.now().toString(),
         role: "user",
         content: messageToSend,
-        imageUrl: attachedImage.url,
+        imageUrl: attachedImages[0]?.url,
       }
-
+      
       setMessages((prev) => [...prev, userMessage])
-
-      const tempAttachedImage = attachedImage
-      setAttachedImage(null)
+      
+      const tempAttachedImages = [...attachedImages]
+      setAttachedImages([])
 
       try {
         const textMatch = messageToSend.match(/"([^"]+)"|'([^']+)'|(?:اكتب|write|كتابة)\s+(.+?)(?:\s+على|\s+فوق|$)/i)
@@ -539,7 +547,8 @@ export default function ChatPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            imageUrl: tempAttachedImage?.url,
+            imageUrl: tempAttachedImages[0]?.url,
+            imageUrls: tempAttachedImages.map(img => img.url),
             prompt: cleanEditPrompt || messageToSend,
           }),
         })
@@ -587,25 +596,25 @@ export default function ChatPage() {
       return
     }
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: messageToSend,
-      imageUrl: attachedImage?.url,
-    }
-
-    setMessages((prev) => [...prev, userMessage])
-    const currentInput = messageToSend
-    const currentAttachedImage = attachedImage
-    setAttachedImage(null)
-    setIsLoading(true)
-
-    try {
-      const isImageRequest = detectImageRequest(currentInput)
-      const isExcelRequest = detectExcelRequest(currentInput)
-
-      if (currentAttachedImage) {
-        const imageDescription = await analyzeImage(currentAttachedImage.url, currentInput)
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: "user",
+        content: messageToSend,
+        imageUrl: attachedImages[0]?.url,
+      }
+      
+      setMessages((prev) => [...prev, userMessage])
+      const currentInput = messageToSend
+      const currentAttachedImages = [...attachedImages]
+      setAttachedImages([])
+      setIsLoading(true)
+      
+      try {
+        const isImageRequest = detectImageRequest(currentInput)
+        const isExcelRequest = detectExcelRequest(currentInput)
+        
+        if (currentAttachedImages.length > 0) {
+          const imageDescription = await analyzeImage(currentAttachedImages[0].url, currentInput)
 
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -811,7 +820,7 @@ export default function ChatPage() {
       {
         id: "welcome",
         role: "assistant",
-        content: "أهلاً بيك في ميليجي! 👋 أنا مساعدك الذكي، معاك 10 رسائل و3 صور يومياً في الخطة المجانية. كيف أقدر أساعدك؟",
+        content: "أهلاً بيك في ميليجي! 👋 أنا مساعدك الذكي، معاك 10 رسائل و3 صور يومياً في الخطة ��لمجانية. كيف أقدر أساعدك؟",
       },
     ])
   }
