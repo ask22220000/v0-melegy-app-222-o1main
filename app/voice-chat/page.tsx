@@ -465,9 +465,7 @@ export default function VoiceChatPage() {
       const data = await res.json()
       if (!res.ok || !data.reply) throw new Error(data.error || "فشل الرد")
       const replyText = data.reply.trim()
-      // tashkeelReply: vowelized text for TTS pronunciation — fallback to plain reply
-      const tashkeelText = (data.tashkeelReply || replyText).trim()
-      setReply(replyText)  // display plain (no diacritics) on screen
+      setReply(replyText)
 
       // Update history ref immediately (no stale closure issue)
       historyRef.current = [
@@ -476,7 +474,7 @@ export default function VoiceChatPage() {
         { role: "assistant", content: replyText },
       ]
 
-      await speakReply(tashkeelText)  // send vowelized text to ElevenLabs
+      await speakReply(replyText)
     } catch (e: any) {
       setErrorMsg(e.message)
       setOrbState("idle")

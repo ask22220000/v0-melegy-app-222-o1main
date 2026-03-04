@@ -71,48 +71,7 @@ export async function POST(request: Request) {
       .replace(/#{1,6}\s/g, "")
       .trim()
 
-    // Generate tashkeel (diacritics) version for TTS — improves Egyptian Arabic pronunciation
-    // The display reply stays unvowelized; only TTS receives the tashkeel version
-    let tashkeelReply = reply
-    try {
-      const GROQ_API_KEY = process.env.GROQ_API_KEY
-      if (GROQ_API_KEY) {
-        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${GROQ_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "llama-3.1-8b-instant",
-            messages: [
-              {
-                role: "system",
-                content:
-                  "أنت متخصص في التشكيل الكامل للنص العربي المصري العامي. مهمتك الوحيدة هي إضافة الحركات (الفتحة والضمة والكسرة والسكون والشدة والتنوين) على كل حرف في النص المُعطى لك بدقة حسب نطقها بالعامية المصرية الطبيعية. أعد النص مشكّلاً فقط بدون أي إضافات أو شرح.",
-              },
-              {
-                role: "user",
-                content: `شكّل النص ده تشكيلاً كاملاً بالعامية المصرية:\n${reply}`,
-              },
-            ],
-            max_tokens: 400,
-            temperature: 0.1,
-          }),
-        })
-        if (groqRes.ok) {
-          const groqData = await groqRes.json()
-          const candidate = groqData.choices?.[0]?.message?.content?.trim()
-          if (candidate && candidate.length > 0) {
-            tashkeelReply = candidate
-          }
-        }
-      }
-    } catch {
-      // Fall back to unvowelized reply if tashkeel fails
-    }
-
-    return Response.json({ reply, tashkeelReply })
+    return Response.json({ reply })
   } catch (err: any) {
     console.error("[voice/chat] Error:", err?.message)
     return Response.json({ error: err.message }, { status: 500 })
