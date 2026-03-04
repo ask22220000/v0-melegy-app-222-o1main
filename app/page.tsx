@@ -14,7 +14,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background homepage-dark-bg" dir={language === "ar" ? "rtl" : "ltr"}>
       <Header />
       <Hero />
-      <Features />
+      <Features key="features-v2" />
       <div className="container mx-auto px-6 py-8 text-center">
         <Link
           href="/pricing"
