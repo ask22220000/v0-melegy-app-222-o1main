@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     const groqForm = new FormData()
     groqForm.append("file", audioFile, "audio.webm")
-    groqForm.append("model", "whisper-large-v3")
+    groqForm.append("model", "whisper-large-v3-turbo")
     groqForm.append("language", "ar")
     groqForm.append("response_format", "json")
 

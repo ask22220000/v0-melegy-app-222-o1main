@@ -11,6 +11,7 @@ import { UsageIndicator } from "@/components/usage-indicator"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
 import { UserIdModal } from "@/components/user-id-modal"
+import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
 import {
   Send,
@@ -67,6 +68,7 @@ interface ChatHistory {
 }
 
 export default function ChatAdvancedPage() {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -105,7 +107,6 @@ export default function ChatAdvancedPage() {
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
-  const [showVoiceOrb, setShowVoiceOrb] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -1443,7 +1444,7 @@ export default function ChatAdvancedPage() {
   <Button
     type="button"
     variant="ghost"
-    onClick={() => setShowVoiceOrb(true)}
+    onClick={() => router.push("/voice-chat")}
     className="shrink-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
     title="دردشة صوتية مباشرة"
   >
@@ -1452,13 +1453,6 @@ export default function ChatAdvancedPage() {
   <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
   </div>
   </form>
-
-  {showVoiceOrb && (
-    <VoiceOrb
-      onClose={() => setShowVoiceOrb(false)}
-      chatHistory={messages.slice(-6).map((m) => ({ role: m.role, content: m.content }))}
-    />
-  )}
   </div>
         </div>
         <Toaster />

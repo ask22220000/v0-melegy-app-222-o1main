@@ -13,7 +13,7 @@ import Link from "next/link"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
 import { UserIdModal } from "@/components/user-id-modal"
-import { VoiceOrb } from "@/components/voice-orb"
+import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
 import {
   Send,
@@ -67,6 +67,7 @@ interface ChatHistory {
 }
 
 export default function ChatProPage() {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -102,7 +103,6 @@ export default function ChatProPage() {
   const [sessionId] = useState(() => crypto.randomUUID())
   const [conversationCreated, setConversationCreated] = useState(false)
 
-  const [showVoiceOrb, setShowVoiceOrb] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
@@ -1279,7 +1279,7 @@ export default function ChatProPage() {
   <Button
     type="button"
     variant="ghost"
-    onClick={() => setShowVoiceOrb(true)}
+    onClick={() => router.push("/voice-chat")}
     className="shrink-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
     title="دردشة صوتية مباشرة"
   >
@@ -1288,13 +1288,6 @@ export default function ChatProPage() {
   <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
   </div>
   </form>
-
-  {showVoiceOrb && (
-    <VoiceOrb
-      onClose={() => setShowVoiceOrb(false)}
-      chatHistory={messages.slice(-6).map((m) => ({ role: m.role, content: m.content }))}
-    />
-  )}
 
       {showAnimateModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowAnimateModal(false)}>

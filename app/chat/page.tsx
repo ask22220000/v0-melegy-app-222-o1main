@@ -9,8 +9,8 @@ import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { DesignViewer } from "@/components/design-viewer"
 import { UserIdModal } from "@/components/user-id-modal"
-import { VoiceOrb } from "@/components/voice-orb"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
 import {
@@ -68,6 +68,7 @@ interface ChatHistory {
 
 export default function ChatPage() {
   const { translations, language, setLanguage } = useApp()
+  const router = useRouter()
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -94,8 +95,6 @@ export default function ChatPage() {
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   const [mlgPlan, setMlgPlan] = useState<string>("free")
   const [showUserModal, setShowUserModal] = useState(false)
-  // Voice Orb state
-  const [showVoiceOrb, setShowVoiceOrb] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -1400,7 +1399,7 @@ export default function ChatPage() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => setShowVoiceOrb(true)}
+            onClick={() => router.push("/voice-chat")}
             className="shrink-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
             title="دردشة صوتية مباشرة"
           >
@@ -1416,12 +1415,7 @@ export default function ChatPage() {
         </div>
       </form>
 
-      {showVoiceOrb && (
-        <VoiceOrb
-          onClose={() => setShowVoiceOrb(false)}
-          chatHistory={messages.slice(-6).map((m) => ({ role: m.role, content: m.content }))}
-        />
-      )}
+
 
       {/* Animate Image Modal */}
       {showAnimateModal && (
