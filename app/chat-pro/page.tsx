@@ -212,7 +212,7 @@ export default function ChatProPage() {
     const imageKeywords = [
       "اعمللي صورة",
       "اعملي صورة",
-      "اعمل صورة",
+      "��عمل صورة",
       "عاوز صورة",
       "عاوزك تعمللي صورة",
       "عاوزك تولد صورة",
@@ -838,21 +838,14 @@ export default function ChatProPage() {
     }
   }
 
-  const downloadImage = async (imageUrl: string) => {
-    try {
-      const response = await fetch(imageUrl)
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = "Melegy Image Generate.png"
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      toast({ title: "خطأ", description: "فشل في تحميل الصورة", variant: "destructive" })
-    }
+  const downloadImage = (imageUrl: string) => {
+    const filename = `melegy-image-${Date.now()}.png`
+    const a = document.createElement("a")
+    a.href = `/api/download-image?url=${encodeURIComponent(imageUrl)}&filename=${filename}`
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   const downloadExcel = (excelData: { headers: string[]; rows: any[][] }) => {

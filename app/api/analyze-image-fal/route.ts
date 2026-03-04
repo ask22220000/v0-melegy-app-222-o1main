@@ -39,10 +39,22 @@ export async function POST(request: NextRequest) {
         temperature: 0.7,
       })
 
-      const description = result.text
+      const raw = result.text
 
-      if (description && description.trim() && description.length > 20) {
-        return NextResponse.json({ description: description.trim(), provider: "gemini-vision" })
+      // Strip all markdown formatting: bold/italic asterisks, hashes, backticks, bullet dashes
+      const description = raw
+        .replace(/\*\*(.+?)\*\*/g, "$1")   // **bold**
+        .replace(/\*(.+?)\*/g, "$1")        // *italic*
+        .replace(/_{1,2}(.+?)_{1,2}/g, "$1") // __underline__ / _italic_
+        .replace(/^#{1,6}\s+/gm, "")        // # headings
+        .replace(/`{1,3}[^`]*`{1,3}/g, "")  // `code` / ```block```
+        .replace(/^[\s]*[-*•]\s+/gm, "")    // bullet points
+        .replace(/^\d+\.\s+/gm, "")         // numbered lists
+        .replace(/\n{3,}/g, "\n\n")         // excessive blank lines
+        .trim()
+
+      if (description && description.length > 20) {
+        return NextResponse.json({ description, provider: "gemini-vision" })
       }
 
       throw new Error("No valid description from Gemini API")

@@ -1,5 +1,6 @@
 import * as fal from "@fal-ai/serverless-client"
 import { NextResponse } from "next/server"
+import { IMAGE_EDIT_QUALITY_CONSTANTS } from "@/lib/prompt-enhancer"
 
 function enhanceArabicPrompt(prompt: string): string {
   const arabicToEnglish: Record<string, string> = {
@@ -61,7 +62,7 @@ function enhanceArabicPrompt(prompt: string): string {
   })
 
   enhancedPrompt = enhancedPrompt.replace(/\s+/g, " ").trim()
-  return enhancedPrompt + ", masterpiece quality, highly detailed, professional art, sharp focus"
+  return enhancedPrompt + `, masterpiece quality, highly detailed, professional art, sharp focus. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
 }
 
 export async function POST(req: Request) {

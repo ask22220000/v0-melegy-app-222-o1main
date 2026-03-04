@@ -77,13 +77,20 @@ Your job:
 }
 
 /**
+ * Constant quality/anatomy suffixes appended to every image-editing prompt.
+ * Kept in one place so all routes stay in sync.
+ */
+export const IMAGE_EDIT_QUALITY_CONSTANTS =
+  "No anatomical errors. Correct human anatomy with accurate proportions, natural limb placement, proper finger count, and realistic muscle structure. High quality, sharp details, professional result."
+
+/**
  * For image EDITING via fal-ai/flux-2/turbo/edit.
  * Translates + builds an edit instruction that preserves subject identity.
  */
 export async function processPromptForImageEditing(userPrompt: string): Promise<string> {
   const wantsNoChange = NO_CHANGE_PATTERNS.some((p) => p.test(userPrompt))
   if (wantsNoChange) {
-    return "Enhance image quality and sharpness while preserving all original features, facial identity, scene, and background exactly as they are. No other modifications."
+    return `Enhance image quality and sharpness while preserving all original features, facial identity, scene, and background exactly as they are. No other modifications. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
   }
 
   const hasArabic = /[\u0600-\u06FF]/.test(userPrompt)
@@ -95,7 +102,8 @@ Your job:
 3. ALWAYS preserve: facial features, skin tone, body proportions, identity, and original background — unless the user explicitly asks to change them.
 4. Do NOT add text overlays or watermarks.
 5. Start your response with: "Preserve all facial features, skin tone, and original background." then describe the change.
-6. Return ONLY the instruction in English, under 80 words. No explanations.`
+6. ALWAYS end with: "${IMAGE_EDIT_QUALITY_CONSTANTS}"
+7. Return ONLY the instruction in English, under 100 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and write an image editing instruction for: "${userPrompt}"`
@@ -103,10 +111,12 @@ Your job:
 
   try {
     const result = await callGroq(system, userMsg)
-    return result || `Preserve all facial features, skin tone, and original background. ${userPrompt}`
+    return result
+      ? `${result} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
+      : `Preserve all facial features, skin tone, and original background. ${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
   } catch (error) {
     console.error("[prompt-enhancer] Groq editing error:", error)
-    return `Preserve all facial features, skin tone, and original background. ${userPrompt}`
+    return `Preserve all facial features, skin tone, and original background. ${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
   }
 }
 
