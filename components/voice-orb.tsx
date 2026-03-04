@@ -30,7 +30,7 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
   const analyserRef = useRef<AnalyserNode | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
 
-  // ── Canvas Orb animation ──────────────────────────────────────────────────
+  // ── Canvas Orb animation — dark glass sphere matching the GIF ────────────
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -42,126 +42,202 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
       const H = canvas.height
       const cx = W / 2
       const cy = H / 2
-      const baseR = W * 0.32
+      const baseR = W * 0.36
 
       ctx.clearRect(0, 0, W, H)
 
-      // Get audio amplitude if speaking / listening
+      // Live amplitude from analyser
       let amplitude = 0
-      if (analyserRef.current && (orbState === "speaking" || orbState === "listening")) {
-        const data = new Uint8Array(analyserRef.current.frequencyBinCount)
-        analyserRef.current.getByteFrequencyData(data)
-        amplitude = data.reduce((a, b) => a + b, 0) / data.length / 128
+      let freqData: Uint8Array | null = null
+      if (analyserRef.current) {
+        freqData = new Uint8Array(analyserRef.current.frequencyBinCount)
+        analyserRef.current.getByteFrequencyData(freqData)
+        amplitude = freqData.reduce((a, b) => a + b, 0) / freqData.length / 128
       }
 
+      // Subtle size pulse per state
       const pulse =
         orbState === "speaking"
-          ? 1 + amplitude * 0.35 + Math.sin(t * 0.08) * 0.04
+          ? 1 + amplitude * 0.12 + Math.sin(t * 0.06) * 0.02
           : orbState === "listening"
-          ? 1 + Math.sin(t * 0.05) * 0.06 + amplitude * 0.15
+          ? 1 + Math.sin(t * 0.05) * 0.025
           : orbState === "thinking"
-          ? 1 + Math.sin(t * 0.04) * 0.03
-          : 1 + Math.sin(t * 0.015) * 0.015
+          ? 1 + Math.sin(t * 0.03) * 0.015
+          : 1 + Math.sin(t * 0.02) * 0.01
 
       const R = baseR * pulse
 
-      // Outer glow
-      const outerGlow = ctx.createRadialGradient(cx, cy, R * 0.6, cx, cy, R * 1.3)
-      outerGlow.addColorStop(
-        0,
-        orbState === "listening"
-          ? "rgba(0,220,130,0.18)"
-          : orbState === "speaking"
-          ? `rgba(80,160,255,${0.15 + amplitude * 0.25})`
-          : orbState === "thinking"
-          ? "rgba(160,100,255,0.12)"
-          : "rgba(30,80,180,0.08)"
-      )
-      outerGlow.addColorStop(1, "rgba(0,0,0,0)")
+      // ── 1. Diffuse outer ambient glow ──
+      const ambientR = R * 1.55
+      const ambient = ctx.createRadialGradient(cx, cy, R * 0.5, cx, cy, ambientR)
+      ambient.addColorStop(0, "rgba(20,60,160,0.22)")
+      ambient.addColorStop(0.5, "rgba(10,30,100,0.10)")
+      ambient.addColorStop(1, "rgba(0,0,0,0)")
       ctx.beginPath()
-      ctx.arc(cx, cy, R * 1.3, 0, Math.PI * 2)
-      ctx.fillStyle = outerGlow
+      ctx.arc(cx, cy, ambientR, 0, Math.PI * 2)
+      ctx.fillStyle = ambient
       ctx.fill()
 
-      // Main sphere gradient
-      const sphereGrad = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.05, cx, cy, R)
-      sphereGrad.addColorStop(0, "rgba(60,120,255,0.95)")
-      sphereGrad.addColorStop(0.4, "rgba(20,60,160,0.9)")
-      sphereGrad.addColorStop(0.75, "rgba(10,20,80,0.95)")
-      sphereGrad.addColorStop(1, "rgba(5,10,40,1)")
+      // ── 2. Dark glass sphere body ──
+      const sphere = ctx.createRadialGradient(cx - R * 0.15, cy - R * 0.2, R * 0.02, cx + R * 0.1, cy + R * 0.15, R)
+      sphere.addColorStop(0, "rgba(18,40,110,0.98)")
+      sphere.addColorStop(0.35, "rgba(8,20,70,0.99)")
+      sphere.addColorStop(0.65, "rgba(4,10,45,1)")
+      sphere.addColorStop(0.85, "rgba(2,6,28,1)")
+      sphere.addColorStop(1, "rgba(0,3,16,1)")
+      ctx.save()
       ctx.beginPath()
       ctx.arc(cx, cy, R, 0, Math.PI * 2)
-      ctx.fillStyle = sphereGrad
+      ctx.fillStyle = sphere
       ctx.fill()
+      ctx.restore()
 
-      // Inner glow core (color shifts by state)
-      const coreR = R * (orbState === "speaking" ? 0.42 + amplitude * 0.12 : 0.38)
-      const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR)
-      if (orbState === "listening") {
-        coreGrad.addColorStop(0, "rgba(0,255,160,0.95)")
-        coreGrad.addColorStop(0.5, "rgba(0,200,120,0.6)")
-        coreGrad.addColorStop(1, "rgba(0,100,80,0)")
-      } else if (orbState === "speaking") {
-        coreGrad.addColorStop(0, `rgba(${180 + amplitude * 75},${220 + amplitude * 35},255,0.98)`)
-        coreGrad.addColorStop(0.4, "rgba(80,160,255,0.7)")
-        coreGrad.addColorStop(1, "rgba(30,80,200,0)")
-      } else if (orbState === "thinking") {
-        coreGrad.addColorStop(0, "rgba(200,140,255,0.9)")
-        coreGrad.addColorStop(0.5, "rgba(140,80,220,0.5)")
-        coreGrad.addColorStop(1, "rgba(80,30,160,0)")
-      } else {
-        coreGrad.addColorStop(0, "rgba(140,200,255,0.7)")
-        coreGrad.addColorStop(0.5, "rgba(60,120,220,0.4)")
-        coreGrad.addColorStop(1, "rgba(20,60,160,0)")
-      }
+      // ── 3. Clipping to sphere for inner elements ──
+      ctx.save()
       ctx.beginPath()
-      ctx.arc(cx, cy, coreR, 0, Math.PI * 2)
-      ctx.fillStyle = coreGrad
-      ctx.fill()
+      ctx.arc(cx, cy, R, 0, Math.PI * 2)
+      ctx.clip()
 
-      // Speaking waveform bars
-      if (orbState === "speaking" && analyserRef.current) {
-        const bars = 24
-        const barData = new Uint8Array(analyserRef.current.frequencyBinCount)
-        analyserRef.current.getByteFrequencyData(barData)
+      // ── 3a. Bottom teal-purple gradient haze (from GIF) ──
+      const hazeH = R * 1.2
+      const haze = ctx.createRadialGradient(cx, cy + R * 0.15, 0, cx, cy + R * 0.15, hazeH)
+      haze.addColorStop(0, "rgba(0,200,180,0.28)")
+      haze.addColorStop(0.3, "rgba(40,80,200,0.20)")
+      haze.addColorStop(0.6, "rgba(80,20,160,0.14)")
+      haze.addColorStop(1, "rgba(0,0,0,0)")
+      ctx.fillStyle = haze
+      ctx.fillRect(0, 0, W, H)
+
+      // ── 3b. Dot/mesh texture grid ──
+      const dotSpacing = 10
+      const dotR = 1.1
+      const cols = Math.ceil((R * 2) / dotSpacing) + 2
+      const rows = Math.ceil((R * 2) / dotSpacing) + 2
+      const startX = cx - R - dotSpacing
+      const startY = cy - R - dotSpacing
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const dx = startX + col * dotSpacing
+          const dy = startY + row * dotSpacing
+          const dist = Math.sqrt((dx - cx) ** 2 + (dy - cy) ** 2)
+          if (dist > R) continue
+          // Fade dots near edges
+          const edgeFade = Math.max(0, 1 - dist / (R * 0.92))
+          // Proximity to inner glow brightens dots
+          const glowDist = Math.sqrt((dx - cx) ** 2 + (dy - cy) ** 2)
+          const glowBoost = Math.max(0, 1 - glowDist / (R * 0.55))
+          const alpha = edgeFade * (0.12 + glowBoost * 0.55)
+          // Color shifts: teal center → blue → purple outer
+          const r = Math.round(30 + glowBoost * 20)
+          const g = Math.round(180 + glowBoost * 70)
+          const b = Math.round(220 - glowBoost * 20)
+          ctx.beginPath()
+          ctx.arc(dx, dy, dotR, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(2)})`
+          ctx.fill()
+        }
+      }
+
+      // ── 3c. Central inner glow pill/core (the IK symbol area in GIF) ──
+      const isSpeaking = orbState === "speaking"
+      const isListening = orbState === "listening"
+      const coreScale = isSpeaking ? 1 + amplitude * 0.35 : isListening ? 1 + Math.sin(t * 0.07) * 0.1 : 1
+      const coreW = R * 0.52 * coreScale
+      const coreH = R * 0.28 * coreScale
+
+      // Pill-shaped glow (matches the glowing rectangle in GIF)
+      const pillGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreW)
+      if (isSpeaking) {
+        const bright = 0.85 + amplitude * 0.15
+        pillGrad.addColorStop(0, `rgba(${Math.round(200 * bright)},${Math.round(240 * bright)},255,0.98)`)
+        pillGrad.addColorStop(0.25, `rgba(80,200,255,${0.85 * bright})`)
+        pillGrad.addColorStop(0.55, `rgba(0,160,220,${0.55 * bright})`)
+        pillGrad.addColorStop(0.8, `rgba(60,20,200,${0.2 * bright})`)
+        pillGrad.addColorStop(1, "rgba(0,0,0,0)")
+      } else if (isListening) {
+        pillGrad.addColorStop(0, "rgba(180,240,255,0.95)")
+        pillGrad.addColorStop(0.3, "rgba(0,200,230,0.75)")
+        pillGrad.addColorStop(0.6, "rgba(0,120,200,0.40)")
+        pillGrad.addColorStop(1, "rgba(0,0,0,0)")
+      } else if (orbState === "thinking") {
+        pillGrad.addColorStop(0, "rgba(200,160,255,0.90)")
+        pillGrad.addColorStop(0.4, "rgba(140,60,255,0.50)")
+        pillGrad.addColorStop(1, "rgba(0,0,0,0)")
+      } else {
+        pillGrad.addColorStop(0, "rgba(120,200,255,0.70)")
+        pillGrad.addColorStop(0.5, "rgba(40,100,220,0.35)")
+        pillGrad.addColorStop(1, "rgba(0,0,0,0)")
+      }
+      // Draw as ellipse
+      ctx.save()
+      ctx.scale(1, coreH / coreW)
+      ctx.beginPath()
+      ctx.arc(cx, cy * (coreW / coreH), coreW, 0, Math.PI * 2)
+      ctx.fillStyle = pillGrad
+      ctx.fill()
+      ctx.restore()
+
+      // ── 3d. Speaking freq bars inside sphere ──
+      if (isSpeaking && freqData) {
+        const bars = 32
         for (let i = 0; i < bars; i++) {
           const angle = (i / bars) * Math.PI * 2 - Math.PI / 2
-          const barH = (barData[i * 3] / 255) * R * 0.28 + R * 0.04
-          const x1 = cx + Math.cos(angle) * (R * 0.55)
-          const y1 = cy + Math.sin(angle) * (R * 0.55)
-          const x2 = cx + Math.cos(angle) * (R * 0.55 + barH)
-          const y2 = cy + Math.sin(angle) * (R * 0.55 + barH)
+          const barH = (freqData[i * 4] / 255) * R * 0.22 + R * 0.02
+          const innerR = R * 0.50
+          const x1 = cx + Math.cos(angle) * innerR
+          const y1 = cy + Math.sin(angle) * innerR
+          const x2 = cx + Math.cos(angle) * (innerR + barH)
+          const y2 = cy + Math.sin(angle) * (innerR + barH)
+          const barAlpha = 0.3 + (freqData[i * 4] / 255) * 0.6
           ctx.beginPath()
           ctx.moveTo(x1, y1)
           ctx.lineTo(x2, y2)
-          ctx.strokeStyle = `rgba(150,210,255,${0.4 + (barData[i * 3] / 255) * 0.5})`
-          ctx.lineWidth = 2.5
+          ctx.strokeStyle = `rgba(100,210,255,${barAlpha})`
+          ctx.lineWidth = 2
           ctx.lineCap = "round"
           ctx.stroke()
         }
       }
 
-      // Listening pulse rings
-      if (orbState === "listening") {
-        for (let k = 1; k <= 3; k++) {
-          const ringR = R * (1.1 + k * 0.18) * (1 + Math.sin(t * 0.07 - k) * 0.04)
-          const alpha = Math.max(0, 0.25 - k * 0.07 + amplitude * 0.12)
+      ctx.restore() // end clip
+
+      // ── 4. Edge rim light (from GIF: subtle teal/blue rim) ──
+      const rim = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, R * 1.02)
+      rim.addColorStop(0, "rgba(0,0,0,0)")
+      rim.addColorStop(0.6, "rgba(0,160,180,0.06)")
+      rim.addColorStop(0.85, "rgba(20,100,180,0.18)")
+      rim.addColorStop(1, "rgba(0,0,0,0)")
+      ctx.beginPath()
+      ctx.arc(cx, cy, R * 1.02, 0, Math.PI * 2)
+      ctx.fillStyle = rim
+      ctx.fill()
+
+      // ── 5. Glass specular highlight (top-left) ──
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(cx, cy, R, 0, Math.PI * 2)
+      ctx.clip()
+      const gloss = ctx.createRadialGradient(cx - R * 0.38, cy - R * 0.42, 0, cx - R * 0.2, cy - R * 0.25, R * 0.52)
+      gloss.addColorStop(0, "rgba(255,255,255,0.13)")
+      gloss.addColorStop(0.5, "rgba(200,230,255,0.05)")
+      gloss.addColorStop(1, "rgba(255,255,255,0)")
+      ctx.fillStyle = gloss
+      ctx.fillRect(0, 0, W, H)
+      ctx.restore()
+
+      // ── 6. Listening outer pulse rings ──
+      if (isListening) {
+        for (let k = 1; k <= 2; k++) {
+          const phase = ((t * 0.04) - k * 0.9) % 1
+          const ringR = R * (1.05 + phase * 0.45)
+          const alpha = Math.max(0, (1 - phase) * 0.18)
           ctx.beginPath()
           ctx.arc(cx, cy, ringR, 0, Math.PI * 2)
-          ctx.strokeStyle = `rgba(0,220,130,${alpha})`
-          ctx.lineWidth = 1.5
+          ctx.strokeStyle = `rgba(0,200,220,${alpha})`
+          ctx.lineWidth = 1.2
           ctx.stroke()
         }
       }
-
-      // Highlight gloss
-      const glossGrad = ctx.createRadialGradient(cx - R * 0.25, cy - R * 0.35, 0, cx - R * 0.1, cy - R * 0.2, R * 0.5)
-      glossGrad.addColorStop(0, "rgba(255,255,255,0.18)")
-      glossGrad.addColorStop(1, "rgba(255,255,255,0)")
-      ctx.beginPath()
-      ctx.arc(cx, cy, R, 0, Math.PI * 2)
-      ctx.fillStyle = glossGrad
-      ctx.fill()
 
       t++
       animFrameRef.current = requestAnimationFrame(draw)
@@ -362,10 +438,10 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
       {/* Orb */}
       <canvas
         ref={canvasRef}
-        width={320}
-        height={320}
-        className="mb-6"
-        style={{ imageRendering: "auto" }}
+        width={380}
+        height={380}
+        className="mb-4"
+        style={{ imageRendering: "auto", width: 380, height: 380 }}
       />
 
       {/* State label */}
