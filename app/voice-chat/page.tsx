@@ -34,6 +34,7 @@ function OrbCanvas({
       const cy = H / 2
       const state = orbStateRef.current
 
+      // ── audio amplitude ──────────────────────────────────────────────────
       let amp = 0
       let freqData: Uint8Array | null = null
       if (analyserRef.current) {
@@ -43,196 +44,202 @@ function OrbCanvas({
       }
 
       const pulse =
-        state === "speaking"
-          ? 1 + amp * 0.10 + Math.sin(t * 0.055) * 0.018
-          : state === "listening"
-          ? 1 + Math.sin(t * 0.05) * 0.022
-          : state === "thinking"
-          ? 1 + Math.sin(t * 0.03) * 0.012
-          : 1 + Math.sin(t * 0.018) * 0.008
+        state === "speaking"  ? 1 + amp * 0.08 + Math.sin(t * 0.05) * 0.016
+        : state === "listening" ? 1 + Math.sin(t * 0.045) * 0.020
+        : state === "thinking"  ? 1 + Math.sin(t * 0.028) * 0.010
+        :                         1 + Math.sin(t * 0.016) * 0.007
 
-      const baseR = W * 0.375
-      const R = baseR * pulse
-
+      const R = W * 0.375 * pulse
       ctx.clearRect(0, 0, W, H)
 
-      // 1 – outer ambient glow
-      const ambG = ctx.createRadialGradient(cx, cy, R * 0.4, cx, cy, R * 1.75)
-      ambG.addColorStop(0, "rgba(10,40,140,0.32)")
-      ambG.addColorStop(0.4, "rgba(5,20,80,0.14)")
-      ambG.addColorStop(0.75, "rgba(2,8,40,0.06)")
-      ambG.addColorStop(1, "rgba(0,0,0,0)")
-      ctx.beginPath()
-      ctx.arc(cx, cy, R * 1.75, 0, Math.PI * 2)
-      ctx.fillStyle = ambG
-      ctx.fill()
+      // ── 1. outer ambient glow ─────────────────────────────────────────────
+      const ag = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 1.85)
+      ag.addColorStop(0,    "rgba(8,35,130,0.35)")
+      ag.addColorStop(0.38, "rgba(4,16,72,0.15)")
+      ag.addColorStop(0.70, "rgba(1,6,32,0.05)")
+      ag.addColorStop(1,    "rgba(0,0,0,0)")
+      ctx.beginPath(); ctx.arc(cx, cy, R * 1.85, 0, Math.PI * 2)
+      ctx.fillStyle = ag; ctx.fill()
 
-      // 2 – dark glass sphere body
-      const sphG = ctx.createRadialGradient(
-        cx - R * 0.22, cy - R * 0.22, R * 0.08,
-        cx + R * 0.08, cy + R * 0.12, R * 1.06
+      // ── 2. dark glass sphere body ─────────────────────────────────────────
+      const sg = ctx.createRadialGradient(
+        cx - R * 0.20, cy - R * 0.20, R * 0.06,
+        cx + R * 0.10, cy + R * 0.14, R * 1.05
       )
-      sphG.addColorStop(0, "rgba(22,52,130,1)")
-      sphG.addColorStop(0.28, "rgba(10,25,75,1)")
-      sphG.addColorStop(0.55, "rgba(5,12,45,1)")
-      sphG.addColorStop(0.78, "rgba(2,6,24,1)")
-      sphG.addColorStop(1, "rgba(0,2,10,1)")
+      sg.addColorStop(0,    "rgba(20,48,120,1)")
+      sg.addColorStop(0.25, "rgba(9,22,66,1)")
+      sg.addColorStop(0.52, "rgba(4,10,38,1)")
+      sg.addColorStop(0.80, "rgba(1,4,18,1)")
+      sg.addColorStop(1,    "rgba(0,1,8,1)")
       ctx.save()
-      ctx.beginPath()
-      ctx.arc(cx, cy, R, 0, Math.PI * 2)
-      ctx.fillStyle = sphG
-      ctx.fill()
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2)
+      ctx.fillStyle = sg; ctx.fill()
       ctx.restore()
 
-      // 3 – clip everything inside sphere
+      // ── 3. inner elements clipped to sphere ───────────────────────────────
       ctx.save()
-      ctx.beginPath()
-      ctx.arc(cx, cy, R * 0.996, 0, Math.PI * 2)
-      ctx.clip()
+      ctx.beginPath(); ctx.arc(cx, cy, R * 0.994, 0, Math.PI * 2); ctx.clip()
 
-      // 3a – teal haze (bottom-center, slow drift)
-      const hazeT = t * 0.007
-      const tx2 = cx + Math.sin(hazeT) * R * 0.07
-      const ty2 = cy + R * 0.18 + Math.cos(hazeT * 0.7) * R * 0.06
-      const tG = ctx.createRadialGradient(tx2, ty2, 0, tx2, ty2, R * 0.74)
-      tG.addColorStop(0, "rgba(0,210,190,0.32)")
-      tG.addColorStop(0.35, "rgba(0,160,200,0.18)")
-      tG.addColorStop(0.65, "rgba(0,80,160,0.08)")
-      tG.addColorStop(1, "rgba(0,0,0,0)")
-      ctx.fillStyle = tG
-      ctx.fillRect(0, 0, W, H)
+      // 3a – slow teal haze (centre-bottom)
+      const ht = t * 0.006
+      const hx = cx + Math.sin(ht) * R * 0.06
+      const hy = cy + R * 0.15 + Math.cos(ht * 0.8) * R * 0.05
+      const hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, R * 0.78)
+      hg.addColorStop(0,    "rgba(0,215,195,0.34)")
+      hg.addColorStop(0.32, "rgba(0,165,210,0.20)")
+      hg.addColorStop(0.62, "rgba(0,75,165,0.09)")
+      hg.addColorStop(1,    "rgba(0,0,0,0)")
+      ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H)
 
-      // 3b – purple haze (bottom-right)
-      const px = cx + R * 0.28 + Math.sin(hazeT * 1.2) * R * 0.05
-      const py = cy + R * 0.22
-      const pG = ctx.createRadialGradient(px, py, 0, px, py, R * 0.56)
-      pG.addColorStop(0, "rgba(120,30,200,0.24)")
-      pG.addColorStop(0.4, "rgba(80,20,160,0.12)")
-      pG.addColorStop(1, "rgba(0,0,0,0)")
-      ctx.fillStyle = pG
-      ctx.fillRect(0, 0, W, H)
+      // 3b – purple haze (right-bottom)
+      const px = cx + R * 0.26 + Math.sin(ht * 1.1) * R * 0.04
+      const py = cy + R * 0.20
+      const pg = ctx.createRadialGradient(px, py, 0, px, py, R * 0.58)
+      pg.addColorStop(0,    "rgba(130,25,215,0.26)")
+      pg.addColorStop(0.40, "rgba(85,15,165,0.13)")
+      pg.addColorStop(1,    "rgba(0,0,0,0)")
+      ctx.fillStyle = pg; ctx.fillRect(0, 0, W, H)
 
-      // 3c – dot mesh texture
-      const SP = 9
-      const s0x = cx - R - SP
-      const s0y = cy - R - SP
-      const cnt = Math.ceil((R * 2 + SP * 2) / SP)
-      for (let row = 0; row < cnt; row++) {
-        for (let col = 0; col < cnt; col++) {
-          const dx = s0x + col * SP
-          const dy = s0y + row * SP
-          const dist = Math.hypot(dx - cx, dy - cy)
-          if (dist > R * 0.97) continue
-          const edgeFade = Math.pow(1 - dist / R, 0.6)
-          const glowFade = Math.max(0, 1 - dist / (R * 0.50))
-          const alpha = edgeFade * (0.10 + glowFade * 0.62)
+      // 3c – dot / mesh grid  (dense, like the GIF)
+      const SP = 8
+      const ox = cx - R
+      const oy = cy - R
+      const cols2 = Math.ceil(R * 2 / SP) + 2
+      const rows2 = Math.ceil(R * 2 / SP) + 2
+      for (let r = 0; r < rows2; r++) {
+        for (let c = 0; c < cols2; c++) {
+          const dx = ox + c * SP
+          const dy = oy + r * SP
+          const d = Math.hypot(dx - cx, dy - cy)
+          if (d > R * 0.97) continue
+          const ef = Math.pow(Math.max(0, 1 - d / R), 0.55)           // edge fade
+          const gf = Math.max(0, 1 - d / (R * 0.46))                  // glow fade (near pill)
+          const alpha = ef * (0.08 + gf * 0.72)
+          const gr2 = Math.round(40  + gf * 10)
+          const gg  = Math.round(168 + gf * 82)
+          const gb  = Math.round(212 + gf * 38)
           ctx.beginPath()
-          ctx.arc(dx, dy, 1.0, 0, Math.PI * 2)
-          ctx.fillStyle = `rgba(${Math.round(20 + glowFade * 10)},${Math.round(170 + glowFade * 80)},${Math.round(215 + glowFade * 30)},${alpha.toFixed(2)})`
+          ctx.arc(dx, dy, 0.95, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(${gr2},${gg},${gb},${alpha.toFixed(2)})`
           ctx.fill()
         }
       }
 
-      // 3d – central pill glow (bright IK-zone from GIF)
-      const coreAnim =
-        state === "speaking" ? 1 + amp * 0.42 + Math.sin(t * 0.09) * 0.06
-        : state === "listening" ? 1 + Math.sin(t * 0.07) * 0.14
-        : state === "thinking" ? 0.85 + Math.sin(t * 0.04) * 0.09
-        : 0.72 + Math.sin(t * 0.025) * 0.06
+      // 3d – bright pill glow (the "IK area" in the GIF)
+      const cAnim =
+        state === "speaking"  ? 1 + amp * 0.50 + Math.sin(t * 0.09) * 0.07
+        : state === "listening" ? 1 + Math.sin(t * 0.07) * 0.16
+        : state === "thinking"  ? 0.88 + Math.sin(t * 0.04) * 0.10
+        :                          0.74 + Math.sin(t * 0.022) * 0.07
 
-      const cW = R * 0.48 * coreAnim
-      const cH = R * 0.22 * coreAnim
+      const pW = R * 0.50 * cAnim   // pill width
+      const pH = R * 0.23 * cAnim   // pill height
       ctx.save()
       ctx.translate(cx, cy)
-      ctx.scale(1, cH / cW)
-      const cG = ctx.createRadialGradient(0, 0, 0, 0, 0, cW)
+      ctx.scale(1, pH / pW)          // squash to pill shape
+      const pillG = ctx.createRadialGradient(0, 0, 0, 0, 0, pW)
       if (state === "speaking") {
-        const b2 = 0.88 + amp * 0.12
-        cG.addColorStop(0, `rgba(${Math.round(210 * b2)},${Math.round(245 * b2)},255,1)`)
-        cG.addColorStop(0.20, `rgba(80,210,255,${(0.90 * b2).toFixed(2)})`)
-        cG.addColorStop(0.50, `rgba(0,170,230,${(0.55 * b2).toFixed(2)})`)
-        cG.addColorStop(0.78, `rgba(40,30,200,${(0.18 * b2).toFixed(2)})`)
-        cG.addColorStop(1, "rgba(0,0,0,0)")
+        const b3 = 0.86 + amp * 0.14
+        pillG.addColorStop(0,    `rgba(${Math.round(215*b3)},${Math.round(248*b3)},255,1)`)
+        pillG.addColorStop(0.18, `rgba(75,215,255,${(0.92*b3).toFixed(2)})`)
+        pillG.addColorStop(0.46, `rgba(0,175,235,${(0.56*b3).toFixed(2)})`)
+        pillG.addColorStop(0.76, `rgba(35,25,205,${(0.16*b3).toFixed(2)})`)
+        pillG.addColorStop(1,    "rgba(0,0,0,0)")
       } else if (state === "listening") {
-        cG.addColorStop(0, "rgba(200,248,255,0.98)")
-        cG.addColorStop(0.28, "rgba(0,210,240,0.78)")
-        cG.addColorStop(0.58, "rgba(0,130,210,0.42)")
-        cG.addColorStop(1, "rgba(0,0,0,0)")
+        pillG.addColorStop(0,    "rgba(205,250,255,0.99)")
+        pillG.addColorStop(0.26, "rgba(0,215,245,0.80)")
+        pillG.addColorStop(0.55, "rgba(0,135,215,0.44)")
+        pillG.addColorStop(1,    "rgba(0,0,0,0)")
       } else if (state === "thinking") {
-        cG.addColorStop(0, "rgba(210,170,255,0.92)")
-        cG.addColorStop(0.35, "rgba(150,60,255,0.55)")
-        cG.addColorStop(0.70, "rgba(80,20,180,0.20)")
-        cG.addColorStop(1, "rgba(0,0,0,0)")
+        pillG.addColorStop(0,    "rgba(215,175,255,0.94)")
+        pillG.addColorStop(0.34, "rgba(155,55,255,0.58)")
+        pillG.addColorStop(0.68, "rgba(75,15,185,0.22)")
+        pillG.addColorStop(1,    "rgba(0,0,0,0)")
       } else {
-        cG.addColorStop(0, "rgba(140,210,255,0.70)")
-        cG.addColorStop(0.45, "rgba(40,110,230,0.35)")
-        cG.addColorStop(1, "rgba(0,0,0,0)")
+        // idle – matches GIF exactly: bright cyan-white core
+        pillG.addColorStop(0,    "rgba(200,245,255,0.82)")
+        pillG.addColorStop(0.30, "rgba(60,195,255,0.52)")
+        pillG.addColorStop(0.58, "rgba(20,100,230,0.22)")
+        pillG.addColorStop(1,    "rgba(0,0,0,0)")
       }
-      ctx.beginPath()
-      ctx.arc(0, 0, cW, 0, Math.PI * 2)
-      ctx.fillStyle = cG
-      ctx.fill()
+      ctx.beginPath(); ctx.arc(0, 0, pW, 0, Math.PI * 2)
+      ctx.fillStyle = pillG; ctx.fill()
       ctx.restore()
 
-      // 3e – speaking frequency bars
+      // 3e – "| <" symbol inside pill (the exact GIF icons)
+      ctx.save()
+      ctx.translate(cx, cy)
+      const symAlpha = state === "thinking" ? 0.55 : 0.92
+      const symScale = cAnim * (state === "speaking" ? 0.92 + amp * 0.12 : 1)
+      const symSize  = R * 0.115 * symScale   // font size reference
+
+      // Shadow / bloom behind symbols
+      ctx.shadowColor  = "rgba(180,240,255,0.95)"
+      ctx.shadowBlur   = symSize * 1.6
+      ctx.fillStyle    = `rgba(255,255,255,${symAlpha})`
+      ctx.font         = `bold ${Math.round(symSize * 1.7)}px monospace`
+      ctx.textAlign    = "center"
+      ctx.textBaseline = "middle"
+
+      // Bar "|"  (left symbol)
+      const sep = symSize * 1.15
+      ctx.fillText("|", -sep, 0)
+      // Chevron "<" (right symbol)
+      ctx.fillText("<", sep * 0.55, 0)
+      ctx.restore()
+
+      // 3f – freq bars (speaking)
       if (state === "speaking" && freqData) {
-        const BARS = 36
+        const BARS = 40
         for (let i = 0; i < BARS; i++) {
           const angle = (i / BARS) * Math.PI * 2 - Math.PI / 2
-          const v = freqData[Math.floor(i * (freqData.length / BARS))] / 255
-          const bH = v * R * 0.20 + R * 0.015
-          const iR = R * 0.46
+          const v  = freqData[Math.floor(i * (freqData.length / BARS))] / 255
+          const bH = v * R * 0.18 + R * 0.012
+          const ir = R * 0.47
           ctx.beginPath()
-          ctx.moveTo(cx + Math.cos(angle) * iR, cy + Math.sin(angle) * iR)
-          ctx.lineTo(cx + Math.cos(angle) * (iR + bH), cy + Math.sin(angle) * (iR + bH))
-          ctx.strokeStyle = `rgba(90,215,255,${(0.28 + v * 0.65).toFixed(2)})`
-          ctx.lineWidth = 1.8
-          ctx.lineCap = "round"
+          ctx.moveTo(cx + Math.cos(angle) * ir,       cy + Math.sin(angle) * ir)
+          ctx.lineTo(cx + Math.cos(angle) * (ir + bH), cy + Math.sin(angle) * (ir + bH))
+          ctx.strokeStyle = `rgba(85,215,255,${(0.25 + v * 0.68).toFixed(2)})`
+          ctx.lineWidth  = 1.7
+          ctx.lineCap    = "round"
           ctx.stroke()
         }
       }
 
       ctx.restore() // end clip
 
-      // 4 – rim light
-      const rimG = ctx.createRadialGradient(cx, cy, R * 0.82, cx, cy, R * 1.05)
-      rimG.addColorStop(0, "rgba(0,0,0,0)")
-      rimG.addColorStop(0.55, "rgba(0,150,180,0.07)")
-      rimG.addColorStop(0.80, "rgba(15,90,170,0.22)")
-      rimG.addColorStop(0.94, "rgba(0,160,190,0.10)")
-      rimG.addColorStop(1, "rgba(0,0,0,0)")
-      ctx.beginPath()
-      ctx.arc(cx, cy, R * 1.05, 0, Math.PI * 2)
-      ctx.fillStyle = rimG
-      ctx.fill()
+      // ── 4. rim light ──────────────────────────────────────────────────────
+      const rg = ctx.createRadialGradient(cx, cy, R * 0.80, cx, cy, R * 1.06)
+      rg.addColorStop(0,    "rgba(0,0,0,0)")
+      rg.addColorStop(0.52, "rgba(0,145,175,0.07)")
+      rg.addColorStop(0.78, "rgba(12,85,165,0.24)")
+      rg.addColorStop(0.94, "rgba(0,155,185,0.10)")
+      rg.addColorStop(1,    "rgba(0,0,0,0)")
+      ctx.beginPath(); ctx.arc(cx, cy, R * 1.06, 0, Math.PI * 2)
+      ctx.fillStyle = rg; ctx.fill()
 
-      // 5 – glass specular top-left
+      // ── 5. glass specular top-left ─────────────────────────────────────────
       ctx.save()
-      ctx.beginPath()
-      ctx.arc(cx, cy, R, 0, Math.PI * 2)
-      ctx.clip()
-      const glG = ctx.createRadialGradient(
-        cx - R * 0.40, cy - R * 0.44, 0,
-        cx - R * 0.18, cy - R * 0.22, R * 0.54
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip()
+      const gg2 = ctx.createRadialGradient(
+        cx - R * 0.38, cy - R * 0.42, 0,
+        cx - R * 0.16, cy - R * 0.20, R * 0.55
       )
-      glG.addColorStop(0, "rgba(255,255,255,0.15)")
-      glG.addColorStop(0.5, "rgba(210,235,255,0.05)")
-      glG.addColorStop(1, "rgba(255,255,255,0)")
-      ctx.fillStyle = glG
-      ctx.fillRect(0, 0, W, H)
+      gg2.addColorStop(0,   "rgba(255,255,255,0.14)")
+      gg2.addColorStop(0.5, "rgba(205,232,255,0.05)")
+      gg2.addColorStop(1,   "rgba(255,255,255,0)")
+      ctx.fillStyle = gg2; ctx.fillRect(0, 0, W, H)
       ctx.restore()
 
-      // 6 – listening pulse rings
+      // ── 6. listening pulse rings ───────────────────────────────────────────
       if (state === "listening") {
         for (let k = 0; k < 3; k++) {
-          const phase = (((t * 0.032) - k * 0.75 + 10) % 1 + 1) % 1
-          const ringR = R * (1.06 + phase * 0.52)
-          const alpha = Math.max(0, (1 - phase) * 0.16)
-          ctx.beginPath()
-          ctx.arc(cx, cy, ringR, 0, Math.PI * 2)
-          ctx.strokeStyle = `rgba(0,200,220,${alpha.toFixed(3)})`
-          ctx.lineWidth = 1.0
-          ctx.stroke()
+          const phase = (((t * 0.030) - k * 0.72 + 12) % 1 + 1) % 1
+          const rr    = R * (1.06 + phase * 0.55)
+          const al    = Math.max(0, (1 - phase) * 0.15)
+          ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2)
+          ctx.strokeStyle = `rgba(0,200,220,${al.toFixed(3)})`
+          ctx.lineWidth = 1.0; ctx.stroke()
         }
       }
 
