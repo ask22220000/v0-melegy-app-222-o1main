@@ -36,9 +36,11 @@ import {
   FileSpreadsheet,
   Film,
   Share2,
+  Radio,
   } from "lucide-react"
 import Link from "next/link"
 import { DesignViewer } from "@/components/design-viewer"
+import { VoiceOrb } from "@/components/voice-orb"
 
 interface Message {
   id: string
@@ -103,6 +105,7 @@ export default function ChatAdvancedPage() {
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
+  const [showVoiceOrb, setShowVoiceOrb] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -1429,18 +1432,34 @@ export default function ChatAdvancedPage() {
                     </div>
                   )}
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={toggleListening}
-                  className={`shrink-0 ${isListening ? "text-red-500" : "text-gray-400"}`}
-                >
-                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                </Button>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-              </div>
-            </form>
-          </div>
+  <Button
+  type="button"
+  variant="ghost"
+  onClick={toggleListening}
+  className={`shrink-0 ${isListening ? "text-red-500" : "text-gray-400"}`}
+  >
+  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+  </Button>
+  <Button
+    type="button"
+    variant="ghost"
+    onClick={() => setShowVoiceOrb(true)}
+    className="shrink-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
+    title="دردشة صوتية مباشرة"
+  >
+    <Radio className="h-5 w-5" />
+  </Button>
+  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+  </div>
+  </form>
+
+  {showVoiceOrb && (
+    <VoiceOrb
+      onClose={() => setShowVoiceOrb(false)}
+      chatHistory={messages.slice(-6).map((m) => ({ role: m.role, content: m.content }))}
+    />
+  )}
+  </div>
         </div>
         <Toaster />
       </div>
