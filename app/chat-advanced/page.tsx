@@ -11,6 +11,7 @@ import { UsageIndicator } from "@/components/usage-indicator"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
 import { UserIdModal } from "@/components/user-id-modal"
+import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
 import {
   Send,
@@ -36,9 +37,11 @@ import {
   FileSpreadsheet,
   Film,
   Share2,
+  Radio,
   } from "lucide-react"
 import Link from "next/link"
 import { DesignViewer } from "@/components/design-viewer"
+import { VoiceOrb } from "@/components/voice-orb"
 
 interface Message {
   id: string
@@ -65,6 +68,7 @@ interface ChatHistory {
 }
 
 export default function ChatAdvancedPage() {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -1429,18 +1433,27 @@ export default function ChatAdvancedPage() {
                     </div>
                   )}
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={toggleListening}
-                  className={`shrink-0 ${isListening ? "text-red-500" : "text-gray-400"}`}
-                >
-                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                </Button>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-              </div>
-            </form>
-          </div>
+  <Button
+  type="button"
+  variant="ghost"
+  onClick={toggleListening}
+  className={`shrink-0 ${isListening ? "text-red-500" : "text-gray-400"}`}
+  >
+  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+  </Button>
+  <Button
+    type="button"
+    variant="ghost"
+    onClick={() => router.push("/voice-chat")}
+    className="shrink-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
+    title="دردشة صوتية مباشرة"
+  >
+    <Radio className="h-5 w-5" />
+  </Button>
+  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+  </div>
+  </form>
+  </div>
         </div>
         <Toaster />
       </div>

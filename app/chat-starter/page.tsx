@@ -13,6 +13,7 @@ import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { UserIdModal } from "@/components/user-id-modal"
+import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
 import {
   Send,
@@ -38,6 +39,7 @@ import {
   FileSpreadsheet,
   Film,
   Share2,
+  Radio,
   } from "lucide-react"
 
 interface Message {
@@ -65,6 +67,7 @@ interface ChatHistory {
 }
 
 export default function ChatStarterPage() {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -1199,17 +1202,26 @@ export default function ChatStarterPage() {
               </div>
             )}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={toggleListening}
-            className={`shrink-0 ${isListening ? "text-red-500" : "text-gray-400"}`}
-          >
-            {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </Button>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-        </div>
-      </form>
+  <Button
+  type="button"
+  variant="ghost"
+  onClick={toggleListening}
+  className={`shrink-0 ${isListening ? "text-red-500" : "text-gray-400"}`}
+  >
+  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+  </Button>
+  <Button
+    type="button"
+    variant="ghost"
+    onClick={() => router.push("/voice-chat")}
+    className="shrink-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
+    title="دردشة صوتية مباشرة"
+  >
+    <Radio className="h-5 w-5" />
+  </Button>
+  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+  </div>
+  </form>
 
       {showAnimateModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowAnimateModal(false)}>

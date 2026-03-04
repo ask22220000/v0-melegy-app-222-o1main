@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { DesignViewer } from "@/components/design-viewer"
 import { UserIdModal } from "@/components/user-id-modal"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
 import {
@@ -37,6 +38,7 @@ import {
   Languages,
   Film,
   Share2,
+  Radio,
 } from "lucide-react"
 
 interface Message {
@@ -66,6 +68,7 @@ interface ChatHistory {
 
 export default function ChatPage() {
   const { translations, language, setLanguage } = useApp()
+  const router = useRouter()
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -1393,6 +1396,15 @@ export default function ChatPage() {
           >
             {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => router.push("/voice-chat")}
+            className="shrink-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
+            title="دردشة صوتية مباشرة"
+          >
+            <Radio className="h-5 w-5" />
+          </Button>
           <input 
             ref={fileInputRef} 
             type="file" 
@@ -1402,6 +1414,8 @@ export default function ChatPage() {
           />
         </div>
       </form>
+
+
 
       {/* Animate Image Modal */}
       {showAnimateModal && (
