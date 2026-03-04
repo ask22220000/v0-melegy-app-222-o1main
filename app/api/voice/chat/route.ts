@@ -30,9 +30,9 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "llama-3.3-70b-versatile",
         messages,
-        max_tokens: 180,
+        max_tokens: 120,
         temperature: 0.7,
         stream: false,
       }),

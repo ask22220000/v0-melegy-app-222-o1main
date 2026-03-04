@@ -274,21 +274,21 @@ export default function VoiceChatPage() {
   const [reply, setReply] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
   const [isRecording, setIsRecording] = useState(false)
-  const [history, setHistory] = useState<{ role: string; content: string }[]>([])
 
-  const orbStateRef = useRef<OrbState>("idle")
-  const analyserRef = useRef<AnalyserNode | null>(null)
+  // Use a ref for history so onstop always reads the latest value
+  const orbStateRef    = useRef<OrbState>("idle")
+  const analyserRef    = useRef<AnalyserNode | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const audioCtxRef = useRef<AudioContext | null>(null)
+  const audioRef       = useRef<HTMLAudioElement | null>(null)
+  const streamRef      = useRef<MediaStream | null>(null)
+  const audioCtxRef    = useRef<AudioContext | null>(null)
+  const historyRef     = useRef<{ role: string; content: string }[]>([])
 
-  // Keep ref in sync with state
-  useEffect(() => {
-    orbStateRef.current = orbState
-  }, [orbState])
+  // Keep orbState ref in sync
+  useEffect(() => { orbStateRef.current = orbState }, [orbState])
 
+  // ── cleanup on unmount ─────────────────────────────────────────────────────
   const stopAllAudio = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause()
@@ -299,92 +299,106 @@ export default function VoiceChatPage() {
       streamRef.current.getTracks().forEach((t) => t.stop())
       streamRef.current = null
     }
-    if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
-      audioCtxRef.current.close().catch(() => {})
-      audioCtxRef.current = null
-    }
     analyserRef.current = null
+    // keep audioCtxRef alive across turns — closing it causes issues
   }, [])
 
-  useEffect(() => {
-    return () => stopAllAudio()
-  }, [stopAllAudio])
+  useEffect(() => () => stopAllAudio(), [stopAllAudio])
 
-  // ── TTS ───────────────────────────────────────────────────────────────────
-  const speakReply = useCallback(async (text: string, currentHistory: { role: string; content: string }[]) => {
+  // ── ensure AudioContext exists (one per session) ──────────────────────────
+  const getAudioCtx = useCallback(() => {
+    if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+      audioCtxRef.current = new AudioContext()
+    }
+    if (audioCtxRef.current.state === "suspended") {
+      audioCtxRef.current.resume().catch(() => {})
+    }
+    return audioCtxRef.current
+  }, [])
+
+  // ── TTS: fetch audio → connect analyser → play ───────────────────────────
+  const speakReply = useCallback(async (text: string) => {
     setOrbState("speaking")
+    orbStateRef.current = "speaking"
     try {
       const ttsRes = await fetch("/api/text-to-speech", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       })
-      if (!ttsRes.ok) throw new Error("TTS request failed")
+      if (!ttsRes.ok) throw new Error(`TTS ${ttsRes.status}`)
       const arrayBuffer = await ttsRes.arrayBuffer()
-      if (!arrayBuffer.byteLength) throw new Error("Empty audio")
+      if (!arrayBuffer.byteLength) throw new Error("الصوت فارغ")
 
-      const url = URL.createObjectURL(new Blob([arrayBuffer], { type: "audio/mpeg" }))
+      // Stop any previous audio first
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.src = ""
+        audioRef.current = null
+      }
+
+      const url  = URL.createObjectURL(new Blob([arrayBuffer], { type: "audio/mpeg" }))
       const audio = new Audio(url)
       audio.volume = 1.0
       audioRef.current = audio
 
-      // Boost volume via GainNode after canplay
-      audio.addEventListener("canplay", () => {
-        try {
-          if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
-            audioCtxRef.current = new AudioContext()
-          }
-          const actx = audioCtxRef.current
-          const src = actx.createMediaElementSource(audio)
-          const analyser = actx.createAnalyser()
-          analyser.fftSize = 256
-          const gain = actx.createGain()
-          gain.gain.value = 2.2
-          src.connect(analyser)
-          analyser.connect(gain)
-          gain.connect(actx.destination)
-          analyserRef.current = analyser
-        } catch {
-          // play without analyser if context fails
-        }
-      }, { once: true })
-
-      audio.onended = () => {
-        URL.revokeObjectURL(url)
-        analyserRef.current = null
-        setOrbState("idle")
-      }
-      audio.onerror = () => {
-        setErrorMsg("خطأ في تشغيل الصوت")
-        setOrbState("idle")
+      // Wire AudioContext analyser for orb animation
+      const actx = getAudioCtx()
+      try {
+        const src     = actx.createMediaElementSource(audio)
+        const analyser = actx.createAnalyser()
+        analyser.fftSize = 256
+        const gain    = actx.createGain()
+        gain.gain.value = 2.5
+        src.connect(analyser)
+        analyser.connect(gain)
+        gain.connect(actx.destination)
+        analyserRef.current = analyser
+      } catch {
+        // Safari / already-connected: play without analyser
+        audio.volume = 1.0
       }
 
       await audio.play()
+
+      await new Promise<void>((resolve) => {
+        audio.onended = () => resolve()
+        audio.onerror = () => resolve()
+      })
+      URL.revokeObjectURL(url)
+      audioRef.current = null
+      analyserRef.current = null
+      setOrbState("idle")
+      orbStateRef.current = "idle"
     } catch (e: any) {
       setErrorMsg(`فشل تشغيل الصوت: ${e.message}`)
       setOrbState("idle")
+      orbStateRef.current = "idle"
     }
-  }, [])
+  }, [getAudioCtx])
 
-  // ── Process audio after recording stops ──────────────────────────────────
-  const processAudio = useCallback(async (currentHistory: { role: string; content: string }[]) => {
+  // ── processAudio: STT → LLM → TTS ────────────────────────────────────────
+  const processAudio = useCallback(async () => {
     const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-    if (blob.size < 600) {
-      setErrorMsg("لم يُكتشف صوت — تكلم بوضوح ثم اضغط للإيقاف")
+    audioChunksRef.current = []
+
+    if (blob.size < 500) {
+      setErrorMsg("مفيش صوت — اتكلم وضغط إيقاف")
       setOrbState("idle")
       return
     }
 
     setOrbState("thinking")
+    orbStateRef.current = "thinking"
 
-    // STT
+    // ── STT ────────────────────────────────────────────────────────────────
     const form = new FormData()
     form.append("audio", blob, "audio.webm")
     let sttText = ""
     try {
-      const res = await fetch("/api/voice/stt", { method: "POST", body: form })
+      const res  = await fetch("/api/voice/stt", { method: "POST", body: form })
       const data = await res.json()
-      if (!res.ok || !data.text) throw new Error(data.error || "فشل التعرف على الصوت")
+      if (!res.ok || !data.text?.trim()) throw new Error(data.error || "مفيش كلام واضح")
       sttText = data.text.trim()
       setTranscript(sttText)
     } catch (e: any) {
@@ -393,25 +407,29 @@ export default function VoiceChatPage() {
       return
     }
 
-    // LLM
-    let replyText = ""
+    // ── LLM ────────────────────────────────────────────────────────────────
     try {
-      const res = await fetch("/api/voice/chat", {
+      const res  = await fetch("/api/voice/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: sttText, history: currentHistory.slice(-6) }),
+        body: JSON.stringify({
+          text:    sttText,
+          history: historyRef.current.slice(-8),  // last 4 turns
+        }),
       })
       const data = await res.json()
       if (!res.ok || !data.reply) throw new Error(data.error || "فشل الرد")
-      replyText = data.reply.trim()
+      const replyText = data.reply.trim()
       setReply(replyText)
-      const newHistory = [
-        ...currentHistory,
-        { role: "user", content: sttText },
-        { role: "assistant", content: replyText },
+
+      // Update history ref immediately (no stale closure issue)
+      historyRef.current = [
+        ...historyRef.current,
+        { role: "user",      content: sttText    },
+        { role: "assistant", content: replyText  },
       ]
-      setHistory(newHistory)
-      await speakReply(replyText, newHistory)
+
+      await speakReply(replyText)
     } catch (e: any) {
       setErrorMsg(e.message)
       setOrbState("idle")
@@ -423,43 +441,44 @@ export default function VoiceChatPage() {
     setErrorMsg("")
     setTranscript("")
     setReply("")
+
+    let stream: MediaStream
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
-
-      // Mic analyser for orb visualisation (no playback)
-      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
-        audioCtxRef.current = new AudioContext()
-      }
-      const actx = audioCtxRef.current
-      const micSrc = actx.createMediaStreamSource(stream)
-      const analyser = actx.createAnalyser()
-      analyser.fftSize = 256
-      micSrc.connect(analyser)
-      analyserRef.current = analyser
-
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm"
-      const recorder = new MediaRecorder(stream, { mimeType })
-      audioChunksRef.current = []
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data)
-      }
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop())
-        streamRef.current = null
-        analyserRef.current = null
-        processAudio(history)
-      }
-      mediaRecorderRef.current = recorder
-      recorder.start()
-      setIsRecording(true)
-      setOrbState("listening")
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
+      })
     } catch {
       setErrorMsg("لازم تسمح بالوصول للميكروفون")
+      return
     }
-  }, [history, processAudio])
+    streamRef.current = stream
+
+    // Mic analyser for orb (no playback — don't connect to destination)
+    const actx    = getAudioCtx()
+    const micSrc  = actx.createMediaStreamSource(stream)
+    const analyser = actx.createAnalyser()
+    analyser.fftSize = 256
+    micSrc.connect(analyser)   // analyser is not connected to destination on purpose
+    analyserRef.current = analyser
+
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : "audio/webm"
+    const recorder = new MediaRecorder(stream, { mimeType })
+    audioChunksRef.current = []
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+    recorder.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop())
+      streamRef.current  = null
+      analyserRef.current = null
+      processAudio()  // no argument needed — reads historyRef directly
+    }
+    mediaRecorderRef.current = recorder
+    recorder.start(100)   // 100ms chunks for smoother data
+    setIsRecording(true)
+    setOrbState("listening")
+    orbStateRef.current = "listening"
+  }, [getAudioCtx, processAudio])
 
   // ── Stop recording ────────────────────────────────────────────────────────
   const stopListening = useCallback(() => {
