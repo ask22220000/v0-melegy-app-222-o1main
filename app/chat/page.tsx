@@ -61,6 +61,7 @@ interface ChatHistory {
   title: string
   date: string
   messages: Message[]
+  conversationId?: string
 }
 
 export default function ChatPage() {
@@ -177,6 +178,26 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  // Load conversations from Supabase when user ID is set
+  const loadConversationsFromServer = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/user/conversations?user_id=${userId}`)
+      const data = await res.json()
+      if (data.conversations && data.conversations.length > 0) {
+        const histories: ChatHistory[] = data.conversations.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          date: new Date(c.created_at).toLocaleDateString("ar-EG"),
+          messages: [], // lazy-load messages when user clicks
+          conversationId: c.id,
+        }))
+        setChatHistories(histories)
+      }
+    } catch (err) {
+      // silently fail — user still sees empty history
+    }
+  }
+
   // Initialize user: check localStorage for existing ID
   useEffect(() => {
     const storedId = localStorage.getItem("mlg_user_id")
@@ -189,6 +210,7 @@ export default function ChatPage() {
           if (data.user) {
             setMlgUserId(data.user.mlg_user_id)
             setMlgPlan(data.user.plan)
+            loadConversationsFromServer(data.user.mlg_user_id)
           } else {
             // ID invalid, show modal
             localStorage.removeItem("mlg_user_id")
@@ -200,6 +222,7 @@ export default function ChatPage() {
           // On error keep stored values
           setMlgUserId(storedId)
           setMlgPlan(storedPlan)
+          loadConversationsFromServer(storedId)
         })
     } else {
       setShowUserModal(true)
@@ -219,14 +242,6 @@ export default function ChatPage() {
       document.body.className = "bg-white text-black"
     }
 
-    try {
-      const savedHistories = localStorage.getItem("melegy_chat_histories_free")
-      if (savedHistories) {
-        setChatHistories(JSON.parse(savedHistories))
-      }
-    } catch (error) {
-      console.error("Error loading chat histories:", error)
-    }
   }, [])
 
   const detectImageRequest = (text: string): boolean => {
@@ -838,32 +853,68 @@ export default function ChatPage() {
       return
     }
 
-    const title = messages
-      .filter((m) => m.role === "user")
-      .map((m) => m.content.substring(0, 30))
-      .join(" | ") || "محادثة بدون عنوان"
-
-    const newChat: ChatHistory = {
-      id: Date.now().toString(),
-      title: title.substring(0, 50),
-      date: new Date().toLocaleDateString("ar-EG"),
-      messages: messages,
+    if (!mlgUserId) {
+      toast({ title: "خطأ", description: "لازم تسجل الأول", variant: "destructive" })
+      return
     }
 
-    const updated = [...chatHistories, newChat]
-    setChatHistories(updated)
-    localStorage.setItem("melegy_chat_histories_free", JSON.stringify(updated))
+    const title =
+      messages
+        .filter((m) => m.role === "user")
+        .map((m) => m.content.substring(0, 30))
+        .join(" | ") || "محادثة بدون عنوان"
 
-    toast({
-      title: "تم الحفظ",
-      description: "تم حفظ المحادثة بنجاح",
-    })
+    try {
+      // 1. Create conversation in Supabase
+      const convRes = await fetch("/api/user/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mlg_user_id: mlgUserId, title: title.substring(0, 80) }),
+      })
+      const convData = await convRes.json()
+      if (!convRes.ok) throw new Error(convData.error || "فشل إنشاء المحادثة")
+
+      const conversationId = convData.conversation.id
+
+      // 2. Save all messages
+      for (const msg of messages) {
+        if (msg.id === "welcome") continue
+        await fetch("/api/user/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversation_id: conversationId,
+            mlg_user_id: mlgUserId,
+            role: msg.role,
+            content: msg.imageUrl
+              ? `[image:${msg.imageUrl}] ${msg.content}`
+              : msg.videoUrl
+              ? `[video:${msg.videoUrl}] ${msg.content}`
+              : msg.content,
+          }),
+        })
+      }
+
+      // 3. Update local state
+      const newChat: ChatHistory = {
+        id: conversationId,
+        title: title.substring(0, 50),
+        date: new Date().toLocaleDateString("ar-EG"),
+        messages: messages,
+      }
+      setChatHistories((prev) => [newChat, ...prev])
+
+      toast({ title: "تم الحفظ", description: "تم حفظ المحادثة وهتلاقيها من أي جهاز" })
+    } catch (err: any) {
+      toast({ title: "خطأ في الحفظ", description: err.message, variant: "destructive" })
+      return
+    }
 
     setMessages([
       {
         id: "welcome",
         role: "assistant",
-        content: "أهلاً بيك في ميليجي! 👋 أنا مساعدك الذكي، معاك 10 رسائل و3 صور يومياً في الخطة المجانية. كيف أقدر أساعدك؟",
+        content: "أهلاً بيك في ميليجي! 👋 أنا مساعدك الذكي. كيف أقدر أساعدك؟",
       },
     ])
   }
@@ -920,9 +971,37 @@ export default function ChatPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  const loadChatHistory = (chat: ChatHistory) => {
-    setMessages(chat.messages)
+  const loadChatHistory = async (chat: ChatHistory) => {
     setShowChatHistory(false)
+    // If we already have messages locally, load them directly
+    if (chat.messages && chat.messages.length > 0) {
+      setMessages(chat.messages)
+      return
+    }
+    // Otherwise fetch from Supabase
+    try {
+      const res = await fetch(`/api/user/messages?conversation_id=${chat.id}`)
+      const data = await res.json()
+      if (data.messages && data.messages.length > 0) {
+        const msgs: Message[] = data.messages.map((m: any) => {
+          // Parse image/video prefixes back
+          const imageMatch = m.content.match(/^\[image:(.*?)\] (.*)$/s)
+          const videoMatch = m.content.match(/^\[video:(.*?)\] (.*)$/s)
+          return {
+            id: m.id,
+            role: m.role as "user" | "assistant",
+            content: imageMatch ? imageMatch[2] : videoMatch ? videoMatch[2] : m.content,
+            imageUrl: imageMatch ? imageMatch[1] : undefined,
+            videoUrl: videoMatch ? videoMatch[1] : undefined,
+          }
+        })
+        setMessages(msgs)
+      } else {
+        toast({ title: "المحادثة فارغة", description: "مفيش رسائل في المحادثة دي" })
+      }
+    } catch {
+      toast({ title: "خطأ", description: "فشل تحميل الرسائل", variant: "destructive" })
+    }
   }
 
   const toggleTheme = () => {
