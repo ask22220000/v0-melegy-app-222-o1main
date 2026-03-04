@@ -7,7 +7,6 @@ type OrbState = "idle" | "listening" | "thinking" | "speaking"
 
 interface VoiceOrbProps {
   onClose: () => void
-  /** Pass recent chat messages for context */
   chatHistory?: { role: "user" | "assistant"; content: string }[]
 }
 
@@ -29,24 +28,33 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
+  const orbStateRef = useRef<OrbState>("idle")
 
-  // ── Canvas Orb animation — dark glass sphere matching the GIF ────────────
+  // Keep ref in sync with state so canvas can read latest value
+  useEffect(() => {
+    orbStateRef.current = orbState
+  }, [orbState])
+
+  // ── Canvas Orb — pixel-accurate recreation of the GIF ─────────────────────
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext("2d")!
     let t = 0
+    let running = true
 
     const draw = () => {
+      if (!running) return
       const W = canvas.width
       const H = canvas.height
       const cx = W / 2
       const cy = H / 2
-      const baseR = W * 0.36
+      const baseR = W * 0.375
+      const state = orbStateRef.current
 
       ctx.clearRect(0, 0, W, H)
 
-      // Live amplitude from analyser
+      // Live amplitude
       let amplitude = 0
       let freqData: Uint8Array | null = null
       if (analyserRef.current) {
@@ -55,186 +63,204 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
         amplitude = freqData.reduce((a, b) => a + b, 0) / freqData.length / 128
       }
 
-      // Subtle size pulse per state
       const pulse =
-        orbState === "speaking"
-          ? 1 + amplitude * 0.12 + Math.sin(t * 0.06) * 0.02
-          : orbState === "listening"
-          ? 1 + Math.sin(t * 0.05) * 0.025
-          : orbState === "thinking"
-          ? 1 + Math.sin(t * 0.03) * 0.015
-          : 1 + Math.sin(t * 0.02) * 0.01
+        state === "speaking" ? 1 + amplitude * 0.10 + Math.sin(t * 0.055) * 0.018
+        : state === "listening" ? 1 + Math.sin(t * 0.05) * 0.022
+        : state === "thinking"  ? 1 + Math.sin(t * 0.03) * 0.012
+        : 1 + Math.sin(t * 0.018) * 0.008
 
       const R = baseR * pulse
 
-      // ── 1. Diffuse outer ambient glow ──
-      const ambientR = R * 1.55
-      const ambient = ctx.createRadialGradient(cx, cy, R * 0.5, cx, cy, ambientR)
-      ambient.addColorStop(0, "rgba(20,60,160,0.22)")
-      ambient.addColorStop(0.5, "rgba(10,30,100,0.10)")
-      ambient.addColorStop(1, "rgba(0,0,0,0)")
+      // ── Outer ambient glow ──
+      const ambG = ctx.createRadialGradient(cx, cy, R * 0.4, cx, cy, R * 1.7)
+      ambG.addColorStop(0, "rgba(10,40,140,0.30)")
+      ambG.addColorStop(0.4, "rgba(5,20,80,0.14)")
+      ambG.addColorStop(0.75, "rgba(2,8,40,0.06)")
+      ambG.addColorStop(1, "rgba(0,0,0,0)")
       ctx.beginPath()
-      ctx.arc(cx, cy, ambientR, 0, Math.PI * 2)
-      ctx.fillStyle = ambient
+      ctx.arc(cx, cy, R * 1.7, 0, Math.PI * 2)
+      ctx.fillStyle = ambG
       ctx.fill()
 
-      // ── 2. Dark glass sphere body ──
-      const sphere = ctx.createRadialGradient(cx - R * 0.15, cy - R * 0.2, R * 0.02, cx + R * 0.1, cy + R * 0.15, R)
-      sphere.addColorStop(0, "rgba(18,40,110,0.98)")
-      sphere.addColorStop(0.35, "rgba(8,20,70,0.99)")
-      sphere.addColorStop(0.65, "rgba(4,10,45,1)")
-      sphere.addColorStop(0.85, "rgba(2,6,28,1)")
-      sphere.addColorStop(1, "rgba(0,3,16,1)")
+      // ── Main dark glass sphere ──
+      // Offset the gradient center top-left for 3D glass look (matches GIF)
+      const sphG = ctx.createRadialGradient(
+        cx - R * 0.22, cy - R * 0.22, R * 0.08,
+        cx + R * 0.08, cy + R * 0.12, R * 1.05
+      )
+      sphG.addColorStop(0,    "rgba(22,52,130,1)")
+      sphG.addColorStop(0.28, "rgba(10,25,75,1)")
+      sphG.addColorStop(0.55, "rgba(5,12,45,1)")
+      sphG.addColorStop(0.78, "rgba(2,6,24,1)")
+      sphG.addColorStop(1,    "rgba(0,2,10,1)")
       ctx.save()
       ctx.beginPath()
       ctx.arc(cx, cy, R, 0, Math.PI * 2)
-      ctx.fillStyle = sphere
+      ctx.fillStyle = sphG
       ctx.fill()
       ctx.restore()
 
-      // ── 3. Clipping to sphere for inner elements ──
+      // ── Clip everything inside the sphere ──
       ctx.save()
       ctx.beginPath()
-      ctx.arc(cx, cy, R, 0, Math.PI * 2)
+      ctx.arc(cx, cy, R * 0.995, 0, Math.PI * 2)
       ctx.clip()
 
-      // ── 3a. Bottom teal-purple gradient haze (from GIF) ──
-      const hazeH = R * 1.2
-      const haze = ctx.createRadialGradient(cx, cy + R * 0.15, 0, cx, cy + R * 0.15, hazeH)
-      haze.addColorStop(0, "rgba(0,200,180,0.28)")
-      haze.addColorStop(0.3, "rgba(40,80,200,0.20)")
-      haze.addColorStop(0.6, "rgba(80,20,160,0.14)")
-      haze.addColorStop(1, "rgba(0,0,0,0)")
-      ctx.fillStyle = haze
+      // ── Internal color haze (teal bottom-center, purple bottom-right like GIF) ──
+      const hazeT = t * 0.008
+      // Teal patch (bottom-center, shifts slowly)
+      const tealX = cx + Math.sin(hazeT) * R * 0.08
+      const tealY = cy + R * 0.18 + Math.cos(hazeT * 0.7) * R * 0.06
+      const tealG = ctx.createRadialGradient(tealX, tealY, 0, tealX, tealY, R * 0.72)
+      tealG.addColorStop(0,   "rgba(0,210,190,0.30)")
+      tealG.addColorStop(0.35,"rgba(0,160,200,0.18)")
+      tealG.addColorStop(0.65,"rgba(0,80,160,0.08)")
+      tealG.addColorStop(1,   "rgba(0,0,0,0)")
+      ctx.fillStyle = tealG
       ctx.fillRect(0, 0, W, H)
 
-      // ── 3b. Dot/mesh texture grid ──
-      const dotSpacing = 10
-      const dotR = 1.1
-      const cols = Math.ceil((R * 2) / dotSpacing) + 2
-      const rows = Math.ceil((R * 2) / dotSpacing) + 2
-      const startX = cx - R - dotSpacing
-      const startY = cy - R - dotSpacing
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const dx = startX + col * dotSpacing
-          const dy = startY + row * dotSpacing
-          const dist = Math.sqrt((dx - cx) ** 2 + (dy - cy) ** 2)
-          if (dist > R) continue
-          // Fade dots near edges
-          const edgeFade = Math.max(0, 1 - dist / (R * 0.92))
-          // Proximity to inner glow brightens dots
-          const glowDist = Math.sqrt((dx - cx) ** 2 + (dy - cy) ** 2)
-          const glowBoost = Math.max(0, 1 - glowDist / (R * 0.55))
-          const alpha = edgeFade * (0.12 + glowBoost * 0.55)
-          // Color shifts: teal center → blue → purple outer
-          const r = Math.round(30 + glowBoost * 20)
-          const g = Math.round(180 + glowBoost * 70)
-          const b = Math.round(220 - glowBoost * 20)
+      // Purple patch (bottom-right)
+      const purpX = cx + R * 0.28 + Math.sin(hazeT * 1.2) * R * 0.05
+      const purpY = cy + R * 0.22
+      const purpG = ctx.createRadialGradient(purpX, purpY, 0, purpX, purpY, R * 0.55)
+      purpG.addColorStop(0,   "rgba(120,30,200,0.22)")
+      purpG.addColorStop(0.4, "rgba(80,20,160,0.12)")
+      purpG.addColorStop(1,   "rgba(0,0,0,0)")
+      ctx.fillStyle = purpG
+      ctx.fillRect(0, 0, W, H)
+
+      // ── Dot mesh texture (exactly like GIF) ──
+      const DOT_SPACING = 9
+      const DOT_R = 1.0
+      const startX = cx - R - DOT_SPACING
+      const startY = cy - R - DOT_SPACING
+      const colCount = Math.ceil((R * 2 + DOT_SPACING * 2) / DOT_SPACING)
+      const rowCount = colCount
+      for (let row = 0; row < rowCount; row++) {
+        for (let col = 0; col < colCount; col++) {
+          const dx = startX + col * DOT_SPACING
+          const dy = startY + row * DOT_SPACING
+          const dist = Math.hypot(dx - cx, dy - cy)
+          if (dist > R * 0.97) continue
+          const norm = dist / R // 0=center, 1=edge
+          const edgeFade = Math.pow(1 - norm, 0.6)
+          // Proximity-to-core brightens color and alpha
+          const glowFade = Math.max(0, 1 - dist / (R * 0.50))
+          const alpha = edgeFade * (0.10 + glowFade * 0.60)
+          // Teal at core → blue → purple at outer
+          const rr = Math.round(20 + glowFade * 10)
+          const gg = Math.round(170 + glowFade * 80)
+          const bb = Math.round(215 + glowFade * 30)
           ctx.beginPath()
-          ctx.arc(dx, dy, dotR, 0, Math.PI * 2)
-          ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(2)})`
+          ctx.arc(dx, dy, DOT_R, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(${rr},${gg},${bb},${alpha.toFixed(2)})`
           ctx.fill()
         }
       }
 
-      // ── 3c. Central inner glow pill/core (the IK symbol area in GIF) ──
-      const isSpeaking = orbState === "speaking"
-      const isListening = orbState === "listening"
-      const coreScale = isSpeaking ? 1 + amplitude * 0.35 : isListening ? 1 + Math.sin(t * 0.07) * 0.1 : 1
-      const coreW = R * 0.52 * coreScale
-      const coreH = R * 0.28 * coreScale
+      // ── Central pill glow (the glowing "IK" zone from GIF) ──
+      const coreAnim = state === "speaking"
+        ? 1 + amplitude * 0.40 + Math.sin(t * 0.09) * 0.05
+        : state === "listening"
+        ? 1 + Math.sin(t * 0.07) * 0.12
+        : state === "thinking"
+        ? 0.85 + Math.sin(t * 0.04) * 0.08
+        : 0.75 + Math.sin(t * 0.025) * 0.05
 
-      // Pill-shaped glow (matches the glowing rectangle in GIF)
-      const pillGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreW)
-      if (isSpeaking) {
-        const bright = 0.85 + amplitude * 0.15
-        pillGrad.addColorStop(0, `rgba(${Math.round(200 * bright)},${Math.round(240 * bright)},255,0.98)`)
-        pillGrad.addColorStop(0.25, `rgba(80,200,255,${0.85 * bright})`)
-        pillGrad.addColorStop(0.55, `rgba(0,160,220,${0.55 * bright})`)
-        pillGrad.addColorStop(0.8, `rgba(60,20,200,${0.2 * bright})`)
-        pillGrad.addColorStop(1, "rgba(0,0,0,0)")
-      } else if (isListening) {
-        pillGrad.addColorStop(0, "rgba(180,240,255,0.95)")
-        pillGrad.addColorStop(0.3, "rgba(0,200,230,0.75)")
-        pillGrad.addColorStop(0.6, "rgba(0,120,200,0.40)")
-        pillGrad.addColorStop(1, "rgba(0,0,0,0)")
-      } else if (orbState === "thinking") {
-        pillGrad.addColorStop(0, "rgba(200,160,255,0.90)")
-        pillGrad.addColorStop(0.4, "rgba(140,60,255,0.50)")
-        pillGrad.addColorStop(1, "rgba(0,0,0,0)")
-      } else {
-        pillGrad.addColorStop(0, "rgba(120,200,255,0.70)")
-        pillGrad.addColorStop(0.5, "rgba(40,100,220,0.35)")
-        pillGrad.addColorStop(1, "rgba(0,0,0,0)")
-      }
-      // Draw as ellipse
+      const coreW = R * 0.48 * coreAnim
+      const coreH = R * 0.22 * coreAnim
+
       ctx.save()
+      ctx.translate(cx, cy)
       ctx.scale(1, coreH / coreW)
+
+      const coreG = ctx.createRadialGradient(0, 0, 0, 0, 0, coreW)
+      if (state === "speaking") {
+        const b2 = 0.88 + amplitude * 0.12
+        coreG.addColorStop(0,    `rgba(${Math.round(210*b2)},${Math.round(245*b2)},255,1)`)
+        coreG.addColorStop(0.20, `rgba(80,210,255,${0.90*b2})`)
+        coreG.addColorStop(0.50, `rgba(0,170,230,${0.55*b2})`)
+        coreG.addColorStop(0.78, `rgba(40,30,200,${0.18*b2})`)
+        coreG.addColorStop(1,    "rgba(0,0,0,0)")
+      } else if (state === "listening") {
+        coreG.addColorStop(0,    "rgba(200,248,255,0.98)")
+        coreG.addColorStop(0.28, "rgba(0,210,240,0.78)")
+        coreG.addColorStop(0.58, "rgba(0,130,210,0.42)")
+        coreG.addColorStop(1,    "rgba(0,0,0,0)")
+      } else if (state === "thinking") {
+        coreG.addColorStop(0,    "rgba(210,170,255,0.92)")
+        coreG.addColorStop(0.35, "rgba(150,60,255,0.55)")
+        coreG.addColorStop(0.70, "rgba(80,20,180,0.20)")
+        coreG.addColorStop(1,    "rgba(0,0,0,0)")
+      } else {
+        coreG.addColorStop(0,    "rgba(140,210,255,0.72)")
+        coreG.addColorStop(0.45, "rgba(40,110,230,0.38)")
+        coreG.addColorStop(1,    "rgba(0,0,0,0)")
+      }
       ctx.beginPath()
-      ctx.arc(cx, cy * (coreW / coreH), coreW, 0, Math.PI * 2)
-      ctx.fillStyle = pillGrad
+      ctx.arc(0, 0, coreW, 0, Math.PI * 2)
+      ctx.fillStyle = coreG
       ctx.fill()
       ctx.restore()
 
-      // ── 3d. Speaking freq bars inside sphere ──
-      if (isSpeaking && freqData) {
-        const bars = 32
-        for (let i = 0; i < bars; i++) {
-          const angle = (i / bars) * Math.PI * 2 - Math.PI / 2
-          const barH = (freqData[i * 4] / 255) * R * 0.22 + R * 0.02
-          const innerR = R * 0.50
-          const x1 = cx + Math.cos(angle) * innerR
-          const y1 = cy + Math.sin(angle) * innerR
-          const x2 = cx + Math.cos(angle) * (innerR + barH)
-          const y2 = cy + Math.sin(angle) * (innerR + barH)
-          const barAlpha = 0.3 + (freqData[i * 4] / 255) * 0.6
+      // ── Speaking frequency bars (radial, inside sphere) ──
+      if (state === "speaking" && freqData) {
+        const BARS = 36
+        for (let i = 0; i < BARS; i++) {
+          const angle = (i / BARS) * Math.PI * 2 - Math.PI / 2
+          const v = freqData[Math.floor(i * (freqData.length / BARS))] / 255
+          const barH = v * R * 0.20 + R * 0.015
+          const innerR = R * 0.46
           ctx.beginPath()
-          ctx.moveTo(x1, y1)
-          ctx.lineTo(x2, y2)
-          ctx.strokeStyle = `rgba(100,210,255,${barAlpha})`
-          ctx.lineWidth = 2
+          ctx.moveTo(cx + Math.cos(angle) * innerR, cy + Math.sin(angle) * innerR)
+          ctx.lineTo(cx + Math.cos(angle) * (innerR + barH), cy + Math.sin(angle) * (innerR + barH))
+          ctx.strokeStyle = `rgba(90,215,255,${0.28 + v * 0.65})`
+          ctx.lineWidth = 1.8
           ctx.lineCap = "round"
           ctx.stroke()
         }
       }
 
-      ctx.restore() // end clip
+      ctx.restore() // end sphere clip
 
-      // ── 4. Edge rim light (from GIF: subtle teal/blue rim) ──
-      const rim = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, R * 1.02)
-      rim.addColorStop(0, "rgba(0,0,0,0)")
-      rim.addColorStop(0.6, "rgba(0,160,180,0.06)")
-      rim.addColorStop(0.85, "rgba(20,100,180,0.18)")
-      rim.addColorStop(1, "rgba(0,0,0,0)")
+      // ── Rim light (blue-teal edge glow like GIF) ──
+      const rimG = ctx.createRadialGradient(cx, cy, R * 0.82, cx, cy, R * 1.04)
+      rimG.addColorStop(0,    "rgba(0,0,0,0)")
+      rimG.addColorStop(0.55, "rgba(0,150,180,0.07)")
+      rimG.addColorStop(0.80, "rgba(15,90,170,0.22)")
+      rimG.addColorStop(0.94, "rgba(0,160,190,0.10)")
+      rimG.addColorStop(1,    "rgba(0,0,0,0)")
       ctx.beginPath()
-      ctx.arc(cx, cy, R * 1.02, 0, Math.PI * 2)
-      ctx.fillStyle = rim
+      ctx.arc(cx, cy, R * 1.04, 0, Math.PI * 2)
+      ctx.fillStyle = rimG
       ctx.fill()
 
-      // ── 5. Glass specular highlight (top-left) ──
+      // ── Glass specular top-left ──
       ctx.save()
       ctx.beginPath()
       ctx.arc(cx, cy, R, 0, Math.PI * 2)
       ctx.clip()
-      const gloss = ctx.createRadialGradient(cx - R * 0.38, cy - R * 0.42, 0, cx - R * 0.2, cy - R * 0.25, R * 0.52)
-      gloss.addColorStop(0, "rgba(255,255,255,0.13)")
-      gloss.addColorStop(0.5, "rgba(200,230,255,0.05)")
-      gloss.addColorStop(1, "rgba(255,255,255,0)")
-      ctx.fillStyle = gloss
+      const glossG = ctx.createRadialGradient(
+        cx - R * 0.40, cy - R * 0.44, 0,
+        cx - R * 0.18, cy - R * 0.22, R * 0.54
+      )
+      glossG.addColorStop(0,   "rgba(255,255,255,0.15)")
+      glossG.addColorStop(0.5, "rgba(210,235,255,0.05)")
+      glossG.addColorStop(1,   "rgba(255,255,255,0)")
+      ctx.fillStyle = glossG
       ctx.fillRect(0, 0, W, H)
       ctx.restore()
 
-      // ── 6. Listening outer pulse rings ──
-      if (isListening) {
-        for (let k = 1; k <= 2; k++) {
-          const phase = ((t * 0.04) - k * 0.9) % 1
-          const ringR = R * (1.05 + phase * 0.45)
-          const alpha = Math.max(0, (1 - phase) * 0.18)
+      // ── Listening pulse rings (expanding outward) ──
+      if (state === "listening") {
+        for (let k = 0; k < 3; k++) {
+          const phase = ((t * 0.032) - k * 0.75 + 10) % 1
+          const ringR = R * (1.06 + phase * 0.52)
+          const alpha = Math.max(0, (1 - phase) * 0.16)
           ctx.beginPath()
           ctx.arc(cx, cy, ringR, 0, Math.PI * 2)
-          ctx.strokeStyle = `rgba(0,200,220,${alpha})`
-          ctx.lineWidth = 1.2
+          ctx.strokeStyle = `rgba(0,200,220,${alpha.toFixed(3)})`
+          ctx.lineWidth = 1.0
           ctx.stroke()
         }
       }
@@ -244,41 +270,41 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
     }
 
     animFrameRef.current = requestAnimationFrame(draw)
-    return () => cancelAnimationFrame(animFrameRef.current)
-  }, [orbState])
+    return () => {
+      running = false
+      cancelAnimationFrame(animFrameRef.current)
+    }
+  }, []) // runs once — reads orbStateRef for live state
 
-  // ── Auto-start recording when overlay opens ───────────────────────────────
+  // ── Auto-start on mount ──────────────────────────────────────────────────
   useEffect(() => {
     startListening()
-    return () => {
-      stopAllAudio()
-    }
+    return () => stopAllAudio()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const stopAllAudio = () => {
     if (audioRef.current) {
       audioRef.current.pause()
+      audioRef.current.src = ""
       audioRef.current = null
     }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
+      streamRef.current.getTracks().forEach((tr) => tr.stop())
       streamRef.current = null
     }
     if (audioCtxRef.current) {
-      audioCtxRef.current.close()
+      audioCtxRef.current.close().catch(() => {})
       audioCtxRef.current = null
     }
     analyserRef.current = null
   }
 
-  // ── Connect audio source to analyser for visualisation ───────────────────
-  const connectAnalyser = (source: MediaStreamAudioSourceNode | MediaElementAudioSourceNode) => {
-    const analyser = audioCtxRef.current!.createAnalyser()
-    analyser.fftSize = 256
-    source.connect(analyser)
-    analyser.connect(audioCtxRef.current!.destination)
-    analyserRef.current = analyser
+  const getOrCreateAudioCtx = () => {
+    if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+      audioCtxRef.current = new AudioContext()
+    }
+    return audioCtxRef.current
   }
 
   // ── Start recording ───────────────────────────────────────────────────────
@@ -290,12 +316,18 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
-      // Set up audio context for orb visualisation while listening
-      audioCtxRef.current = new AudioContext()
-      const micSource = audioCtxRef.current.createMediaStreamSource(stream)
-      connectAnalyser(micSource)
+      const actx = getOrCreateAudioCtx()
+      const micSource = actx.createMediaStreamSource(stream)
+      const analyser = actx.createAnalyser()
+      analyser.fftSize = 256
+      micSource.connect(analyser)
+      // Do NOT connect analyser to destination — avoids mic feedback
+      analyserRef.current = analyser
 
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" })
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm"
+      const recorder = new MediaRecorder(stream, { mimeType })
       audioChunksRef.current = []
       recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
       recorder.onstop = handleRecordingStop
@@ -306,6 +338,7 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
     } catch {
       setError("تعذّر الوصول للميكروفون")
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Stop recording ────────────────────────────────────────────────────────
@@ -314,60 +347,69 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
       mediaRecorderRef.current.stop()
     }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
+      streamRef.current.getTracks().forEach((tr) => tr.stop())
       streamRef.current = null
     }
     setIsRecording(false)
     setOrbState("thinking")
+    analyserRef.current = null
   }, [])
 
-  // ── Process audio after recording stops ──────────────────────────────────
+  // ── Process after recording ──────────────────────────────────────────────
   const handleRecordingStop = useCallback(async () => {
     const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-    if (blob.size < 1000) {
-      setError("لم يُكتشف صوت — حاول مرة أخرى")
+    if (blob.size < 800) {
+      setError("لم يُكتشف صوت — اضغط وتكلم ثم اضغط للإيقاف")
       setOrbState("idle")
       return
     }
-
     setOrbState("thinking")
 
-    // ── Step 1: STT ──
+    // ── STT — Groq Whisper ──
     const form = new FormData()
     form.append("audio", blob, "audio.webm")
-    const sttRes = await fetch("/api/voice/stt", { method: "POST", body: form })
-    const sttData = await sttRes.json()
-    if (!sttRes.ok || !sttData.text) {
-      setError(sttData.error || "فشل التعرف على الصوت")
+    let sttText = ""
+    try {
+      const sttRes = await fetch("/api/voice/stt", { method: "POST", body: form })
+      const sttData = await sttRes.json()
+      if (!sttRes.ok || !sttData.text) throw new Error(sttData.error || "فشل التعرف على الصوت")
+      sttText = sttData.text
+      setTranscript(sttText)
+    } catch (e: any) {
+      setError(e.message)
       setOrbState("idle")
       return
     }
-    setTranscript(sttData.text)
 
-    // ── Step 2: LLM Chat ──
-    const chatRes = await fetch("/api/voice/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: sttData.text, history: conversationHistory }),
-    })
-    const chatData = await chatRes.json()
-    if (!chatRes.ok || !chatData.reply) {
-      setError(chatData.error || "فشل الحصول على رد")
+    // ── LLM — Groq (Egyptian dialect) ──
+    let replyText = ""
+    try {
+      const chatRes = await fetch("/api/voice/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: sttText, history: conversationHistory }),
+      })
+      const chatData = await chatRes.json()
+      if (!chatRes.ok || !chatData.reply) throw new Error(chatData.error || "فشل الحصول على رد")
+      replyText = chatData.reply
+      setReply(replyText)
+      setConversationHistory((prev) => [
+        ...prev,
+        { role: "user", content: sttText },
+        { role: "assistant", content: replyText },
+      ])
+    } catch (e: any) {
+      setError(e.message)
       setOrbState("idle")
       return
     }
-    setReply(chatData.reply)
-    setConversationHistory((prev) => [
-      ...prev,
-      { role: "user", content: sttData.text },
-      { role: "assistant", content: chatData.reply },
-    ])
 
-    // ── Step 3: TTS ──
-    await speakReply(chatData.reply)
+    // ── TTS — ElevenLabs (stream directly) ──
+    await speakReply(replyText)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationHistory])
 
-  // ── Convert reply text to speech ─────────────────────────────────────────
+  // ── TTS with streaming playback ──────────────────────────────────────────
   const speakReply = async (text: string) => {
     setOrbState("speaking")
     try {
@@ -376,77 +418,94 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       })
-      if (!ttsRes.ok) throw new Error("TTS failed")
+      if (!ttsRes.ok) throw new Error("TTS request failed")
 
       const arrayBuffer = await ttsRes.arrayBuffer()
+      if (!arrayBuffer.byteLength) throw new Error("Empty audio response")
+
       const blob = new Blob([arrayBuffer], { type: "audio/mpeg" })
       const url = URL.createObjectURL(blob)
 
-      // Stop old audio context, make new one for playback visualisation
-      if (audioCtxRef.current) {
+      // Close previous audio context cleanly
+      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
         await audioCtxRef.current.close()
+        audioCtxRef.current = null
       }
-      audioCtxRef.current = new AudioContext()
 
       const audio = new Audio(url)
       audioRef.current = audio
-      const src = audioCtxRef.current.createMediaElementSource(audio)
-      connectAnalyser(src)
+
+      // Set up analyser AFTER audio is loaded to avoid InvalidStateError
+      audio.addEventListener("canplay", () => {
+        try {
+          const actx = getOrCreateAudioCtx()
+          const src = actx.createMediaElementSource(audio)
+          const analyser = actx.createAnalyser()
+          analyser.fftSize = 256
+          src.connect(analyser)
+          analyser.connect(actx.destination)
+          analyserRef.current = analyser
+        } catch {
+          // Fallback: play without analyser visualisation
+        }
+      }, { once: true })
 
       audio.onended = () => {
         URL.revokeObjectURL(url)
+        analyserRef.current = null
         setOrbState("listening")
-        // Auto-restart listening for loop
         startListening()
       }
+
+      audio.onerror = () => {
+        setError("خطأ في تشغيل الصوت")
+        setOrbState("idle")
+      }
+
       await audio.play()
-    } catch {
-      setError("فشل تشغيل الصوت")
+    } catch (e: any) {
+      setError(`فشل تشغيل الصوت: ${e.message}`)
       setOrbState("idle")
     }
   }
 
   const handleClose = () => {
     cancelAnimationFrame(animFrameRef.current)
-    stopAllAudio()
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop()
     }
+    stopAllAudio()
     onClose()
   }
 
   const stateLabel =
-    orbState === "listening"
-      ? "اتكلم الآن..."
-      : orbState === "thinking"
-      ? "ميليجي بيفكر..."
-      : orbState === "speaking"
-      ? "ميليجي بيتكلم"
-      : "جاهز"
+    orbState === "listening" ? "اتكلم دلوقتي..."
+    : orbState === "thinking" ? "ميليجي بيفكر..."
+    : orbState === "speaking" ? "ميليجي بيتكلم"
+    : "جاهز"
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/96 backdrop-blur-md">
       {/* Close */}
       <button
         onClick={handleClose}
-        className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors"
+        className="absolute top-6 right-6 text-white/40 hover:text-white/80 transition-colors"
         aria-label="إغلاق"
       >
         <X className="h-7 w-7" />
       </button>
 
-      {/* Orb */}
+      {/* Orb canvas */}
       <canvas
         ref={canvasRef}
-        width={380}
-        height={380}
-        className="mb-4"
-        style={{ imageRendering: "auto", width: 380, height: 380 }}
+        width={400}
+        height={400}
+        style={{ width: 400, height: 400 }}
       />
 
       {/* State label */}
       <p
-        className="text-white/70 text-base font-medium mb-4 tracking-wide"
+        className="text-white/65 text-[15px] font-medium mt-2 mb-5 tracking-wide"
         style={{ fontFamily: "Cairo, sans-serif" }}
       >
         {stateLabel}
@@ -455,39 +514,44 @@ export function VoiceOrb({ onClose, chatHistory = [] }: VoiceOrbProps) {
       {/* Transcript */}
       {transcript && (
         <div
-          className="max-w-sm text-center text-white/50 text-sm mb-2 px-4"
-          style={{ fontFamily: "Cairo, sans-serif" }}
+          className="max-w-xs text-center mb-2 px-4"
           dir="rtl"
+          style={{ fontFamily: "Cairo, sans-serif" }}
         >
-          <span className="text-white/30 text-xs block mb-1">أنت قلت:</span>
-          {transcript}
+          <span className="block text-white/25 text-xs mb-1">قلت:</span>
+          <span className="text-white/55 text-sm leading-relaxed">{transcript}</span>
         </div>
       )}
 
       {/* Reply */}
       {reply && (
         <div
-          className="max-w-sm text-center text-cyan-300/80 text-sm px-4"
-          style={{ fontFamily: "Cairo, sans-serif" }}
+          className="max-w-xs text-center px-4"
           dir="rtl"
+          style={{ fontFamily: "Cairo, sans-serif" }}
         >
-          <span className="text-cyan-400/40 text-xs block mb-1">ميليجي:</span>
-          {reply}
+          <span className="block text-cyan-400/35 text-xs mb-1">ميليجي:</span>
+          <span className="text-cyan-300/75 text-sm leading-relaxed">{reply}</span>
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <p className="text-red-400 text-sm mt-2" style={{ fontFamily: "Cairo, sans-serif" }}>
+        <p
+          className="text-red-400/80 text-sm mt-3 px-4 text-center"
+          style={{ fontFamily: "Cairo, sans-serif" }}
+          dir="rtl"
+        >
           {error}
         </p>
       )}
 
-      {/* Stop / Tap to stop recording button */}
+      {/* Stop recording button */}
       {isRecording && (
         <button
           onClick={stopListening}
-          className="mt-8 flex items-center gap-2 px-6 py-3 bg-red-600/20 hover:bg-red-600/40 border border-red-500/40 rounded-full text-red-300 text-sm font-bold transition-colors"
+          className="mt-8 flex items-center gap-2 px-7 py-3 rounded-full text-sm font-bold transition-all
+            bg-red-500/15 hover:bg-red-500/30 border border-red-500/35 text-red-300/90"
           style={{ fontFamily: "Cairo, sans-serif" }}
         >
           <MicOff className="h-4 w-4" />
