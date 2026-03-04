@@ -18,7 +18,13 @@ export async function POST(request: Request) {
     groqForm.append("file", audioFile, "audio.webm")
     groqForm.append("model", "whisper-large-v3-turbo")
     groqForm.append("language", "ar")
-    groqForm.append("response_format", "json")
+    groqForm.append("response_format", "verbose_json")
+    groqForm.append("temperature", "0")
+    // Prompt helps Whisper understand Egyptian Arabic dialect and improves spelling accuracy
+    groqForm.append(
+      "prompt",
+      "هذا تسجيل صوتي باللهجة المصرية العامية. الكلام يحتوي على أسئلة ومحادثات يومية بالعربية. يرجى كتابة النص بدقة إملائية صحيحة."
+    )
 
     const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
       method: "POST",
@@ -32,7 +38,9 @@ export async function POST(request: Request) {
     }
 
     const data = await res.json()
-    return Response.json({ text: data.text || "" })
+    // verbose_json returns full text in data.text same as json format
+    const text = (data.text || "").trim()
+    return Response.json({ text })
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 })
   }
