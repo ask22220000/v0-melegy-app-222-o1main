@@ -87,6 +87,7 @@ const FEATURES = [
   },
 ]
 
+// v2 - matches functionsList
 export function Features() {
   const { language } = useApp()
 
