@@ -36,7 +36,9 @@ import {
   Heart,
   MessageSquare,
   FileSpreadsheet,
-} from "lucide-react"
+  Film,
+  Share2,
+  } from "lucide-react"
 
 interface Message {
   id: string
@@ -94,12 +96,20 @@ export default function ChatStarterPage() {
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
+  // Animate-image states
+  const [showAnimateModal, setShowAnimateModal] = useState(false)
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
+  const [animateImageUrl, setAnimateImageUrl] = useState<string>("")
+  const [animatePrompt, setAnimatePrompt] = useState<string>("")
+  const [animateMode, setAnimateMode] = useState<"i2v" | "r2v">("i2v")
+  const animateFileRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // قائمة الوظائف المتاحة
   const functionsList = [
     { id: "image", label: "اعمل صورة", icon: Image, prompt: "اعملي صورة " },
     { id: "edit-image", label: "إرفاق و تعديل صورة", icon: Image, action: "attach-edit-image" },
+    { id: "animate-image", label: "حرك صورة", icon: Film, action: "animate-image" },
     { id: "attach-file", label: "إرفاق ملف", icon: Paperclip, action: "attach-file" },
     { id: "write", label: "اكتب نص", icon: FileText, prompt: "اكتبلي " },
     { id: "excel", label: "عاوز شيت Excel", icon: FileSpreadsheet, prompt: "اعملي شيت Excel ل " },
@@ -108,10 +118,49 @@ export default function ChatStarterPage() {
     { id: "chat", label: "دردشة", icon: MessageSquare, prompt: "عايز اتكلم معاك عن " },
   ]
 
+  const handleAnimateImage = async () => {
+    if (!animateImageUrl || !animatePrompt.trim()) return
+    setShowAnimateModal(false)
+    setIsGeneratingVideo(true)
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: `${animateMode === "r2v" ? "مرجع لفيديو" : "حرك الصورة"}: ${animatePrompt}`,
+      imageUrl: animateImageUrl,
+    }
+    setMessages((prev) => [...prev, userMessage])
+    try {
+      const res = await fetch("/api/animate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: animateImageUrl, prompt: animatePrompt, mode: animateMode }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "فشل التوليد")
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "تم إنشاء الفيديو بنجاح!",
+        videoUrl: data.videoUrl,
+      }
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message || "فشل توليد الفيديو", variant: "destructive" })
+    } finally {
+      setIsGeneratingVideo(false)
+      setAnimateImageUrl("")
+      setAnimatePrompt("")
+      setAnimateMode("i2v")
+    }
+  }
+
   const handleFunctionSelect = (func: any) => {
     if (func.action === "attach-edit-image") {
       fileInputRef.current?.click()
       setInput("عدل الصورة و ")
+      setShowFunctionsMenu(false)
+    } else if (func.action === "animate-image") {
+      setShowAnimateModal(true)
       setShowFunctionsMenu(false)
     } else if (func.action === "attach-file") {
       fileInputRef.current?.click()
@@ -949,7 +998,35 @@ export default function ChatStarterPage() {
                   </div>
                 </div>
               ) : null}
-              {message.videoUrl && <video src={message.videoUrl} controls className="max-w-full rounded-lg mb-2" />}
+              {message.videoUrl && (
+                <div className="mb-3">
+                  <video src={message.videoUrl} controls loop className="max-w-full rounded-lg" />
+                  <div className="flex gap-2 mt-2">
+                    <a
+                      href={`/api/download-image?url=${encodeURIComponent(message.videoUrl)}&filename=melegy-video-${Date.now()}.mp4`}
+                      download
+                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/30 rounded-lg text-xs font-bold transition-colors"
+                      style={{ fontFamily: "Cairo, sans-serif" }}
+                    >
+                      <Download className="h-3.5 w-3.5" /> تحميل
+                    </a>
+                    <button
+                      onClick={async () => {
+                        if (navigator.share) {
+                          await navigator.share({ url: message.videoUrl! })
+                        } else {
+                          navigator.clipboard.writeText(message.videoUrl!)
+                          toast({ title: "تم النسخ", description: "تم نسخ رابط الفيديو" })
+                        }
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-gray-700/50 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs font-bold transition-colors"
+                      style={{ fontFamily: "Cairo, sans-serif" }}
+                    >
+                      <Share2 className="h-3.5 w-3.5" /> مشاركة
+                    </button>
+                  </div>
+                </div>
+              )}
               <p className="chat-message whitespace-pre-wrap break-words leading-relaxed text-xs font-bold" style={{ fontFamily: "Cairo, sans-serif", fontSize: "12px", fontWeight: "bold" }}>{message.content}</p>
               {message.excelData && (
                 <div className="mt-2">
@@ -1030,6 +1107,21 @@ export default function ChatStarterPage() {
               <div className="flex flex-col items-center gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                 <p className="text-sm text-gray-400">جاري تحليل الصورة...</p>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {isGeneratingVideo && (
+          <div className="flex justify-start">
+            <Card className="max-w-[80%] p-6 bg-gray-800 border-gray-700">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative w-16 h-16">
+                  <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full" />
+                  <div className="absolute inset-0 border-4 border-transparent border-t-purple-500 rounded-full animate-spin" />
+                  <Film className="absolute inset-0 m-auto h-6 w-6 text-purple-400" />
+                </div>
+                <p className="text-sm text-gray-400" style={{ fontFamily: "Cairo, sans-serif" }}>جاري إنشاء الفيديو...</p>
               </div>
             </Card>
           </div>
@@ -1118,6 +1210,61 @@ export default function ChatStarterPage() {
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
         </div>
       </form>
+
+      {showAnimateModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowAnimateModal(false)}>
+          <div className="bg-gray-900 rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Film className="h-5 w-5 text-purple-400" />
+                <h2 className="text-lg font-bold" style={{ fontFamily: "Cairo, sans-serif" }}>حرك صورة</h2>
+              </div>
+              <button onClick={() => setShowAnimateModal(false)} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="mb-4">
+              <p className="text-xs text-gray-400 mb-2" style={{ fontFamily: "Cairo, sans-serif" }}>الصورة</p>
+              {animateImageUrl ? (
+                <div className="relative inline-block">
+                  <img src={animateImageUrl} alt="preview" className="h-24 rounded-lg border border-gray-700" />
+                  <button onClick={() => setAnimateImageUrl("")} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5"><X className="h-3 w-3" /></button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => animateFileRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm transition-colors" style={{ fontFamily: "Cairo, sans-serif" }}>
+                    <Image className="h-4 w-4" /> ارفع صورة
+                  </button>
+                  {messages.filter((m) => m.imageUrl).length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1" style={{ fontFamily: "Cairo, sans-serif" }}>أو اختر من الشات</p>
+                      <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                        {messages.filter((m) => m.imageUrl).slice(-6).map((m) => (
+                          <img key={m.id} src={m.imageUrl} alt="chat img" className="h-16 w-16 object-cover rounded-lg cursor-pointer border-2 border-transparent hover:border-purple-500 transition-all" onClick={() => setAnimateImageUrl(m.imageUrl!)} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <input ref={animateFileRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setAnimateImageUrl(ev.target?.result as string); reader.readAsDataURL(file) }} />
+            </div>
+            <div className="mb-4">
+              <p className="text-xs text-gray-400 mb-2" style={{ fontFamily: "Cairo, sans-serif" }}>نوع الفيديو</p>
+              <div className="flex gap-2">
+                <button onClick={() => setAnimateMode("i2v")} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors border ${animateMode === "i2v" ? "bg-purple-600/30 border-purple-500 text-purple-300" : "bg-gray-800 border-gray-600 text-gray-400"}`} style={{ fontFamily: "Cairo, sans-serif" }}>تحريك الصورة</button>
+                <button onClick={() => setAnimateMode("r2v")} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors border ${animateMode === "r2v" ? "bg-purple-600/30 border-purple-500 text-purple-300" : "bg-gray-800 border-gray-600 text-gray-400"}`} style={{ fontFamily: "Cairo, sans-serif" }}>مشهد جديد (مرجع)</button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: "Cairo, sans-serif" }}>{animateMode === "i2v" ? "الصورة هتتحرك بشكل سلس (10 ثانية)" : "الشخصية هتظهر في مشهد جديد حسب البرومبت (10 ثانية)"}</p>
+            </div>
+            <div className="mb-5">
+              <p className="text-xs text-gray-400 mb-2" style={{ fontFamily: "Cairo, sans-serif" }}>البرومبت (عربي أو إنجليزي)</p>
+              <textarea value={animatePrompt} onChange={(e) => setAnimatePrompt(e.target.value)} placeholder={animateMode === "i2v" ? "مثال: الشعر يتحرك مع الريح..." : "مثال: الشخصية بتمشي في الشارع..."} className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-sm resize-none min-h-[80px] focus:outline-none focus:border-purple-500" style={{ fontFamily: "Cairo, sans-serif" }} dir="rtl" />
+            </div>
+            <button onClick={handleAnimateImage} disabled={!animateImageUrl || !animatePrompt.trim()} className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2" style={{ fontFamily: "Cairo, sans-serif" }}>
+              <Film className="h-4 w-4" /> ولد الفيديو
+            </button>
+          </div>
+        </div>
+      )}
 
       {showUpgradeModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">

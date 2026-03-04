@@ -44,6 +44,7 @@
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "@vercel/analytics": "latest",
+    "@vercel/blob": "^2.3.1",
     "abort-controller": "3.0.0",
     "ai": "^6.0.0",
     "autoprefixer": "^10.4.20",
@@ -75,6 +76,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "latest",
+    "undici": "^7.22.0",
     "vaul": "^1.1.2",
     "xlsx": "latest",
     "zod": "3.25.76"

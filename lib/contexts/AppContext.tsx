@@ -79,6 +79,8 @@ const translations = {
     // Functions menu
     fn_image: "اعمل صورة",
     fn_editImage: "إرفاق و تعديل صورة",
+    fn_animateImage: "حرك صورة",
+    generatingVideo: "جاري إنشاء الفيديو...",
     fn_attachFile: "إرفاق ملف",
     fn_write: "اكتب نص",
     fn_excel: "عاوز شيت Excel",
@@ -155,6 +157,8 @@ const translations = {
     // Functions menu
     fn_image: "Generate Image",
     fn_editImage: "Attach & Edit Image",
+    fn_animateImage: "Animate Image",
+    generatingVideo: "Generating video...",
     fn_attachFile: "Attach File",
     fn_write: "Write Text",
     fn_excel: "Create Excel Sheet",

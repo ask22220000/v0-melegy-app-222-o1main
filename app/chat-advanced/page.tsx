@@ -34,7 +34,9 @@ import {
   Heart,
   MessageSquare,
   FileSpreadsheet,
-} from "lucide-react"
+  Film,
+  Share2,
+  } from "lucide-react"
 import Link from "next/link"
 import { DesignViewer } from "@/components/design-viewer"
 
@@ -101,11 +103,19 @@ export default function ChatAdvancedPage() {
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
+  // Animate-image states
+  const [showAnimateModal, setShowAnimateModal] = useState(false)
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
+  const [animateImageUrl, setAnimateImageUrl] = useState<string>("")
+  const [animatePrompt, setAnimatePrompt] = useState<string>("")
+  const [animateMode, setAnimateMode] = useState<"i2v" | "r2v">("i2v")
+  const animateFileRef = useRef<HTMLInputElement>(null)
 
   // قائمة الوظائف المتاحة
   const functionsList = [
     { id: "image", label: "اعمل صورة", icon: Image, prompt: "اعملي صورة " },
     { id: "edit-image", label: "إرفاق و تعديل صورة", icon: Image, action: "attach-edit-image" },
+    { id: "animate-image", label: "حرك صورة", icon: Film, action: "animate-image" },
     { id: "attach-file", label: "إرفاق ملف", icon: Paperclip, action: "attach-file" },
     { id: "write", label: "اكتب نص", icon: FileText, prompt: "اكتبلي " },
     { id: "excel", label: "عاوز شيت Excel", icon: FileSpreadsheet, prompt: "اعملي شيت Excel ل " },
@@ -114,10 +124,49 @@ export default function ChatAdvancedPage() {
     { id: "chat", label: "دردشة", icon: MessageSquare, prompt: "عايز اتكلم معاك عن " },
   ]
 
+  const handleAnimateImage = async () => {
+    if (!animateImageUrl || !animatePrompt.trim()) return
+    setShowAnimateModal(false)
+    setIsGeneratingVideo(true)
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: `${animateMode === "r2v" ? "مرجع لفيديو" : "حرك الصورة"}: ${animatePrompt}`,
+      imageUrl: animateImageUrl,
+    }
+    setMessages((prev) => [...prev, userMessage])
+    try {
+      const res = await fetch("/api/animate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: animateImageUrl, prompt: animatePrompt, mode: animateMode }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "فشل التوليد")
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "تم إنشاء الفيديو بنجاح!",
+        videoUrl: data.videoUrl,
+      }
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message || "فشل توليد الفيديو", variant: "destructive" })
+    } finally {
+      setIsGeneratingVideo(false)
+      setAnimateImageUrl("")
+      setAnimatePrompt("")
+      setAnimateMode("i2v")
+    }
+  }
+
   const handleFunctionSelect = (func: any) => {
     if (func.action === "attach-edit-image") {
       fileInputRef.current?.click()
       setInput("عدل الصورة و ")
+      setShowFunctionsMenu(false)
+    } else if (func.action === "animate-image") {
+      setShowAnimateModal(true)
       setShowFunctionsMenu(false)
     } else if (func.action === "attach-file") {
       fileInputRef.current?.click()
