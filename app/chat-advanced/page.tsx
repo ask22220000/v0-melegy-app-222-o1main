@@ -260,14 +260,26 @@ export default function ChatAdvancedPage() {
   }, [])
 
   useEffect(() => {
-    try {
-      const savedHistories = localStorage.getItem("melegy_chat_histories_advanced")
-      if (savedHistories) {
-        setChatHistories(JSON.parse(savedHistories))
+    const loadHistories = async () => {
+      try {
+        const savedHistories = localStorage.getItem("melegy_chat_histories_advanced")
+        if (savedHistories) {
+          setChatHistories(JSON.parse(savedHistories))
+        } else {
+          const res = await fetch("/api/save-chat")
+          if (res.ok) {
+            const data = await res.json()
+            if (data.histories?.length > 0) {
+              setChatHistories(data.histories)
+              localStorage.setItem("melegy_chat_histories_advanced", JSON.stringify(data.histories))
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Error loading chat histories:", error)
       }
-    } catch (error) {
-      console.error("[v0] Error loading chat histories:", error)
     }
+    loadHistories()
   }, [])
 
   useEffect(() => {

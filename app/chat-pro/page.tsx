@@ -247,11 +247,20 @@ export default function ChatProPage() {
       setMonthlyImages(Number.parseInt(savedImages || "0"))
     }
 
-    // Load chat histories
+    // Load chat histories — prefer localStorage, fallback to server (preserves media)
     try {
       const savedHistories = localStorage.getItem("melegy_chat_histories_pro")
       if (savedHistories) {
         setChatHistories(JSON.parse(savedHistories))
+      } else {
+        const res = await fetch("/api/save-chat")
+        if (res.ok) {
+          const data = await res.json()
+          if (data.histories?.length > 0) {
+            setChatHistories(data.histories)
+            localStorage.setItem("melegy_chat_histories_pro", JSON.stringify(data.histories))
+          }
+        }
       }
     } catch (error) {
       console.error("Error loading chat histories:", error)
