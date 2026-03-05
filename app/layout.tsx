@@ -22,13 +22,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/images/logo.jpg", sizes: "192x192", type: "image/jpeg" },
+      { url: "/images/logo.jpg", sizes: "512x512", type: "image/jpeg" },
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/images/logo.jpg", sizes: "180x180", type: "image/jpeg" },
     ],
-    shortcut: "/icons/icon-192x192.png",
+    shortcut: "/images/logo.jpg",
   },
   appleWebApp: {
     capable: true,
@@ -78,17 +78,15 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Melegy" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-
+        <link rel="apple-touch-icon" href="/images/logo.jpg" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/images/logo.jpg" />
         {/* iOS Splash Screens — prevents white flash on launch */}
         <meta name="apple-touch-fullscreen" content="yes" />
-        <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
-
+        <link rel="apple-touch-startup-image" href="/images/logo.jpg" />
         {/* Favicon */}
-        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
-        <link rel="shortcut icon" href="/icons/icon-192x192.png" />
+        <link rel="icon" type="image/jpeg" sizes="192x192" href="/images/logo.jpg" />
+        <link rel="icon" type="image/jpeg" sizes="512x512" href="/images/logo.jpg" />
+        <link rel="shortcut icon" href="/images/logo.jpg" />
 
         {/* Service Worker Registration */}
         <script src="/register-sw.js" defer></script>
