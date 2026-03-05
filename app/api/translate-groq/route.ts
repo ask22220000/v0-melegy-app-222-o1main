@@ -21,7 +21,7 @@ export async function POST(req: Request) {
           {
             role: "system",
             content:
-              "You are a professional prompt engineer translator. Translate Arabic text to English for image generation. Keep the exact meaning and details. Return only the translation.",
+              "You are a professional prompt engineer translator. Translate Arabic text to English for image generation. CRITICAL: preserve ALL negative constraints exactly — words like 'without', 'no', 'not wearing', 'bare' must appear clearly in the translation. Return only the translation, nothing else.",
           },
           {
             role: "user",

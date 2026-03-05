@@ -1,120 +1,123 @@
 import { NextResponse } from "next/server"
 
-// Enhance prompt for better image quality using Perplexity
-async function enhancePromptWithAI(prompt: string): Promise<string> {
-  try {
-    const apiKey = process.env.PERPLEXITY_API_KEY
-    if (!apiKey) {
-      console.log("[v0] No API key, using original prompt")
-      return prompt
-    }
+// Step 1: Translate the Arabic prompt to English while strictly preserving
+// ALL constraints — especially negative ones like "no hat", "bare head", "without X"
+async function translateAndStructurePrompt(
+  arabicText: string
+): Promise<{ positive: string; negative: string }> {
+  const apiKey = process.env.GROQ_API_KEY
+  const fallback = { positive: arabicText, negative: "" }
+  if (!apiKey) return fallback
 
-    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.1-sonar-small-128k-online",
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.1,
+        max_tokens: 300,
         messages: [
           {
             role: "system",
-            content:
-              "أنت Prompt Engineer متخصص في تحسين أوصاف الصور. حسّن الوصف بإضافة تفاصيل بصرية احترافية بدون تغيير المعنى الأساسي. رد بالإنجليزية فقط.",
-          },
-          {
-            role: "user",
-            content: `حسّن هذا الوصف للصورة: ${prompt}`,
-          },
-        ],
-        max_tokens: 150,
-      }),
-    })
+            content: `You are a professional image prompt engineer. 
+Translate the user's Arabic image description to English.
 
-    if (!response.ok) {
-      console.log("[v0] Enhancement failed, using original prompt")
-      return prompt
-    }
+CRITICAL RULES:
+1. Preserve ALL negative/exclusion constraints EXACTLY. 
+   - Arabic negations: "ولا", "بدون", "من غير", "لا يرتدي", "مش لابس", "بدون غطاء رأس", etc.
+   - These MUST become explicit negative_prompt entries AND must appear in the positive prompt as "without X", "no X", "bare X".
+2. Do NOT add details that contradict the user's description.
+3. Return ONLY valid JSON in this exact format (no markdown, no extra text):
+{"positive": "...", "negative": "..."}
 
-    const data = await response.json()
-    const enhancedPrompt = data.choices?.[0]?.message?.content || prompt
-    console.log("[v0] Enhanced prompt:", enhancedPrompt)
-    return enhancedPrompt
-  } catch (error) {
-    console.error("[v0] Enhancement error:", error)
-    return prompt
-  }
-}
-
-// Translate Arabic to English using Perplexity
-async function translateArabicToEnglish(arabicText: string): Promise<string> {
-  try {
-    const apiKey = process.env.PERPLEXITY_API_KEY
-    if (!apiKey) {
-      console.log("[v0] No API key, using original text")
-      return arabicText
-    }
-
-    const response = await fetch("https://api.perplexity.ai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "sonar",
-        messages: [
-          {
-            role: "system",
-            content: "You are a translator. Translate the user's Arabic text to English for image generation. Keep the exact meaning and all details. Only return the translation, nothing else.",
+- "positive": the full English prompt including "without X" phrases for every negative constraint
+- "negative": comma-separated list of things that must NOT appear (e.g. "headscarf, keffiyeh, turban, hat, head covering")`,
           },
           {
             role: "user",
             content: arabicText,
           },
         ],
-        max_tokens: 150,
       }),
     })
 
-    if (!response.ok) {
-      console.log("[v0] Translation failed, using fallback")
-      return arabicText
-    }
-
+    if (!response.ok) return fallback
     const data = await response.json()
-    const translation = data.choices?.[0]?.message?.content || arabicText
+    const content = data.choices?.[0]?.message?.content?.trim() || ""
 
-    if (!translation || translation.length < 5) {
-      return arabicText
+    // Parse JSON response
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return { positive: content || arabicText, negative: "" }
+
+    const parsed = JSON.parse(jsonMatch[0])
+    return {
+      positive: parsed.positive || arabicText,
+      negative: parsed.negative || "",
     }
-
-    console.log("[v0] Translated to English:", translation)
-    return translation
-  } catch (error) {
-    console.error("[v0] Translation error:", error)
-    return arabicText
+  } catch {
+    return fallback
   }
 }
 
-async function generateImage(prompt: string): Promise<string> {
-  console.log("[v0] Generating with Little Pear from Vision AI Studio...")
+// Step 2: Enhance visual quality WITHOUT touching constraints
+async function enhancePositivePrompt(prompt: string): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) return prompt
 
-  const cleanPrompt = prompt
-    .replace(/[*#[\]{}()]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.3,
+        max_tokens: 200,
+        messages: [
+          {
+            role: "system",
+            content: `You are an image prompt enhancer.
+Add cinematic quality details (lighting, style, camera angle) to the prompt.
+RULES:
+- NEVER remove or contradict any existing detail, especially "without X" or "no X" phrases — keep them word-for-word.
+- NEVER add elements that were excluded by the user.
+- Return ONLY the enhanced prompt text, nothing else.`,
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    })
 
+    if (!response.ok) return prompt
+    const data = await response.json()
+    return data.choices?.[0]?.message?.content?.trim() || prompt
+  } catch {
+    return prompt
+  }
+}
+
+async function generateImage(positive: string, negative: string): Promise<string> {
+  const cleanPositive = positive.replace(/[*#[\]{}()]/g, "").replace(/\s+/g, " ").trim()
   const seed = Math.floor(Math.random() * 999999)
-  const encodedPrompt = encodeURIComponent(cleanPrompt)
+  const encodedPrompt = encodeURIComponent(cleanPositive)
 
-  // Using Pollinations API with Little Pear model from Vision AI Studio
-  // Portrait 4:5 ratio - 1080x1350
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1350&model=little-pear&enhance=true&nologo=true&seed=${seed}`
+  let url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1350&model=little-pear&enhance=true&nologo=true&seed=${seed}`
 
-  console.log("[v0] Image URL:", imageUrl)
-  return imageUrl
+  if (negative) {
+    const cleanNegative = negative.replace(/\s+/g, " ").trim()
+    url += `&negative=${encodeURIComponent(cleanNegative)}`
+  }
+
+  return url
 }
 
 export async function POST(req: Request) {
@@ -125,18 +128,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 })
     }
 
-    console.log("[v0] User request:", prompt)
+    // Step 1: Translate + extract negative constraints
+    const { positive: englishPrompt, negative } = await translateAndStructurePrompt(prompt)
 
-    // Translate Arabic to English
-    let englishPrompt = await translateArabicToEnglish(prompt)
-    console.log("[v0] English prompt:", englishPrompt)
+    // Step 2: Enhance visual quality without touching constraints
+    const enhancedPrompt = await enhancePositivePrompt(englishPrompt)
 
-    // Enhance with Prompt Engineer AI
-    const enhancedPrompt = await enhancePromptWithAI(englishPrompt)
-    console.log("[v0] Final enhanced prompt:", enhancedPrompt)
-
-    // Generate image
-    const imageUrl = await generateImage(enhancedPrompt)
+    // Step 3: Generate image with both positive and negative prompts
+    const imageUrl = await generateImage(enhancedPrompt, negative)
 
     return NextResponse.json({ imageUrl })
   } catch (error: any) {
