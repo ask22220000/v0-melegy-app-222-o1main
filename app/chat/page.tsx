@@ -879,7 +879,7 @@ export default function ChatPage() {
 
       const conversationId = convData.conversation.id
 
-      // 2. Save all messages
+      // 2. Save all messages — pass imageUrl/videoUrl as dedicated fields
       for (const msg of messages) {
         if (msg.id === "welcome") continue
         await fetch("/api/user/messages", {
@@ -889,11 +889,9 @@ export default function ChatPage() {
             conversation_id: conversationId,
             mlg_user_id: mlgUserId,
             role: msg.role,
-            content: msg.imageUrl
-              ? `[image:${msg.imageUrl}] ${msg.content}`
-              : msg.videoUrl
-              ? `[video:${msg.videoUrl}] ${msg.content}`
-              : msg.content,
+            content: msg.content || "",
+            imageUrl: msg.imageUrl || null,
+            videoUrl: msg.videoUrl || null,
           }),
         })
       }
@@ -987,15 +985,19 @@ export default function ChatPage() {
       const data = await res.json()
       if (data.messages && data.messages.length > 0) {
         const msgs: Message[] = data.messages.map((m: any) => {
-          // Parse image/video prefixes back
-          const imageMatch = m.content.match(/^\[image:(.*?)\] (.*)$/s)
-          const videoMatch = m.content.match(/^\[video:(.*?)\] (.*)$/s)
+          // Restore imageUrl/videoUrl from media_urls array (new format)
+          const mediaUrls: { type: string; url: string }[] = m.media_urls || []
+          const imageEntry = mediaUrls.find((x) => x.type === "image")
+          const videoEntry = mediaUrls.find((x) => x.type === "video")
+          // Fallback: parse old [image:url] prefix format for backwards compat
+          const imageMatch = !imageEntry ? m.content.match(/^\[image:(.*?)\] (.*)$/s) : null
+          const videoMatch = !videoEntry ? m.content.match(/^\[video:(.*?)\] (.*)$/s) : null
           return {
             id: m.id,
             role: m.role as "user" | "assistant",
             content: imageMatch ? imageMatch[2] : videoMatch ? videoMatch[2] : m.content,
-            imageUrl: imageMatch ? imageMatch[1] : undefined,
-            videoUrl: videoMatch ? videoMatch[1] : undefined,
+            imageUrl: imageEntry?.url || (imageMatch ? imageMatch[1] : undefined),
+            videoUrl: videoEntry?.url || (videoMatch ? videoMatch[1] : undefined),
           }
         })
         setMessages(msgs)

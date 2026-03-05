@@ -245,15 +245,27 @@ export default function ChatStarterPage() {
       setMonthlyImages(Number.parseInt(savedImages || "0"))
     }
 
-    // Load chat histories
-    try {
-      const savedHistories = localStorage.getItem("melegy_chat_histories_starter")
-      if (savedHistories) {
-        setChatHistories(JSON.parse(savedHistories))
+    // Load chat histories — prefer localStorage, fallback to server (preserves media)
+    const loadHistories = async () => {
+      try {
+        const savedHistories = localStorage.getItem("melegy_chat_histories_starter")
+        if (savedHistories) {
+          setChatHistories(JSON.parse(savedHistories))
+        } else {
+          const res = await fetch("/api/save-chat")
+          if (res.ok) {
+            const data = await res.json()
+            if (data.histories?.length > 0) {
+              setChatHistories(data.histories)
+              localStorage.setItem("melegy_chat_histories_starter", JSON.stringify(data.histories))
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error loading chat histories:", error)
       }
-    } catch (error) {
-      console.error("Error loading chat histories:", error)
     }
+    loadHistories()
   }, [])
 
   const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length
@@ -1229,7 +1241,7 @@ export default function ChatStarterPage() {
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
                 <Film className="h-5 w-5 text-purple-400" />
-                <h2 className="text-lg font-bold" style={{ fontFamily: "Cairo, sans-serif" }}>حرك صورة</h2>
+                <h2 className="text-lg font-bold" style={{ fontFamily: "Cairo, sans-serif" }}>حرك صور��</h2>
               </div>
               <button onClick={() => setShowAnimateModal(false)} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
             </div>

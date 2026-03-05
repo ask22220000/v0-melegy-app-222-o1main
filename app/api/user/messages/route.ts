@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("chat_messages")
-      .select("id, role, content, created_at")
+      .select("id, role, content, media_urls, created_at")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true })
 
@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/user/messages — save a message
+// POST /api/user/messages — save a message (preserves imageUrl, videoUrl)
 export async function POST(request: NextRequest) {
   try {
-    const { conversation_id, mlg_user_id, role, content } = await request.json()
+    const { conversation_id, mlg_user_id, role, content, imageUrl, videoUrl } = await request.json()
 
     if (!conversation_id || !mlg_user_id || !role || !content) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -40,18 +40,44 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServiceRoleClient()
 
-    // Save message
-    const { data, error } = await supabase
+    // Build media_urls array to store any attached images/videos
+    const media_urls: { type: string; url: string }[] = []
+    if (imageUrl) media_urls.push({ type: "image", url: imageUrl })
+    if (videoUrl) media_urls.push({ type: "video", url: videoUrl })
+
+    // Save message — try with media_urls first, fallback without if column missing
+    let data: any = null
+    let error: any = null
+
+    const insertPayload: any = {
+      conversation_id,
+      mlg_user_id,
+      role,
+      content,
+      created_at: new Date().toISOString(),
+    }
+    if (media_urls.length > 0) insertPayload.media_urls = media_urls
+
+    const result = await supabase
       .from("chat_messages")
-      .insert({
-        conversation_id,
-        mlg_user_id,
-        role,
-        content,
-        created_at: new Date().toISOString(),
-      })
-      .select("id, role, content, created_at")
+      .insert(insertPayload)
+      .select("id, role, content, media_urls, created_at")
       .single()
+
+    data = result.data
+    error = result.error
+
+    // If media_urls column doesn't exist yet, retry without it
+    if (error && error.message?.includes("media_urls")) {
+      delete insertPayload.media_urls
+      const fallback = await supabase
+        .from("chat_messages")
+        .insert(insertPayload)
+        .select("id, role, content, created_at")
+        .single()
+      data = fallback.data
+      error = fallback.error
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
