@@ -1,29 +1,60 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getUsageStats, PLAN_LIMITS } from "@/lib/usage-tracker"
-import { MessageSquare, Image, Sparkles } from "lucide-react"
+import { getUsageStats } from "@/lib/usage-tracker"
+import { MessageSquare, Image, Film, Mic } from "lucide-react"
+import { Sparkles } from "lucide-react"
 import Link from "next/link"
+
+type StatRow = {
+  icon: React.ReactNode
+  label: string
+  used: number
+  limit: number
+  color: string
+}
 
 export function UsageIndicator() {
   const [stats, setStats] = useState<ReturnType<typeof getUsageStats> | null>(null)
 
   useEffect(() => {
-    // Initial load
     setStats(getUsageStats())
-
-    // Update every 5 seconds
-    const interval = setInterval(() => {
-      setStats(getUsageStats())
-    }, 5000)
-
+    const interval = setInterval(() => setStats(getUsageStats()), 5000)
     return () => clearInterval(interval)
   }, [])
 
   if (!stats) return null
 
-  const messagesUnlimited = stats.messages.limit === -1
-  const imagesUnlimited = stats.images.limit === -1
+  const rows: StatRow[] = [
+    {
+      icon: <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />,
+      label: "الرسائل",
+      used: stats.messages.used,
+      limit: stats.messages.limit,
+      color: "bg-cyan-500",
+    },
+    {
+      icon: <Image className="h-3.5 w-3.5 text-muted-foreground" />,
+      label: "الصور",
+      used: stats.images.used,
+      limit: stats.images.limit,
+      color: "bg-purple-500",
+    },
+    {
+      icon: <Film className="h-3.5 w-3.5 text-muted-foreground" />,
+      label: "الفيديو",
+      used: stats.video.used,
+      limit: stats.video.limit,
+      color: "bg-orange-500",
+    },
+    {
+      icon: <Mic className="h-3.5 w-3.5 text-muted-foreground" />,
+      label: "الصوت (دقيقة)",
+      used: stats.voice.used,
+      limit: stats.voice.limit,
+      color: "bg-green-500",
+    },
+  ]
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 space-y-3">
@@ -32,7 +63,7 @@ export function UsageIndicator() {
           <Sparkles className="h-4 w-4 text-cyan-500" />
           <span className="text-sm font-bold text-foreground">خطة {stats.planName}</span>
         </div>
-        {stats.plan === 'free' && (
+        {stats.plan === "free" && (
           <Link href="/pricing" className="text-xs text-cyan-500 hover:underline">
             ترقية
           </Link>
@@ -40,47 +71,31 @@ export function UsageIndicator() {
       </div>
 
       <div className="space-y-2">
-        {/* Messages */}
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-          <div className="flex-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">الرسائل</span>
-              <span className="text-foreground font-medium">
-                {messagesUnlimited ? "غير محدود" : `${stats.messages.used}/${stats.messages.limit}`}
-              </span>
-            </div>
-            {!messagesUnlimited && (
-              <div className="w-full bg-secondary rounded-full h-1.5 mt-1">
-                <div
-                  className="bg-cyan-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${(stats.messages.used / stats.messages.limit) * 100}%` }}
-                />
+        {rows.map((row) => {
+          const unlimited = row.limit === -1
+          const pct = unlimited ? 0 : Math.min((row.used / row.limit) * 100, 100)
+          return (
+            <div key={row.label} className="flex items-center gap-2">
+              {row.icon}
+              <div className="flex-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{row.label}</span>
+                  <span className="text-foreground font-medium">
+                    {unlimited ? "غير محدود" : `${row.used}/${row.limit}`}
+                  </span>
+                </div>
+                {!unlimited && (
+                  <div className="w-full bg-secondary rounded-full h-1.5 mt-1">
+                    <div
+                      className={`${row.color} h-1.5 rounded-full transition-all`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Images */}
-        <div className="flex items-center gap-2">
-          <Image className="h-3.5 w-3.5 text-muted-foreground" />
-          <div className="flex-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">الصور</span>
-              <span className="text-foreground font-medium">
-                {imagesUnlimited ? "غير محدود" : `${stats.images.used}/${stats.images.limit}`}
-              </span>
             </div>
-            {!imagesUnlimited && (
-              <div className="w-full bg-secondary rounded-full h-1.5 mt-1">
-                <div
-                  className="bg-purple-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${(stats.images.used / stats.images.limit) * 100}%` }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
+          )
+        })}
       </div>
     </div>
   )

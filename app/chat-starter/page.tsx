@@ -14,7 +14,7 @@ import { setActiveSubscription } from "@/lib/set-subscription"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { UserIdModal } from "@/components/user-id-modal"
 import { useRouter } from "next/navigation"
-import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage } from "@/lib/usage-tracker"
+import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideo, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
   Send,
   Loader2,
@@ -123,6 +123,11 @@ export default function ChatStarterPage() {
 
   const handleAnimateImage = async () => {
     if (!animateImageUrl || !animatePrompt.trim()) return
+    const videoCheck = canAnimateVideo()
+    if (!videoCheck.allowed) {
+      toast({ title: "تجاوزت الحد المسموح", description: videoCheck.reason, variant: "destructive" })
+      return
+    }
     setShowAnimateModal(false)
     setIsGeneratingVideo(true)
     const userMessage: Message = {
@@ -147,6 +152,7 @@ export default function ChatStarterPage() {
         videoUrl: data.videoUrl,
       }
       setMessages((prev) => [...prev, assistantMessage])
+      await incrementVideoUsage()
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message || "فشل توليد الفيديو", variant: "destructive" })
     } finally {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowRight, MicOff, Mic } from "lucide-react"
+import { canUseVoiceChat, incrementVoiceUsage, getUsageStats } from "@/lib/usage-tracker"
 
 type OrbState = "idle" | "listening" | "thinking" | "speaking"
 
@@ -326,7 +327,15 @@ export default function VoiceChatPage() {
   const audioRef       = useRef<HTMLAudioElement | null>(null)
   const streamRef      = useRef<MediaStream | null>(null)
   const audioCtxRef    = useRef<AudioContext | null>(null)
-  const historyRef     = useRef<{ role: string; content: string }[]>([])
+  const historyRef        = useRef<{ role: string; content: string }[]>([])
+  const sessionStartRef   = useRef<number | null>(null)
+  const [voiceStats, setVoiceStats] = useState<{ used: number; limit: number } | null>(null)
+
+  // Load voice stats on mount
+  useEffect(() => {
+    const s = getUsageStats()
+    setVoiceStats({ used: s.voice.used, limit: s.voice.limit })
+  }, [])
 
   // Keep orbState ref in sync
   useEffect(() => { orbStateRef.current = orbState }, [orbState])
@@ -483,9 +492,17 @@ export default function VoiceChatPage() {
 
   // ── Start recording ───────────────────────────────────────────────────────
   const startListening = useCallback(async () => {
+    // Check voice chat time limit before starting
+    const voiceCheck = canUseVoiceChat()
+    if (!voiceCheck.allowed) {
+      setErrorMsg(voiceCheck.reason || "تجاوزت الحد المسموح للدردشة الصوتية اليوم")
+      return
+    }
+
     setErrorMsg("")
     setTranscript("")
     setReply("")
+    sessionStartRef.current = Date.now()
 
     let stream: MediaStream
     try {
@@ -531,6 +548,15 @@ export default function VoiceChatPage() {
       mediaRecorderRef.current.stop()
     }
     setIsRecording(false)
+    // Track elapsed voice minutes for usage limit
+    if (sessionStartRef.current !== null) {
+      const elapsedMinutes = (Date.now() - sessionStartRef.current) / 60000
+      incrementVoiceUsage(elapsedMinutes)
+      sessionStartRef.current = null
+      // Refresh displayed stats
+      const s = getUsageStats()
+      setVoiceStats({ used: s.voice.used, limit: s.voice.limit })
+    }
   }, [])
 
   const stateLabel =
@@ -561,7 +587,14 @@ export default function VoiceChatPage() {
           <span className="hidden sm:inline">رجوع</span>
         </button>
         <span className="text-white/20 text-[10px] sm:text-xs tracking-widest">MELEGY VOICE</span>
-        <div className="w-10 sm:w-16" />
+        {/* Voice usage badge */}
+        {voiceStats && (
+          <span className="text-[10px] sm:text-xs text-white/30">
+            {voiceStats.limit === -1
+              ? "غير محدود"
+              : `${Math.floor(voiceStats.used)}/${voiceStats.limit} د`}
+          </span>
+        )}
       </div>
 
       {/* Orb + labels — takes all remaining space */}
