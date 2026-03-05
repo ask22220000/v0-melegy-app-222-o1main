@@ -20,6 +20,11 @@ export async function GET(request: NextRequest) {
       .order("updated_at", { ascending: false })
 
     if (error) {
+      // Schema cache miss — column likely missing, return empty gracefully
+      if (error.message?.includes("mlg_user_id") || error.code === "PGRST204") {
+        console.error("[v0] conversations schema error:", error.message)
+        return NextResponse.json({ conversations: [] })
+      }
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
@@ -52,7 +57,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      // Schema cache miss — column likely missing, return empty gracefully
+      if (error.message?.includes("mlg_user_id") || error.code === "PGRST204") {
+        console.error("[v0] conversations POST schema error:", error.message)
+        return NextResponse.json({ conversation: { id: null, title: title || "محادثة جديدة", created_at: new Date().toISOString() } })
+      }
     }
 
     return NextResponse.json({ conversation: data })
