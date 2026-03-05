@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react"
 import { getUsageStats } from "@/lib/usage-tracker"
-import { MessageSquare, Image, Film, Mic } from "lucide-react"
-import { Sparkles } from "lucide-react"
+import { MessageSquare, Image, Film, Mic, Sparkles } from "lucide-react"
 import Link from "next/link"
+
+type StatsShape = Awaited<ReturnType<typeof getUsageStats>>
 
 type StatRow = {
   icon: React.ReactNode
@@ -15,11 +16,12 @@ type StatRow = {
 }
 
 export function UsageIndicator() {
-  const [stats, setStats] = useState<ReturnType<typeof getUsageStats> | null>(null)
+  const [stats, setStats] = useState<StatsShape | null>(null)
 
   useEffect(() => {
-    setStats(getUsageStats())
-    const interval = setInterval(() => setStats(getUsageStats()), 5000)
+    const load = async () => setStats(await getUsageStats())
+    load()
+    const interval = setInterval(load, 15_000)
     return () => clearInterval(interval)
   }, [])
 
@@ -50,7 +52,7 @@ export function UsageIndicator() {
     {
       icon: <Mic className="h-3.5 w-3.5 text-muted-foreground" />,
       label: "الصوت (دقيقة)",
-      used: stats.voice.used,
+      used: Math.floor(stats.voice.used),
       limit: stats.voice.limit,
       color: "bg-green-500",
     },

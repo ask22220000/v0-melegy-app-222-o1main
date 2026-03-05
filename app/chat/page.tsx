@@ -242,18 +242,20 @@ export default function ChatPage() {
   }, [])
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null
-    const initialTheme = savedTheme || "dark"
-    setTheme(initialTheme)
-
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark")
-      document.body.className = "bg-[#0a0b1a] text-white"
-    } else {
-      document.documentElement.classList.remove("dark")
-      document.body.className = "bg-white text-black"
-    }
-
+    fetch("/api/usage", { cache: "no-store" })
+      .then((r) => r.json())
+      .then(({ usage }) => {
+        const theme = (usage?.theme as "light" | "dark") || "dark"
+        setTheme(theme)
+        if (theme === "dark") {
+          document.documentElement.classList.add("dark")
+          document.body.className = "bg-[#0a0b1a] text-white"
+        } else {
+          document.documentElement.classList.remove("dark")
+          document.body.className = "bg-white text-black"
+        }
+      })
+      .catch(() => { document.documentElement.classList.add("dark") })
   }, [])
 
   const detectImageRequest = (text: string): boolean => {
@@ -1021,7 +1023,7 @@ export default function ChatPage() {
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark"
     setTheme(newTheme)
-    localStorage.setItem("theme", newTheme)
+    fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme: newTheme }) })
 
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark")

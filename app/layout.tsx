@@ -4,8 +4,6 @@ import { Cairo, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AppProvider } from "@/lib/contexts/AppContext"
 import { SessionTracker } from "@/components/session-tracker"
-import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
-// import { ThemeToggle } from "@/components/theme-toggle"
 import "./globals.css"
 
 const cairo = Cairo({
@@ -94,7 +92,6 @@ export default function RootLayout({
       <body className={`${cairo.className} antialiased`} suppressHydrationWarning>
         <AppProvider>
           <SessionTracker />
-          <PWAInstallPrompt />
           {children}
         </AppProvider>
         <Analytics />

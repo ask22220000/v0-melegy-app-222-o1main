@@ -3,38 +3,38 @@ export const PLAN_LIMITS = {
   free: {
     messagesPerDay: 10,
     imagesPerDay: 3,
-    animatedVideosPerDay: 5,       // حرك فيديو: 5/day
-    voiceMinutesPerDay: 15,        // دردشة صوتية: 15 min/day
+    animatedVideosPerDay: 5,
+    voiceMinutesPerDay: 15,
     wordsPerMonth: -1,
-    name: "مجاني"
+    name: "مجاني",
   },
   startup: {
     messagesPerDay: 20,
     imagesPerDay: 10,
-    animatedVideosPerDay: 20,      // حرك فيديو: 20/day
-    voiceMinutesPerDay: 30,        // دردشة صوتية: 30 min/day
+    animatedVideosPerDay: 20,
+    voiceMinutesPerDay: 30,
     wordsPerMonth: 30000,
-    name: "Start UP"
+    name: "Start UP",
   },
   pro: {
     messagesPerDay: -1,
     imagesPerDay: 100,
-    animatedVideosPerDay: 50,      // حرك فيديو: 50/day
-    voiceMinutesPerDay: 60,        // دردشة صوتية: 60 min/day
+    animatedVideosPerDay: 50,
+    voiceMinutesPerDay: 60,
     wordsPerMonth: -1,
-    name: "Pro"
+    name: "Pro",
   },
   vip: {
     messagesPerDay: -1,
     imagesPerDay: -1,
-    animatedVideosPerDay: -1,      // يظهر لا نهائي — الحد الفعلي 150/day يُفرض في الكود
-    voiceMinutesPerDay: -1,        // يظهر لا نهائي — الحد الفعلي 90 دقيقة يُفرض في الكود
+    animatedVideosPerDay: -1,
+    voiceMinutesPerDay: -1,
     wordsPerMonth: -1,
-    name: "VIP"
-  }
+    name: "VIP",
+  },
 } as const
 
-// الحدود الفعلية المخفية للـ VIP (لا تُعرض للمستخدم)
+// Hidden hard limits for VIP (not shown to user)
 export const VIP_ACTUAL_LIMITS = {
   animatedVideosPerDay: 150,
   voiceMinutesPerDay: 90,
@@ -42,278 +42,214 @@ export const VIP_ACTUAL_LIMITS = {
 
 export type PlanType = keyof typeof PLAN_LIMITS
 
-// Get user's current plan from subscription
+// ---------------------------------------------------------------------------
+// In-memory cache so we don't hammer the API on every check
+// ---------------------------------------------------------------------------
+type UsageRow = {
+  messages: number
+  images: number
+  animated_videos: number
+  voice_minutes: number
+  monthly_words: number
+  monthly_images: number
+  theme: string
+  plan: string
+}
+
+let _cache: UsageRow | null = null
+let _cacheTime = 0
+const CACHE_TTL = 10_000 // 10 seconds
+
+// Fetch today's usage from the backend (with short-lived cache)
+export async function fetchUsage(): Promise<UsageRow> {
+  const now = Date.now()
+  if (_cache && now - _cacheTime < CACHE_TTL) return _cache
+
+  try {
+    const res = await fetch("/api/usage", { cache: "no-store" })
+    if (!res.ok) throw new Error("fetch failed")
+    const json = await res.json()
+    _cache = json.usage as UsageRow
+    _cacheTime = now
+    return _cache
+  } catch {
+    // Return zeroed defaults on network failure
+    return {
+      messages: 0,
+      images: 0,
+      animated_videos: 0,
+      voice_minutes: 0,
+      monthly_words: 0,
+      monthly_images: 0,
+      theme: "dark",
+      plan: "free",
+    }
+  }
+}
+
+// Persist a partial update to the backend and invalidate cache
+async function saveUsage(updates: Partial<UsageRow>): Promise<void> {
+  _cache = null // invalidate
+  try {
+    await fetch("/api/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    })
+  } catch {
+    // Silent fail — non-critical
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Plan helpers
+// ---------------------------------------------------------------------------
+
 export function getUserPlan(): PlanType {
-  if (typeof window === 'undefined') return 'free'
-  
-  // Check for active subscription in localStorage
-  const subscription = localStorage.getItem('activeSubscription')
-  if (subscription) {
-    try {
-      const subData = JSON.parse(subscription)
-      const now = new Date().getTime()
-      const expiresAt = new Date(subData.expiresAt).getTime()
-      
-      // Check if subscription is still valid
-      if (expiresAt > now) {
-        return subData.plan as PlanType
+  // Plan is authoritative from the backend via fetchUsage().plan
+  // For synchronous callers we fall back to localStorage for the subscription
+  // token only (the token is still needed for subscription-check middleware)
+  if (typeof window === "undefined") return "free"
+  try {
+    const sub = localStorage.getItem("activeSubscription")
+    if (sub) {
+      const parsed = JSON.parse(sub)
+      if (new Date(parsed.expiresAt).getTime() > Date.now()) {
+        return parsed.plan as PlanType
       }
-    } catch (e) {
-      // Silent fail
     }
+  } catch {
+    // ignore
   }
-  
-  return 'free'
+  return "free"
 }
 
-// Get today's usage from localStorage
-function getTodayUsage() {
-  if (typeof window === 'undefined') return { messages: 0, images: 0, animatedVideos: 0, voiceMinutes: 0, date: '' }
-  
-  const today = new Date().toISOString().split('T')[0]
-  const usage = localStorage.getItem('dailyUsage')
-  
-  if (usage) {
-    try {
-      const usageData = JSON.parse(usage)
-      // Reset if it's a new day
-      if (usageData.date !== today) {
-        return { messages: 0, images: 0, animatedVideos: 0, voiceMinutes: 0, date: today }
-      }
-      // Ensure animatedVideos exists for old stored data
-      if (usageData.animatedVideos === undefined) usageData.animatedVideos = 0
-      return usageData
-    } catch (e) {
-      // Silent fail
-    }
-  }
-  
-  return { messages: 0, images: 0, animatedVideos: 0, voiceMinutes: 0, date: today }
-}
+// ---------------------------------------------------------------------------
+// Check helpers — all async now
+// ---------------------------------------------------------------------------
 
-// Get current month's word count
-function getMonthlyWordCount() {
-  if (typeof window === 'undefined') return { words: 0, month: '' }
-  
-  const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
-  const usage = localStorage.getItem('monthlyUsage')
-  
-  if (usage) {
-    try {
-      const usageData = JSON.parse(usage)
-      // Reset if it's a new month
-      if (usageData.month !== currentMonth) {
-        return { words: 0, month: currentMonth }
-      }
-      return usageData
-    } catch (e) {
-      // Silent fail
-    }
-  }
-  
-  return { words: 0, month: currentMonth }
-}
-
-// Save usage to localStorage
-function saveUsage(usage: { messages: number; images: number; voiceMinutes: number; date: string }) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem('dailyUsage', JSON.stringify(usage))
-}
-
-// Save monthly usage
-function saveMonthlyUsage(usage: { words: number; month: string }) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem('monthlyUsage', JSON.stringify(usage))
-}
-
-// Check if user can send a message
-export function canSendMessage(): { allowed: boolean; reason?: string; remaining?: number } {
+export async function canSendMessage(): Promise<{ allowed: boolean; reason?: string; remaining?: number }> {
   const plan = getUserPlan()
   const limits = PLAN_LIMITS[plan]
-  const usage = getTodayUsage()
-  
-  // Unlimited messages
-  if (limits.messagesPerDay === -1) {
-    return { allowed: true }
-  }
-  
-  // Check limit
+  if (limits.messagesPerDay === -1) return { allowed: true }
+  const usage = await fetchUsage()
   if (usage.messages >= limits.messagesPerDay) {
     return {
       allowed: false,
       reason: `لقد وصلت للحد الأقصى (${limits.messagesPerDay} رسالة/يوم) في خطة ${limits.name}. قم بالترقية للمزيد!`,
-      remaining: 0
+      remaining: 0,
     }
   }
-  
-  return {
-    allowed: true,
-    remaining: limits.messagesPerDay - usage.messages
-  }
+  return { allowed: true, remaining: limits.messagesPerDay - usage.messages }
 }
 
-// Check if user can generate an image
-export function canGenerateImage(): { allowed: boolean; reason?: string; remaining?: number } {
+export async function canGenerateImage(): Promise<{ allowed: boolean; reason?: string; remaining?: number }> {
   const plan = getUserPlan()
   const limits = PLAN_LIMITS[plan]
-  const usage = getTodayUsage()
-  
-  // Unlimited images
-  if (limits.imagesPerDay === -1) {
-    return { allowed: true }
-  }
-  
-  // Check limit
+  if (limits.imagesPerDay === -1) return { allowed: true }
+  const usage = await fetchUsage()
   if (usage.images >= limits.imagesPerDay) {
     return {
       allowed: false,
       reason: `لقد وصلت للحد الأقصى (${limits.imagesPerDay} صورة/يوم) في خطة ${limits.name}. قم بالترقية للمزيد!`,
-      remaining: 0
+      remaining: 0,
     }
   }
-  
-  return {
-    allowed: true,
-    remaining: limits.imagesPerDay - usage.images
-  }
+  return { allowed: true, remaining: limits.imagesPerDay - usage.images }
 }
 
-// Check if user can use voice chat
-export function canUseVoiceChat(): { allowed: boolean; reason?: string; remaining?: number } {
+export async function canUseVoiceChat(): Promise<{ allowed: boolean; reason?: string; remaining?: number }> {
   const plan = getUserPlan()
   const limits = PLAN_LIMITS[plan]
-  const usage = getTodayUsage()
-
-  // VIP: show unlimited but enforce actual hidden cap of 90 min
+  const usage = await fetchUsage()
   if (limits.voiceMinutesPerDay === -1) {
-    if (usage.voiceMinutes >= VIP_ACTUAL_LIMITS.voiceMinutesPerDay) {
-      return {
-        allowed: false,
-        reason: `لقد وصلت للحد الأقصى للدردشة الصوتية اليوم في خطة ${limits.name}.`,
-        remaining: 0
-      }
+    if (usage.voice_minutes >= VIP_ACTUAL_LIMITS.voiceMinutesPerDay) {
+      return { allowed: false, reason: `لقد وصلت للحد الأقصى للدردشة الصوتية اليوم في خطة ${limits.name}.`, remaining: 0 }
     }
     return { allowed: true }
   }
-
-  if (usage.voiceMinutes >= limits.voiceMinutesPerDay) {
+  if (usage.voice_minutes >= limits.voiceMinutesPerDay) {
     return {
       allowed: false,
       reason: `لقد وصلت للحد الأقصى (${limits.voiceMinutesPerDay} دقيقة/يوم) في خطة ${limits.name}. قم بالترقية للمزيد!`,
-      remaining: 0
+      remaining: 0,
     }
   }
-
-  return {
-    allowed: true,
-    remaining: limits.voiceMinutesPerDay - usage.voiceMinutes
-  }
+  return { allowed: true, remaining: limits.voiceMinutesPerDay - usage.voice_minutes }
 }
 
-// Check if user can animate a video
-export function canAnimateVideo(): { allowed: boolean; reason?: string; remaining?: number } {
+export async function canAnimateVideo(): Promise<{ allowed: boolean; reason?: string; remaining?: number }> {
   const plan = getUserPlan()
   const limits = PLAN_LIMITS[plan]
-  const usage = getTodayUsage()
-
-  // VIP: show unlimited but enforce actual hidden cap of 150 videos
+  const usage = await fetchUsage()
   if (limits.animatedVideosPerDay === -1) {
-    if (usage.animatedVideos >= VIP_ACTUAL_LIMITS.animatedVideosPerDay) {
-      return {
-        allowed: false,
-        reason: `لقد وصلت للحد الأقصى لتحريك الفيديو اليوم في خطة ${limits.name}.`,
-        remaining: 0
-      }
+    if (usage.animated_videos >= VIP_ACTUAL_LIMITS.animatedVideosPerDay) {
+      return { allowed: false, reason: `لقد وصلت للحد الأقصى لتحريك الفيديو اليوم في خطة ${limits.name}.`, remaining: 0 }
     }
     return { allowed: true }
   }
-
-  if (usage.animatedVideos >= limits.animatedVideosPerDay) {
+  if (usage.animated_videos >= limits.animatedVideosPerDay) {
     return {
       allowed: false,
       reason: `لقد وصلت للحد الأقصى (${limits.animatedVideosPerDay} فيديو/يوم) في خطة ${limits.name}. قم بالترقية للمزيد!`,
-      remaining: 0
+      remaining: 0,
     }
   }
-
-  return {
-    allowed: true,
-    remaining: limits.animatedVideosPerDay - usage.animatedVideos
-  }
+  return { allowed: true, remaining: limits.animatedVideosPerDay - usage.animated_videos }
 }
 
-// Check monthly word limit (for startup plan)
-export function canUseWords(wordCount: number): { allowed: boolean; reason?: string; remaining?: number } {
+export async function canUseWords(wordCount: number): Promise<{ allowed: boolean; reason?: string; remaining?: number }> {
   const plan = getUserPlan()
   const limits = PLAN_LIMITS[plan]
-  
-  // Unlimited or not applicable
-  if (limits.wordsPerMonth === -1) {
-    return { allowed: true }
-  }
-  
-  const monthlyUsage = getMonthlyWordCount()
-  
-  // Check if adding these words would exceed limit
-  if (monthlyUsage.words + wordCount > limits.wordsPerMonth) {
+  if (limits.wordsPerMonth === -1) return { allowed: true }
+  const usage = await fetchUsage()
+  if (usage.monthly_words + wordCount > limits.wordsPerMonth) {
     return {
       allowed: false,
       reason: `لقد وصلت للحد الأقصى (${limits.wordsPerMonth.toLocaleString()} كلمة/شهر) في خطة ${limits.name}. قم بالترقية للمزيد!`,
-      remaining: Math.max(0, limits.wordsPerMonth - monthlyUsage.words)
+      remaining: Math.max(0, limits.wordsPerMonth - usage.monthly_words),
     }
   }
-  
-  return {
-    allowed: true,
-    remaining: limits.wordsPerMonth - monthlyUsage.words
-  }
+  return { allowed: true, remaining: limits.wordsPerMonth - usage.monthly_words }
 }
 
-// Increment message usage
-export async function incrementMessageUsage() {
-  const usage = getTodayUsage()
-  usage.messages += 1
-  saveUsage(usage)
+// ---------------------------------------------------------------------------
+// Increment helpers
+// ---------------------------------------------------------------------------
+
+export async function incrementMessageUsage(): Promise<void> {
+  const usage = await fetchUsage()
+  await saveUsage({ messages: usage.messages + 1 })
 }
 
-// Increment image usage
-export async function incrementImageUsage() {
-  const usage = getTodayUsage()
-  usage.images += 1
-  saveUsage(usage)
+export async function incrementImageUsage(): Promise<void> {
+  const usage = await fetchUsage()
+  await saveUsage({ images: usage.images + 1 })
 }
 
-// Increment voice usage (in minutes)
-export async function incrementVoiceUsage(minutes: number) {
-  const usage = getTodayUsage()
-  usage.voiceMinutes += minutes
-  saveUsage(usage)
+export async function incrementVoiceUsage(minutes: number): Promise<void> {
+  const usage = await fetchUsage()
+  await saveUsage({ voice_minutes: Number((usage.voice_minutes + minutes).toFixed(2)) })
 }
 
-// Increment animated video usage
-export async function incrementVideoUsage() {
-  const usage = getTodayUsage()
-  usage.animatedVideos = (usage.animatedVideos || 0) + 1
-  saveUsage(usage)
+export async function incrementVideoUsage(): Promise<void> {
+  const usage = await fetchUsage()
+  await saveUsage({ animated_videos: usage.animated_videos + 1 })
 }
 
-// Increment word count
-export async function incrementWordCount(words: number) {
-  const monthlyUsage = getMonthlyWordCount()
-  monthlyUsage.words += words
-  saveMonthlyUsage(monthlyUsage)
+export async function incrementWordCount(words: number): Promise<void> {
+  const usage = await fetchUsage()
+  await saveUsage({ monthly_words: usage.monthly_words + words })
 }
 
-// Get current usage stats
-export function getUsageStats() {
+// ---------------------------------------------------------------------------
+// Stats (for UsageIndicator)
+// ---------------------------------------------------------------------------
+
+export async function getUsageStats() {
   const plan = getUserPlan()
   const limits = PLAN_LIMITS[plan]
-  const usage = getTodayUsage()
-  const monthlyUsage = getMonthlyWordCount()
-
-  // For VIP: show -1 (unlimited) in UI, but the actual enforcement is in canAnimate/canVoice
-  const videoLimit = limits.animatedVideosPerDay
-  const voiceLimit = limits.voiceMinutesPerDay
+  const usage = await fetchUsage()
 
   return {
     plan,
@@ -321,27 +257,27 @@ export function getUsageStats() {
     messages: {
       used: usage.messages,
       limit: limits.messagesPerDay,
-      remaining: limits.messagesPerDay === -1 ? -1 : limits.messagesPerDay - usage.messages
+      remaining: limits.messagesPerDay === -1 ? -1 : limits.messagesPerDay - usage.messages,
     },
     images: {
       used: usage.images,
       limit: limits.imagesPerDay,
-      remaining: limits.imagesPerDay === -1 ? -1 : limits.imagesPerDay - usage.images
+      remaining: limits.imagesPerDay === -1 ? -1 : limits.imagesPerDay - usage.images,
     },
     video: {
-      used: usage.animatedVideos || 0,
-      limit: videoLimit,
-      remaining: videoLimit === -1 ? -1 : videoLimit - (usage.animatedVideos || 0)
+      used: usage.animated_videos,
+      limit: limits.animatedVideosPerDay,
+      remaining: limits.animatedVideosPerDay === -1 ? -1 : limits.animatedVideosPerDay - usage.animated_videos,
     },
     voice: {
-      used: usage.voiceMinutes,
-      limit: voiceLimit,
-      remaining: voiceLimit === -1 ? -1 : voiceLimit - usage.voiceMinutes
+      used: usage.voice_minutes,
+      limit: limits.voiceMinutesPerDay,
+      remaining: limits.voiceMinutesPerDay === -1 ? -1 : limits.voiceMinutesPerDay - usage.voice_minutes,
     },
     words: {
-      used: monthlyUsage.words,
+      used: usage.monthly_words,
       limit: limits.wordsPerMonth,
-      remaining: limits.wordsPerMonth === -1 ? -1 : limits.wordsPerMonth - monthlyUsage.words
-    }
+      remaining: limits.wordsPerMonth === -1 ? -1 : limits.wordsPerMonth - usage.monthly_words,
+    },
   }
 }

@@ -225,55 +225,37 @@ export default function ChatProPage() {
   }, [messages])
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null
-    const initialTheme = savedTheme || "dark"
-    setTheme(initialTheme)
-
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark")
-      document.body.className = "bg-[#0a0b1a] text-white"
-    } else {
-      document.documentElement.classList.remove("dark")
-      document.body.className = "bg-white text-black"
-    }
-
-    const savedWords = localStorage.getItem("pro_monthly_words")
-    const savedImages = localStorage.getItem("pro_monthly_images")
-    const savedMonth = localStorage.getItem("pro_month")
-    const currentMonth = new Date().getMonth().toString()
-
-    if (savedMonth !== currentMonth) {
-      localStorage.setItem("pro_month", currentMonth)
-      localStorage.setItem("pro_monthly_words", "0")
-      localStorage.setItem("pro_monthly_images", "0")
-      setMonthlyWords(0)
-      setMonthlyImages(0)
-    } else {
-      setMonthlyWords(Number.parseInt(savedWords || "0"))
-      setMonthlyImages(Number.parseInt(savedImages || "0"))
-    }
-
-    // Load chat histories — prefer localStorage, fallback to server (preserves media)
-    const loadHistories = async () => {
+    const init = async () => {
       try {
-        const savedHistories = localStorage.getItem("melegy_chat_histories_pro")
-        if (savedHistories) {
-          setChatHistories(JSON.parse(savedHistories))
-        } else {
-          const res = await fetch("/api/save-chat")
-          if (res.ok) {
-            const data = await res.json()
-            if (data.histories?.length > 0) {
-              setChatHistories(data.histories)
-              localStorage.setItem("melegy_chat_histories_pro", JSON.stringify(data.histories))
-            }
+        const res = await fetch("/api/usage", { cache: "no-store" })
+        if (res.ok) {
+          const { usage } = await res.json()
+          const theme = (usage?.theme as "light" | "dark") || "dark"
+          setTheme(theme)
+          if (theme === "dark") {
+            document.documentElement.classList.add("dark")
+            document.body.className = "bg-[#0a0b1a] text-white"
+          } else {
+            document.documentElement.classList.remove("dark")
+            document.body.className = "bg-white text-black"
           }
+          setMonthlyWords(usage?.monthly_words ?? 0)
+          setMonthlyImages(usage?.monthly_images ?? 0)
+        }
+      } catch {
+        document.documentElement.classList.add("dark")
+      }
+      try {
+        const res = await fetch("/api/save-chat")
+        if (res.ok) {
+          const data = await res.json()
+          if (data.histories?.length > 0) setChatHistories(data.histories)
         }
       } catch (error) {
         console.error("Error loading chat histories:", error)
       }
     }
-    loadHistories()
+    init()
   }, [])
 
   const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length
@@ -449,9 +431,9 @@ export default function ChatProPage() {
 
         setMessages((prev) => [...prev, assistantMessage])
 
-        const newImageCount = monthlyImages + 1
-        setMonthlyImages(newImageCount)
-        localStorage.setItem("pro_monthly_images", newImageCount.toString())
+      const newImageCount = monthlyImages + 1
+      setMonthlyImages(newImageCount)
+      fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monthly_images: newImageCount }) })
         
         // Increment image usage
         incrementImageUsage()
@@ -671,7 +653,7 @@ export default function ChatProPage() {
 
         const newWordCount = monthlyWords + wordCount + countWords(imageDescription)
         setMonthlyWords(newWordCount)
-        localStorage.setItem("pro_monthly_words", newWordCount.toString())
+        fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monthly_words: newWordCount }) })
         return
       }
 
@@ -744,7 +726,7 @@ export default function ChatProPage() {
 
       const newWordCount = monthlyWords + wordCount + countWords(data.response || "")
       setMonthlyWords(newWordCount)
-      localStorage.setItem("pro_monthly_words", newWordCount.toString())
+      fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monthly_words: newWordCount }) })
       
       // Track messages (non-blocking)
       trackAnalytics("trackMessage", {
@@ -864,9 +846,7 @@ export default function ChatProPage() {
         messages: messages,
       }
 
-      const updated = [...chatHistories, newChat]
-      setChatHistories(updated)
-      localStorage.setItem("chatHistories", JSON.stringify(updated))
+      setChatHistories((prev) => [...prev, newChat])
 
       toast({
         title: "تم الحفظ",
@@ -939,7 +919,7 @@ export default function ChatProPage() {
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark"
     setTheme(newTheme)
-    localStorage.setItem("theme", newTheme)
+      fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme: newTheme }) })
 
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark")
