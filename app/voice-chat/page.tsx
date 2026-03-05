@@ -3,12 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowRight, MicOff, Mic } from "lucide-react"
-import { canUseVoiceChatSync, canUseVoiceChat, incrementVoiceUsage, fetchUsage, getUserPlan, PLAN_LIMITS } from "@/lib/usage-tracker"
+import { canUseVoiceChatSync, incrementVoiceUsage, fetchUsage, getUserPlan, PLAN_LIMITS } from "@/lib/usage-tracker"
 
 type OrbState = "idle" | "listening" | "thinking" | "speaking"
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GIF-accurate Orb — dark glass sphere + teal/purple haze + dot mesh
+// Orb Canvas — fully crash-safe for mobile browsers
 // ─────────────────────────────────────────────────────────────────────────────
 function OrbCanvas({
   orbStateRef,
@@ -23,7 +23,11 @@ function OrbCanvas({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext("2d")!
+
+    // Safe getContext — returns null on some Android WebViews
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
     let t = 0
     let alive = true
 
@@ -35,13 +39,14 @@ function OrbCanvas({
       const cy = H / 2
       const state = orbStateRef.current
 
-      // ── audio amplitude ──────────────────────────────────────────────────
       let amp = 0
       let freqData: Uint8Array | null = null
       if (analyserRef.current) {
-        freqData = new Uint8Array(analyserRef.current.frequencyBinCount)
-        analyserRef.current.getByteFrequencyData(freqData)
-        amp = freqData.reduce((a, b) => a + b, 0) / freqData.length / 128
+        try {
+          freqData = new Uint8Array(analyserRef.current.frequencyBinCount)
+          analyserRef.current.getByteFrequencyData(freqData)
+          amp = freqData.reduce((a, b) => a + b, 0) / freqData.length / 128
+        } catch { /* analyser closed */ }
       }
 
       const pulse =
@@ -53,7 +58,7 @@ function OrbCanvas({
       const R = W * 0.375 * pulse
       ctx.clearRect(0, 0, W, H)
 
-      // ── 1. outer ambient glow ─────────────────────────────────────────────
+      // outer glow
       const ag = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 1.85)
       ag.addColorStop(0,    "rgba(8,35,130,0.35)")
       ag.addColorStop(0.38, "rgba(4,16,72,0.15)")
@@ -62,26 +67,20 @@ function OrbCanvas({
       ctx.beginPath(); ctx.arc(cx, cy, R * 1.85, 0, Math.PI * 2)
       ctx.fillStyle = ag; ctx.fill()
 
-      // ── 2. dark glass sphere body ─────────────────────────────────────────
-      const sg = ctx.createRadialGradient(
-        cx - R * 0.20, cy - R * 0.20, R * 0.06,
-        cx + R * 0.10, cy + R * 0.14, R * 1.05
-      )
+      // sphere body
+      const sg = ctx.createRadialGradient(cx - R * 0.20, cy - R * 0.20, R * 0.06, cx + R * 0.10, cy + R * 0.14, R * 1.05)
       sg.addColorStop(0,    "rgba(20,48,120,1)")
       sg.addColorStop(0.25, "rgba(9,22,66,1)")
       sg.addColorStop(0.52, "rgba(4,10,38,1)")
       sg.addColorStop(0.80, "rgba(1,4,18,1)")
       sg.addColorStop(1,    "rgba(0,1,8,1)")
-      ctx.save()
-      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2)
-      ctx.fillStyle = sg; ctx.fill()
-      ctx.restore()
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fillStyle = sg; ctx.fill(); ctx.restore()
 
-      // ── 3. inner elements clipped to sphere ───────────────────────────────
+      // inner elements clipped
       ctx.save()
       ctx.beginPath(); ctx.arc(cx, cy, R * 0.994, 0, Math.PI * 2); ctx.clip()
 
-      // 3a – slow teal haze (centre-bottom)
+      // teal haze
       const ht = t * 0.006
       const hx = cx + Math.sin(ht) * R * 0.06
       const hy = cy + R * 0.15 + Math.cos(ht * 0.8) * R * 0.05
@@ -92,7 +91,7 @@ function OrbCanvas({
       hg.addColorStop(1,    "rgba(0,0,0,0)")
       ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H)
 
-      // 3b – purple haze (right-bottom)
+      // purple haze
       const px = cx + R * 0.26 + Math.sin(ht * 1.1) * R * 0.04
       const py = cy + R * 0.20
       const pg = ctx.createRadialGradient(px, py, 0, px, py, R * 0.58)
@@ -101,184 +100,110 @@ function OrbCanvas({
       pg.addColorStop(1,    "rgba(0,0,0,0)")
       ctx.fillStyle = pg; ctx.fillRect(0, 0, W, H)
 
-      // 3c – dot / mesh grid  (dense, like the GIF)
+      // dot mesh
       const SP = 8
-      const ox = cx - R
-      const oy = cy - R
+      const ox = cx - R; const oy = cy - R
       const cols2 = Math.ceil(R * 2 / SP) + 2
       const rows2 = Math.ceil(R * 2 / SP) + 2
       for (let r = 0; r < rows2; r++) {
         for (let c = 0; c < cols2; c++) {
-          const dx = ox + c * SP
-          const dy = oy + r * SP
+          const dx = ox + c * SP; const dy = oy + r * SP
           const d = Math.hypot(dx - cx, dy - cy)
           if (d > R * 0.97) continue
-          const ef = Math.pow(Math.max(0, 1 - d / R), 0.55)           // edge fade
-          const gf = Math.max(0, 1 - d / (R * 0.46))                  // glow fade (near pill)
+          const ef  = Math.pow(Math.max(0, 1 - d / R), 0.55)
+          const gf  = Math.max(0, 1 - d / (R * 0.46))
           const alpha = ef * (0.08 + gf * 0.72)
-          const gr2 = Math.round(40  + gf * 10)
-          const gg  = Math.round(168 + gf * 82)
-          const gb  = Math.round(212 + gf * 38)
-          ctx.beginPath()
-          ctx.arc(dx, dy, 0.95, 0, Math.PI * 2)
-          ctx.fillStyle = `rgba(${gr2},${gg},${gb},${alpha.toFixed(2)})`
+          ctx.beginPath(); ctx.arc(dx, dy, 0.95, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(${Math.round(40 + gf * 10)},${Math.round(168 + gf * 82)},${Math.round(212 + gf * 38)},${alpha.toFixed(2)})`
           ctx.fill()
         }
       }
 
-      // 3d – two eye capsules (like the image: two rounded rectangles side by side)
+      // eye capsules
       const cAnim =
         state === "speaking"  ? 1 + amp * 0.45 + Math.sin(t * 0.09) * 0.06
         : state === "listening" ? 1 + Math.sin(t * 0.07) * 0.14
         : state === "thinking"  ? 0.88 + Math.sin(t * 0.04) * 0.10
-        :                          0.74 + Math.sin(t * 0.022) * 0.06
-
-      // Eye capsule dimensions
-      const eW  = R * 0.175 * cAnim   // capsule half-width
-      const eH  = R * 0.090 * cAnim   // capsule half-height
-      const eSep = R * 0.26           // separation between eye centers
-      const eBR = eH * 0.55           // border-radius approx
-
-      // Glow colour per state
-      let glowR = 0, glowG = 200, glowB = 230, glowA = 0.95
-      if (state === "speaking") { glowR = 100; glowG = 220; glowB = 255; glowA = 0.98 }
-      else if (state === "listening") { glowR = 0; glowG = 235; glowB = 215; glowA = 0.95 }
-      else if (state === "thinking")  { glowR = 190; glowG = 130; glowB = 255; glowA = 0.92 }
-
-      // Speaking blink: rapid scale on y
+        :                         0.74 + Math.sin(t * 0.022) * 0.06
+      const eW = R * 0.175 * cAnim; const eH = R * 0.090 * cAnim
+      const eSep = R * 0.26; const eBR = eH * 0.55
+      let glowR = 0, glowG = 200, glowB = 230
+      if (state === "speaking")  { glowR = 100; glowG = 220; glowB = 255 }
+      else if (state === "listening") { glowR = 0; glowG = 235; glowB = 215 }
+      else if (state === "thinking")  { glowR = 190; glowG = 130; glowB = 255 }
       const blinkY = state === "speaking" ? Math.abs(Math.sin(t * 0.18)) * 0.45 + 0.55 : 1.0
 
       const drawEye = (ex: number, ey: number) => {
-        ctx.save()
-        ctx.translate(ex, ey)
-        ctx.scale(1, blinkY)
-
-        // Capsule glow background
+        ctx.save(); ctx.translate(ex, ey); ctx.scale(1, blinkY)
         const eyeGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, eW * 1.3)
         eyeGrad.addColorStop(0,    `rgba(${glowR},${glowG},${glowB},0.45)`)
         eyeGrad.addColorStop(0.55, `rgba(${glowR},${glowG},${glowB},0.18)`)
         eyeGrad.addColorStop(1,    "rgba(0,0,0,0)")
+        ctx.beginPath(); ctx.ellipse(0, 0, eW * 1.3, eH * 1.6, 0, 0, Math.PI * 2)
+        ctx.fillStyle = eyeGrad; ctx.fill()
         ctx.beginPath()
-        ctx.ellipse(0, 0, eW * 1.3, eH * 1.6, 0, 0, Math.PI * 2)
-        ctx.fillStyle = eyeGrad
-        ctx.fill()
-
-        // Capsule body (rounded rect path)
-        ctx.beginPath()
-        ctx.moveTo(-eW + eBR, -eH)
-        ctx.lineTo(eW - eBR, -eH)
-        ctx.quadraticCurveTo(eW, -eH, eW, -eH + eBR)
-        ctx.lineTo(eW, eH - eBR)
-        ctx.quadraticCurveTo(eW, eH, eW - eBR, eH)
-        ctx.lineTo(-eW + eBR, eH)
-        ctx.quadraticCurveTo(-eW, eH, -eW, eH - eBR)
-        ctx.lineTo(-eW, -eH + eBR)
-        ctx.quadraticCurveTo(-eW, -eH, -eW + eBR, -eH)
-        ctx.closePath()
-        const capsuleG = ctx.createLinearGradient(-eW, -eH, eW, eH)
-        capsuleG.addColorStop(0,   `rgba(${glowR + 20},${glowG},${glowB},0.85)`)
-        capsuleG.addColorStop(0.5, `rgba(${glowR},${Math.round(glowG * 0.75)},${glowB},0.70)`)
-        capsuleG.addColorStop(1,   `rgba(${Math.round(glowR * 0.6)},${Math.round(glowG * 0.5)},${Math.min(glowB + 20, 255)},0.55)`)
-        ctx.fillStyle = capsuleG
-        ctx.fill()
-
-        // Inner highlight line
+        ctx.moveTo(-eW + eBR, -eH); ctx.lineTo(eW - eBR, -eH)
+        ctx.quadraticCurveTo(eW, -eH, eW, -eH + eBR); ctx.lineTo(eW, eH - eBR)
+        ctx.quadraticCurveTo(eW, eH, eW - eBR, eH); ctx.lineTo(-eW + eBR, eH)
+        ctx.quadraticCurveTo(-eW, eH, -eW, eH - eBR); ctx.lineTo(-eW, -eH + eBR)
+        ctx.quadraticCurveTo(-eW, -eH, -eW + eBR, -eH); ctx.closePath()
+        const cg = ctx.createLinearGradient(-eW, -eH, eW, eH)
+        cg.addColorStop(0,   `rgba(${glowR + 20},${glowG},${glowB},0.85)`)
+        cg.addColorStop(0.5, `rgba(${glowR},${Math.round(glowG * 0.75)},${glowB},0.70)`)
+        cg.addColorStop(1,   `rgba(${Math.round(glowR * 0.6)},${Math.round(glowG * 0.5)},${Math.min(glowB + 20, 255)},0.55)`)
+        ctx.fillStyle = cg; ctx.fill()
         ctx.strokeStyle = `rgba(${glowR + 40},${Math.min(glowG + 20, 255)},255,0.30)`
-        ctx.lineWidth = 0.8
-        ctx.stroke()
-
-        // Symbol inside eye: "|" left eye, "<" right eye  OR  "|<" both
-        ctx.shadowColor = `rgba(${glowR},${glowG},${glowB},1)`
-        ctx.shadowBlur  = eH * 2.8
-        ctx.fillStyle   = `rgba(255,255,255,${state === "thinking" ? 0.65 : 0.96})`
-        const fontSize  = Math.round(eH * 1.55)
-        ctx.font        = `bold ${fontSize}px monospace`
-        ctx.textAlign   = "center"
-        ctx.textBaseline = "middle"
-        ctx.restore()  // restore scale before drawing text so it's not squished
-        // Re-translate for text (no blink scale on text)
-        ctx.save()
-        ctx.translate(ex, ey)
-        ctx.shadowColor = `rgba(${glowR},${glowG},${glowB},1)`
-        ctx.shadowBlur  = eH * 2.8
-        ctx.fillStyle   = `rgba(255,255,255,${state === "thinking" ? 0.65 : 0.96})`
-        ctx.font        = `bold ${Math.round(eH * 1.55)}px monospace`
-        ctx.textAlign   = "center"
-        ctx.textBaseline = "middle"
-        ctx.restore()
+        ctx.lineWidth = 0.8; ctx.stroke(); ctx.restore()
       }
+      drawEye(cx - eSep, cy); drawEye(cx + eSep, cy)
 
-      // Draw left eye ("|" symbol) and right eye ("<" symbol)
-      const leftEyeX  = cx - eSep
-      const rightEyeX = cx + eSep
-      drawEye(leftEyeX, cy)
-      drawEye(rightEyeX, cy)
-
-      // Draw text symbols separately (no scale distortion)
       const symFontSize = Math.round(eH * 1.65)
       ctx.save()
       ctx.font = `bold ${symFontSize}px monospace`
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.shadowColor = `rgba(${glowR},${glowG},${glowB},1)`
-      ctx.shadowBlur  = eH * 3.0
-      ctx.fillStyle   = `rgba(255,255,255,${state === "thinking" ? 0.65 : 0.96})`
-      ctx.fillText("|", leftEyeX, cy)   // left eye: bar
-      ctx.fillText("<", rightEyeX, cy)  // right eye: chevron
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"
+      ctx.shadowColor = `rgba(${glowR},${glowG},${glowB},1)`; ctx.shadowBlur = eH * 3.0
+      ctx.fillStyle = `rgba(255,255,255,${state === "thinking" ? 0.65 : 0.96})`
+      ctx.fillText("|", cx - eSep, cy); ctx.fillText("<", cx + eSep, cy)
       ctx.restore()
 
-      // 3f – freq bars (speaking)
+      // freq bars
       if (state === "speaking" && freqData) {
         const BARS = 40
         for (let i = 0; i < BARS; i++) {
           const angle = (i / BARS) * Math.PI * 2 - Math.PI / 2
-          const v  = freqData[Math.floor(i * (freqData.length / BARS))] / 255
+          const v = freqData[Math.floor(i * (freqData.length / BARS))] / 255
           const bH = v * R * 0.18 + R * 0.012
           const ir = R * 0.47
           ctx.beginPath()
-          ctx.moveTo(cx + Math.cos(angle) * ir,       cy + Math.sin(angle) * ir)
+          ctx.moveTo(cx + Math.cos(angle) * ir, cy + Math.sin(angle) * ir)
           ctx.lineTo(cx + Math.cos(angle) * (ir + bH), cy + Math.sin(angle) * (ir + bH))
           ctx.strokeStyle = `rgba(85,215,255,${(0.25 + v * 0.68).toFixed(2)})`
-          ctx.lineWidth  = 1.7
-          ctx.lineCap    = "round"
-          ctx.stroke()
+          ctx.lineWidth = 1.7; ctx.lineCap = "round"; ctx.stroke()
         }
       }
 
-      ctx.restore() // end clip
-
-      // ── 4. rim light ──────────────────────────────────────────────────────
-      const rg = ctx.createRadialGradient(cx, cy, R * 0.80, cx, cy, R * 1.06)
-      rg.addColorStop(0,    "rgba(0,0,0,0)")
-      rg.addColorStop(0.52, "rgba(0,145,175,0.07)")
-      rg.addColorStop(0.78, "rgba(12,85,165,0.24)")
-      rg.addColorStop(0.94, "rgba(0,155,185,0.10)")
-      rg.addColorStop(1,    "rgba(0,0,0,0)")
-      ctx.beginPath(); ctx.arc(cx, cy, R * 1.06, 0, Math.PI * 2)
-      ctx.fillStyle = rg; ctx.fill()
-
-      // ── 5. glass specular top-left ─────────────────────────────────────────
-      ctx.save()
-      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip()
-      const gg2 = ctx.createRadialGradient(
-        cx - R * 0.38, cy - R * 0.42, 0,
-        cx - R * 0.16, cy - R * 0.20, R * 0.55
-      )
-      gg2.addColorStop(0,   "rgba(255,255,255,0.14)")
-      gg2.addColorStop(0.5, "rgba(205,232,255,0.05)")
-      gg2.addColorStop(1,   "rgba(255,255,255,0)")
-      ctx.fillStyle = gg2; ctx.fillRect(0, 0, W, H)
       ctx.restore()
 
-      // ── 6. listening pulse rings ───────────────────────────────────────────
+      // rim + specular
+      const rg = ctx.createRadialGradient(cx, cy, R * 0.80, cx, cy, R * 1.06)
+      rg.addColorStop(0, "rgba(0,0,0,0)"); rg.addColorStop(0.52, "rgba(0,145,175,0.07)")
+      rg.addColorStop(0.78, "rgba(12,85,165,0.24)"); rg.addColorStop(0.94, "rgba(0,155,185,0.10)")
+      rg.addColorStop(1, "rgba(0,0,0,0)")
+      ctx.beginPath(); ctx.arc(cx, cy, R * 1.06, 0, Math.PI * 2); ctx.fillStyle = rg; ctx.fill()
+
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip()
+      const gg2 = ctx.createRadialGradient(cx - R * 0.38, cy - R * 0.42, 0, cx - R * 0.16, cy - R * 0.20, R * 0.55)
+      gg2.addColorStop(0, "rgba(255,255,255,0.14)"); gg2.addColorStop(0.5, "rgba(205,232,255,0.05)"); gg2.addColorStop(1, "rgba(255,255,255,0)")
+      ctx.fillStyle = gg2; ctx.fillRect(0, 0, W, H); ctx.restore()
+
+      // pulse rings
       if (state === "listening") {
         for (let k = 0; k < 3; k++) {
           const phase = (((t * 0.030) - k * 0.72 + 12) % 1 + 1) % 1
-          const rr    = R * (1.06 + phase * 0.55)
-          const al    = Math.max(0, (1 - phase) * 0.15)
+          const rr = R * (1.06 + phase * 0.55)
+          const al = Math.max(0, (1 - phase) * 0.15)
           ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2)
-          ctx.strokeStyle = `rgba(0,200,220,${al.toFixed(3)})`
-          ctx.lineWidth = 1.0; ctx.stroke()
+          ctx.strokeStyle = `rgba(0,200,220,${al.toFixed(3)})`; ctx.lineWidth = 1.0; ctx.stroke()
         }
       }
 
@@ -293,19 +218,36 @@ function OrbCanvas({
     }
   }, [orbStateRef, analyserRef])
 
-  // Responsive: use 80vmin capped at 420px
   const SIZE = 420
   return (
     <canvas
       ref={canvasRef}
       width={SIZE}
       height={SIZE}
-      style={{
-        width:  "min(80vmin, 420px)",
-        height: "min(80vmin, 420px)",
-      }}
+      style={{ width: "min(80vmin, 420px)", height: "min(80vmin, 420px)" }}
     />
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Detect the best supported MIME type for MediaRecorder (mobile-safe)
+// ─────────────────────────────────────────────────────────────────────────────
+function getSupportedMimeType(): string {
+  const types = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+    "audio/ogg",
+  ]
+  if (typeof MediaRecorder === "undefined") return "audio/webm"
+  for (const t of types) {
+    try {
+      if (MediaRecorder.isTypeSupported(t)) return t
+    } catch { /* skip */ }
+  }
+  return "" // let browser pick
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -313,39 +255,50 @@ function OrbCanvas({
 // ─────────────────────────────────────────────────────────────────────────────
 export default function VoiceChatPage() {
   const router = useRouter()
-  const [orbState, setOrbState] = useState<OrbState>("idle")
+  const [orbState, setOrbState]     = useState<OrbState>("idle")
   const [transcript, setTranscript] = useState("")
-  const [reply, setReply] = useState("")
-  const [errorMsg, setErrorMsg] = useState("")
+  const [reply, setReply]           = useState("")
+  const [errorMsg, setErrorMsg]     = useState("")
   const [isRecording, setIsRecording] = useState(false)
-
-  // Use a ref for history so onstop always reads the latest value
-  const orbStateRef    = useRef<OrbState>("idle")
-  const analyserRef    = useRef<AnalyserNode | null>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
-  const audioRef       = useRef<HTMLAudioElement | null>(null)
-  const streamRef      = useRef<MediaStream | null>(null)
-  const audioCtxRef    = useRef<AudioContext | null>(null)
-  const historyRef        = useRef<{ role: string; content: string }[]>([])
-  const sessionStartRef   = useRef<number | null>(null)
   const [voiceStats, setVoiceStats] = useState<{ used: number; limit: number } | null>(null)
+  const [isSupported, setIsSupported] = useState(true)
+
+  const orbStateRef      = useRef<OrbState>("idle")
+  const analyserRef      = useRef<AnalyserNode | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef   = useRef<Blob[]>([])
+  const audioRef         = useRef<HTMLAudioElement | null>(null)
+  const streamRef        = useRef<MediaStream | null>(null)
+  const audioCtxRef      = useRef<AudioContext | null>(null)
+  const historyRef       = useRef<{ role: string; content: string }[]>([])
+  const sessionStartRef  = useRef<number | null>(null)
+
+  // Check browser support on mount
+  useEffect(() => {
+    const hasMedia = typeof navigator !== "undefined" &&
+      typeof navigator.mediaDevices?.getUserMedia === "function"
+    const hasMR = typeof MediaRecorder !== "undefined"
+    if (!hasMedia || !hasMR) {
+      setIsSupported(false)
+      setErrorMsg("متصفحك لا يدعم التسجيل الصوتي. يرجى استخدام Chrome أو Safari.")
+    }
+  }, [])
 
   // Load voice stats on mount
   useEffect(() => {
-    fetchUsage().then((usage) => {
-      const plan = getUserPlan()
-      const limit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS].voiceMinutesPerDay
-      setVoiceStats({ used: usage.voice_minutes, limit })
-    }).catch(() => {
-      setVoiceStats({ used: 0, limit: -1 })
-    })
+    fetchUsage()
+      .then((usage) => {
+        const plan  = getUserPlan()
+        const limit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS].voiceMinutesPerDay
+        setVoiceStats({ used: usage.voice_minutes, limit })
+      })
+      .catch(() => setVoiceStats({ used: 0, limit: -1 }))
   }, [])
 
   // Keep orbState ref in sync
   useEffect(() => { orbStateRef.current = orbState }, [orbState])
 
-  // ── cleanup on unmount ─────────────────────────────────────────────────────
+  // Cleanup on unmount
   const stopAllAudio = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause()
@@ -357,25 +310,29 @@ export default function VoiceChatPage() {
       streamRef.current = null
     }
     analyserRef.current = null
-    // keep audioCtxRef alive across turns — closing it causes issues
   }, [])
 
   useEffect(() => () => stopAllAudio(), [stopAllAudio])
 
-  // ── ensure AudioContext exists (one per session) ──────────────────────────
+  // AudioContext — created inside a user gesture to satisfy mobile policies
   const getAudioCtx = useCallback(() => {
-    if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
-      audioCtxRef.current = new AudioContext()
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const AC = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext
+        if (!AC) return null
+        audioCtxRef.current = new AC()
+      }
+      if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {})
+      }
+      return audioCtxRef.current
+    } catch {
+      return null
     }
-    if (audioCtxRef.current.state === "suspended") {
-      audioCtxRef.current.resume().catch(() => {})
-    }
-    return audioCtxRef.current
   }, [])
 
-  // ── TTS: fetch audio → connect analyser → play ───────────────────────────
-  // tashkeelText: vowelized version for accurate Egyptian pronunciation (TTS only)
-  // displayText is shown on screen; tashkeelText is sent to ElevenLabs
+  // TTS: fetch audio → connect analyser → play
   const speakReply = useCallback(async (tashkeelText: string) => {
     setOrbState("speaking")
     orbStateRef.current = "speaking"
@@ -389,37 +346,32 @@ export default function VoiceChatPage() {
       const arrayBuffer = await ttsRes.arrayBuffer()
       if (!arrayBuffer.byteLength) throw new Error("الصوت فارغ")
 
-      // Stop any previous audio first
       if (audioRef.current) {
         audioRef.current.pause()
         audioRef.current.src = ""
         audioRef.current = null
       }
 
-      const url  = URL.createObjectURL(new Blob([arrayBuffer], { type: "audio/mpeg" }))
+      const url   = URL.createObjectURL(new Blob([arrayBuffer], { type: "audio/mpeg" }))
       const audio = new Audio(url)
       audio.volume = 1.0
       audioRef.current = audio
 
-      // Wire AudioContext analyser for orb animation
+      // Wire AudioContext analyser (non-critical — skip if unavailable)
       const actx = getAudioCtx()
-      try {
-        const src     = actx.createMediaElementSource(audio)
-        const analyser = actx.createAnalyser()
-        analyser.fftSize = 256
-        const gain    = actx.createGain()
-        gain.gain.value = 2.5
-        src.connect(analyser)
-        analyser.connect(gain)
-        gain.connect(actx.destination)
-        analyserRef.current = analyser
-      } catch {
-        // Safari / already-connected: play without analyser
-        audio.volume = 1.0
+      if (actx) {
+        try {
+          const src      = actx.createMediaElementSource(audio)
+          const analyser = actx.createAnalyser()
+          analyser.fftSize = 256
+          const gain = actx.createGain()
+          gain.gain.value = 2.5
+          src.connect(analyser); analyser.connect(gain); gain.connect(actx.destination)
+          analyserRef.current = analyser
+        } catch { /* already connected or unsupported */ }
       }
 
       await audio.play()
-
       await new Promise<void>((resolve) => {
         audio.onended = () => resolve()
         audio.onerror = () => resolve()
@@ -429,16 +381,19 @@ export default function VoiceChatPage() {
       analyserRef.current = null
       setOrbState("idle")
       orbStateRef.current = "idle"
-    } catch (e: any) {
-      setErrorMsg(`فشل تشغيل الصوت: ${e.message}`)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "خطأ غير معروف"
+      setErrorMsg(`فشل تشغيل الصوت: ${msg}`)
       setOrbState("idle")
       orbStateRef.current = "idle"
     }
   }, [getAudioCtx])
 
-  // ── processAudio: STT → LLM → TTS ────────────────────────────────────────
+  // processAudio: STT → LLM → TTS
   const processAudio = useCallback(async () => {
-    const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+    const mimeType = getSupportedMimeType()
+    const blobType = mimeType || "audio/webm"
+    const blob = new Blob(audioChunksRef.current, { type: blobType })
     audioChunksRef.current = []
 
     if (blob.size < 500) {
@@ -450,9 +405,11 @@ export default function VoiceChatPage() {
     setOrbState("thinking")
     orbStateRef.current = "thinking"
 
-    // ── STT ────────────────────────────────────────────────────────────────
+    // STT
     const form = new FormData()
-    form.append("audio", blob, "audio.webm")
+    // Use .webm or .mp4 extension depending on type
+    const ext  = blobType.includes("mp4") ? "mp4" : "webm"
+    form.append("audio", blob, `audio.${ext}`)
     let sttText = ""
     try {
       const res  = await fetch("/api/voice/stt", { method: "POST", body: form })
@@ -460,53 +417,47 @@ export default function VoiceChatPage() {
       if (!res.ok || !data.text?.trim()) throw new Error(data.error || "مفيش كلام واضح")
       sttText = data.text.trim()
       setTranscript(sttText)
-    } catch (e: any) {
-      setErrorMsg(e.message)
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : "خطأ في التعرف على الصوت")
       setOrbState("idle")
       return
     }
 
-    // ── LLM ────────────────────────────────────────────────────────────────
+    // LLM
     try {
       const res  = await fetch("/api/voice/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text:    sttText,
-          history: historyRef.current.slice(-8),  // last 4 turns
-        }),
+        body: JSON.stringify({ text: sttText, history: historyRef.current.slice(-8) }),
       })
       const data = await res.json()
       if (!res.ok || !data.reply) throw new Error(data.error || "فشل الرد")
       const replyText = data.reply.trim()
       setReply(replyText)
-
-      // Update history ref immediately (no stale closure issue)
       historyRef.current = [
         ...historyRef.current,
-        { role: "user",      content: sttText   },
+        { role: "user",      content: sttText },
         { role: "assistant", content: replyText },
       ]
-
       await speakReply(replyText)
-    } catch (e: any) {
-      setErrorMsg(e.message)
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : "خطأ في الاتصال")
       setOrbState("idle")
     }
   }, [speakReply])
 
-  // ── Start recording ───────────────────────────────────────────────────────
+  // Start recording
   const startListening = useCallback(async () => {
-    // Check voice chat time limit before starting (sync — uses in-memory cache)
+    if (!isSupported) return
+
+    // Check limit (sync — uses in-memory cache, safe in event handler)
     const voiceCheck = canUseVoiceChatSync()
     if (!voiceCheck.allowed) {
       setErrorMsg(voiceCheck.reason || "تجاوزت الحد المسموح للدردشة الصوتية اليوم")
       return
     }
 
-    setErrorMsg("")
-    setTranscript("")
-    setReply("")
+    setErrorMsg(""); setTranscript(""); setReply("")
     sessionStartRef.current = Date.now()
 
     let stream: MediaStream
@@ -520,51 +471,67 @@ export default function VoiceChatPage() {
     }
     streamRef.current = stream
 
-    // Mic analyser for orb (no playback — don't connect to destination)
-    const actx    = getAudioCtx()
-    const micSrc  = actx.createMediaStreamSource(stream)
-    const analyser = actx.createAnalyser()
-    analyser.fftSize = 256
-    micSrc.connect(analyser)   // analyser is not connected to destination on purpose
-    analyserRef.current = analyser
+    // Mic analyser for orb (non-critical)
+    const actx = getAudioCtx()
+    if (actx) {
+      try {
+        const micSrc  = actx.createMediaStreamSource(stream)
+        const analyser = actx.createAnalyser()
+        analyser.fftSize = 256
+        micSrc.connect(analyser)
+        analyserRef.current = analyser
+      } catch { /* skip analyser on unsupported browsers */ }
+    }
 
-    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-      ? "audio/webm;codecs=opus"
-      : "audio/webm"
-    const recorder = new MediaRecorder(stream, { mimeType })
+    const mimeType = getSupportedMimeType()
+    let recorder: MediaRecorder
+    try {
+      recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream)
+    } catch {
+      // Fallback: let browser choose
+      try { recorder = new MediaRecorder(stream) }
+      catch {
+        setErrorMsg("متصفحك لا يدعم تسجيل الصوت")
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+    }
+
     audioChunksRef.current = []
     recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
     recorder.onstop = () => {
       stream.getTracks().forEach((t) => t.stop())
-      streamRef.current  = null
+      streamRef.current   = null
       analyserRef.current = null
-      processAudio()  // no argument needed — reads historyRef directly
+      processAudio()
     }
     mediaRecorderRef.current = recorder
-    recorder.start(100)   // 100ms chunks for smoother data
+    recorder.start(100)
     setIsRecording(true)
     setOrbState("listening")
     orbStateRef.current = "listening"
-  }, [getAudioCtx, processAudio])
+  }, [getAudioCtx, processAudio, isSupported])
 
-  // ── Stop recording ────────────────────────────────────────────────────────
+  // Stop recording
   const stopListening = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop()
     }
     setIsRecording(false)
-    // Track elapsed voice minutes for usage limit
     if (sessionStartRef.current !== null) {
       const elapsedMinutes = (Date.now() - sessionStartRef.current) / 60000
       sessionStartRef.current = null
-      incrementVoiceUsage(elapsedMinutes).then(() => {
-        // Refresh displayed stats after saving
-        fetchUsage().then((usage) => {
-          const plan = getUserPlan()
-          const limit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS].voiceMinutesPerDay
-          setVoiceStats({ used: usage.voice_minutes, limit })
-        }).catch(() => {})
-      }).catch(() => {})
+      incrementVoiceUsage(elapsedMinutes)
+        .then(() =>
+          fetchUsage().then((usage) => {
+            const plan  = getUserPlan()
+            const limit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS].voiceMinutesPerDay
+            setVoiceStats({ used: usage.voice_minutes, limit })
+          })
+        )
+        .catch(() => {})
     }
   }, [])
 
@@ -596,7 +563,6 @@ export default function VoiceChatPage() {
           <span className="hidden sm:inline">رجوع</span>
         </button>
         <span className="text-white/20 text-[10px] sm:text-xs tracking-widest">MELEGY VOICE</span>
-        {/* Voice usage badge */}
         {voiceStats && (
           <span className="text-[10px] sm:text-xs text-white/30">
             {voiceStats.limit === -1
@@ -606,7 +572,7 @@ export default function VoiceChatPage() {
         )}
       </div>
 
-      {/* Orb + labels — takes all remaining space */}
+      {/* Orb + labels */}
       <div className="flex flex-col items-center justify-center flex-1 gap-3 sm:gap-5 px-4 min-h-0">
         <OrbCanvas orbStateRef={orbStateRef} analyserRef={analyserRef} />
 
@@ -620,18 +586,14 @@ export default function VoiceChatPage() {
         {transcript && (
           <div className="w-full max-w-xs sm:max-w-sm text-center px-4">
             <span className="block text-white/25 text-[10px] sm:text-xs mb-1">قلت</span>
-            <span className="text-white/55 text-xs sm:text-sm leading-relaxed line-clamp-3">
-              {transcript}
-            </span>
+            <span className="text-white/55 text-xs sm:text-sm leading-relaxed line-clamp-3">{transcript}</span>
           </div>
         )}
 
         {reply && (
           <div className="w-full max-w-xs sm:max-w-sm text-center px-4">
             <span className="block text-cyan-400/35 text-[10px] sm:text-xs mb-1">ميليجي</span>
-            <span className="text-cyan-300/75 text-xs sm:text-sm leading-relaxed line-clamp-4">
-              {reply}
-            </span>
+            <span className="text-cyan-300/75 text-xs sm:text-sm leading-relaxed line-clamp-4">{reply}</span>
           </div>
         )}
 
@@ -642,10 +604,11 @@ export default function VoiceChatPage() {
 
       {/* Controls */}
       <div className="flex flex-col items-center gap-3 pb-8 sm:pb-14 shrink-0">
-        {orbState === "idle" && (
+        {orbState === "idle" && !isRecording && (
           <button
             onClick={startListening}
-            className="flex items-center gap-3 px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm font-bold transition-all duration-200 active:scale-95"
+            disabled={!isSupported}
+            className="flex items-center gap-3 px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
               background: "rgba(0,180,210,0.10)",
               color: "#67e8f9",
