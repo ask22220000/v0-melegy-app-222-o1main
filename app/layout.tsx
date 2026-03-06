@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Cairo, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import { AppProvider } from "@/lib/contexts/AppContext"
 import { SessionTracker } from "@/components/session-tracker"
 import "./globals.css"
@@ -108,7 +107,6 @@ export default function RootLayout({
           <SessionTracker />
           {children}
         </AppProvider>
-        <Analytics />
       </body>
     </html>
   )

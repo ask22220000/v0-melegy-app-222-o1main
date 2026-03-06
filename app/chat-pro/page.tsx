@@ -246,10 +246,13 @@ export default function ChatProPage() {
         document.documentElement.classList.add("dark")
       }
       try {
-        const res = await fetch("/api/save-chat")
-        if (res.ok) {
-          const data = await res.json()
-          if (data.histories?.length > 0) setChatHistories(data.histories)
+        const storedId = localStorage.getItem("mlg_user_id")
+        if (storedId) {
+          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(storedId)}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.histories?.length > 0) setChatHistories(data.histories)
+          }
         }
       } catch (error) {
         console.error("Error loading chat histories:", error)
@@ -829,6 +832,7 @@ export default function ChatProPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mlg_user_id: mlgUserId,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,

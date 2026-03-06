@@ -273,10 +273,13 @@ export default function ChatAdvancedPage() {
   useEffect(() => {
     const loadHistories = async () => {
       try {
-        const res = await fetch("/api/save-chat")
-        if (res.ok) {
-          const data = await res.json()
-          if (data.histories?.length > 0) setChatHistories(data.histories)
+        const storedId = localStorage.getItem("mlg_user_id")
+        if (storedId) {
+          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(storedId)}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.histories?.length > 0) setChatHistories(data.histories)
+          }
         }
       } catch (error) {
         console.error("[v0] Error loading chat histories:", error)
@@ -308,7 +311,7 @@ export default function ChatAdvancedPage() {
     fetch("/api/save-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_title: title, chat_date: chatDate, messages }),
+      body: JSON.stringify({ mlg_user_id: mlgUserId, chat_title: title, chat_date: chatDate, messages }),
     }).then(() => {
       setChatHistories((prev) => {
         const idx = prev.findIndex((c) => c.title === title && c.date === chatDate)
@@ -765,6 +768,7 @@ export default function ChatAdvancedPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mlg_user_id: mlgUserId,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,
