@@ -62,7 +62,8 @@ function enhanceArabicPrompt(prompt: string): string {
   })
 
   enhancedPrompt = enhancedPrompt.replace(/\s+/g, " ").trim()
-  return enhancedPrompt + `, masterpiece quality, highly detailed, professional art, sharp focus. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
+  // CRITICAL: never add people/faces unless user explicitly asked for them
+  return `Apply only the following changes to the image: ${enhancedPrompt}. Do NOT add any people, faces, or figures not present in the original. Preserve the original subject and background. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
 }
 
 export async function POST(req: Request) {

@@ -59,8 +59,10 @@ Your job:
 1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully and completely — do NOT omit any detail.
 2. Enrich the translation with professional visual details: lighting, composition, color palette, mood, camera angle, photographic style.
 3. Do NOT change or remove any subject, person, object, or scene the user described.
-4. Do NOT add text overlays, watermarks, or typography.
-5. Return ONLY the final English prompt, under 120 words. No explanations.`
+4. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly asks for a person in their prompt.
+5. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
+6. Do NOT add text overlays, watermarks, or typography.
+7. Return ONLY the final English prompt, under 120 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -97,13 +99,15 @@ export async function processPromptForImageEditing(userPrompt: string): Promise<
 
   const system = `You are a professional prompt engineer for AI image editing (Flux model).
 Your job:
-1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully.
-2. Write a precise editing instruction that applies ONLY what the user asks to change.
-3. ALWAYS preserve: facial features, skin tone, body proportions, identity, and original background — unless the user explicitly asks to change them.
-4. Do NOT add text overlays or watermarks.
-5. Start your response with: "Preserve all facial features, skin tone, and original background." then describe the change.
-6. ALWAYS end with: "${IMAGE_EDIT_QUALITY_CONSTANTS}"
-7. Return ONLY the instruction in English, under 100 words. No explanations.`
+1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully — do NOT omit any detail.
+2. Write a precise editing instruction that applies ONLY what the user explicitly asks to change. Nothing more.
+3. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly mentions a person in their request.
+4. CRITICAL: Do NOT add animals, objects, or elements not mentioned by the user.
+5. Preserve the original subject, content, and background unless the user explicitly asks to change them.
+6. Do NOT add text overlays or watermarks.
+7. Start your response with: "Apply only the following changes:" then describe exactly what the user asked for.
+8. ALWAYS end with: "${IMAGE_EDIT_QUALITY_CONSTANTS}"
+9. Return ONLY the instruction in English, under 100 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and write an image editing instruction for: "${userPrompt}"`
