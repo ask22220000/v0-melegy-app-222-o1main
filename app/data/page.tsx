@@ -1,478 +1,515 @@
 "use client"
 
-import type React from "react"
-
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { Card } from "@/components/ui/card"
 import {
-  Activity,
-  MessageSquare,
-  Users,
-  Zap,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  UserCheck,
-  Crown,
-  Star,
-  Sparkles,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts"
+import {
+  Activity, MessageSquare, Users, Zap, Clock, Crown,
+  Star, Sparkles, TrendingUp, RefreshCw, Image, Video, Mic,
 } from "lucide-react"
-import type { Analytics } from "@/lib/analyticsService"
 
-interface ExtendedAnalytics extends Analytics {
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface AnalyticsData {
   activeUsersNow: number
   totalUsers: number
-  subscriptionsByPlan: {
-    free: number
-    starter: number
-    pro: number
-    advanced: number
+  subscriptionsByPlan: { free: number; starter: number; pro: number; advanced: number }
+  totalConversations: number
+  totalMessages: number
+  messagesPerMinute: number
+  averageResponseTime: number
+  activeUsers: number
+  featureUsage: {
+    textGeneration: number
+    imageGeneration: number
+    videoGeneration: number
+    deepSearch: number
+    ideaToPrompt: number
+    voiceCloning: number
   }
+  responseTypes: { text: number; search: number; creative: number; technical: number }
+  userSatisfaction: { positive: number; neutral: number; negative: number }
+  systemHealth: { apiResponseTime: number; uptime: number; errorRate: number }
+  topQueries: { query: string; count: number }[]
+  hourlyActivity: { hour: number; messages: number }[]
+  lastUpdated: string
 }
 
+// ── Color palette (no CSS vars — recharts needs real values) ──────────────────
+const COLORS = {
+  blue:   "#3b82f6",
+  cyan:   "#06b6d4",
+  green:  "#22c55e",
+  purple: "#a855f7",
+  amber:  "#f59e0b",
+  red:    "#ef4444",
+  slate:  "#64748b",
+  card:   "#0d1b35",
+  border: "#1e3a5f",
+}
+
+const PLAN_COLORS = [COLORS.slate, COLORS.blue, COLORS.purple, COLORS.amber]
+const FEATURE_COLORS = [COLORS.blue, COLORS.cyan, COLORS.purple, COLORS.green, COLORS.amber, COLORS.red]
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt(n: number) { return n.toLocaleString("ar-EG") }
+
+function pct(value: number, total: number) {
+  if (!total) return "0.0"
+  return ((value / total) * 100).toFixed(1)
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+function KpiCard({
+  label, value, sub, icon, accent, pulse,
+}: { label: string; value: string; sub?: string; icon: React.ReactNode; accent: string; pulse?: boolean }) {
+  return (
+    <div
+      className="rounded-2xl border p-5 flex flex-col gap-3"
+      style={{ background: COLORS.card, borderColor: COLORS.border }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-slate-400">{label}</span>
+        <span className={pulse ? "animate-pulse" : ""} style={{ color: accent }}>{icon}</span>
+      </div>
+      <div className="text-3xl font-bold text-white leading-none">{value}</div>
+      {sub && <div className="text-xs text-slate-500">{sub}</div>}
+    </div>
+  )
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">{children}</h2>
+  )
+}
+
+function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`rounded-2xl border p-6 ${className}`}
+      style={{ background: COLORS.card, borderColor: COLORS.border }}
+    >
+      {children}
+    </div>
+  )
+}
+
+// ── Custom Recharts Tooltip ───────────────────────────────────────────────────
+function CustomTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-xl border px-4 py-3 text-sm" style={{ background: "#0a1628", borderColor: COLORS.border }}>
+      <p className="text-slate-400 mb-1">{label}</p>
+      {payload.map((p: any, i: number) => (
+        <p key={i} style={{ color: p.color }} className="font-semibold">
+          {p.name}: {fmt(p.value)}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+const TABS = [
+  { id: "overview",  label: "نظرة عامة" },
+  { id: "features",  label: "المميزات" },
+  { id: "plans",     label: "الخطط" },
+  { id: "activity",  label: "النشاط" },
+]
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DataPage() {
-  const [analytics, setAnalytics] = useState<ExtendedAnalytics | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [data, setData]       = useState<AnalyticsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab]         = useState("overview")
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
-  const fetchAnalytics = async () => {
+  const load = useCallback(async () => {
     try {
-      const response = await fetch("/api/analytics")
-      const data = await response.json()
-      setAnalytics(data)
-    } catch (error) {
-      console.error("Failed to fetch analytics:", error)
-    } finally {
-      setIsLoading(false)
+      const res = await fetch("/api/analytics")
+      if (res.ok) {
+        setData(await res.json())
+        setLastRefresh(new Date())
+      }
+    } catch { /* silent */ } finally {
+      setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    fetchAnalytics()
-    // Refresh every 3 seconds for real-time updates
-    const interval = setInterval(fetchAnalytics, 3000)
-    return () => clearInterval(interval)
   }, [])
 
-  if (isLoading) {
+  useEffect(() => {
+    load()
+    const id = setInterval(load, 30_000)
+    return () => clearInterval(id)
+  }, [load])
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto px-4 py-20 text-center">
-          <div className="animate-pulse text-foreground">جاري تحميل الإحصائيات...</div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-4">
+            <RefreshCw className="animate-spin text-blue-400 h-8 w-8" />
+            <p className="text-slate-400 text-sm">جاري تحميل التقارير...</p>
+          </div>
         </div>
       </div>
     )
   }
 
-  if (!analytics) {
+  if (!data) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto px-4 py-20 text-center text-foreground">فشل تحميل الإحصائيات</div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <p className="text-red-400">تعذّر تحميل البيانات. حاول مرة أخرى.</p>
+        </div>
       </div>
     )
   }
 
-  const totalSatisfaction =
-    (analytics.userSatisfaction?.positive || 0) +
-    (analytics.userSatisfaction?.neutral || 0) +
-    (analytics.userSatisfaction?.negative || 0)
-  const satisfactionRate = totalSatisfaction > 0 ? ((analytics.userSatisfaction?.positive || 0) / totalSatisfaction) * 100 : 0
+  const totalPlans = data.subscriptionsByPlan.free + data.subscriptionsByPlan.starter +
+    data.subscriptionsByPlan.pro + data.subscriptionsByPlan.advanced
 
-  const totalSubscribers =
-    (analytics.subscriptionsByPlan?.free || 0) +
-    (analytics.subscriptionsByPlan?.starter || 0) +
-    (analytics.subscriptionsByPlan?.pro || 0) +
-    (analytics.subscriptionsByPlan?.advanced || 0)
+  const planPieData = [
+    { name: "مجاني",    value: data.subscriptionsByPlan.free },
+    { name: "Starter",  value: data.subscriptionsByPlan.starter },
+    { name: "Pro",      value: data.subscriptionsByPlan.pro },
+    { name: "Advanced", value: data.subscriptionsByPlan.advanced },
+  ]
+
+  const featureBarData = [
+    { name: "نصوص",       value: data.featureUsage.textGeneration,  fill: COLORS.blue },
+    { name: "صور",         value: data.featureUsage.imageGeneration,  fill: COLORS.cyan },
+    { name: "فيديو",       value: data.featureUsage.videoGeneration,  fill: COLORS.purple },
+    { name: "بحث عميق",   value: data.featureUsage.deepSearch,        fill: COLORS.green },
+    { name: "أفكار",       value: data.featureUsage.ideaToPrompt,      fill: COLORS.amber },
+    { name: "صوت",         value: data.featureUsage.voiceCloning,       fill: COLORS.red },
+  ]
+
+  const satisfactionTotal = data.userSatisfaction.positive + data.userSatisfaction.neutral + data.userSatisfaction.negative
+  const satisfactionPie = [
+    { name: "إيجابي", value: data.userSatisfaction.positive },
+    { name: "محايد",  value: data.userSatisfaction.neutral },
+    { name: "سلبي",   value: data.userSatisfaction.negative },
+  ]
+  const satColors = [COLORS.green, COLORS.amber, COLORS.red]
+
+  const hourlyData = data.hourlyActivity.map((h) => ({
+    name: `${h.hour}:00`,
+    رسائل: h.messages,
+  }))
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" dir="rtl">
       <Header />
 
-      <div className="container mx-auto px-4 py-20">
-        <div className="mb-12 text-center">
-          <h1 className="mb-4 text-4xl font-bold text-white">إحصائيات ميليجي اللحظية</h1>
-          <p className="text-gray-400">تحديث تلقائي كل 3 ثواني</p>
-          <p className="mt-2 text-sm text-gray-500">
-            آخر تحديث: {new Date(analytics.lastUpdated).toLocaleTimeString("ar-EG")}
-          </p>
+      <main className="container mx-auto px-4 py-10 max-w-7xl">
+        {/* Header row */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white">تقارير الاستخدام</h1>
+            <p className="text-slate-400 text-sm mt-1">
+              {lastRefresh
+                ? `آخر تحديث: ${lastRefresh.toLocaleTimeString("ar-EG")}`
+                : "يتجدد كل 30 ثانية"}
+            </p>
+          </div>
+          <button
+            onClick={load}
+            className="flex items-center gap-2 text-sm text-slate-300 border border-slate-700 rounded-xl px-4 py-2 hover:bg-slate-800 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            تحديث الآن
+          </button>
         </div>
 
-        <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <StatCard
-            title="نشط الآن"
-            value={analytics.activeUsersNow?.toLocaleString("ar-EG") || "0"}
-            icon={<UserCheck className="h-6 w-6" />}
-            color="green"
-            subtitle="متصل حالياً"
-            pulse
-          />
-          <StatCard
-            title="إجمالي المستخدمين"
-            value={analytics.totalUsers?.toLocaleString("ar-EG") || "0"}
-            icon={<Users className="h-6 w-6" />}
-            color="blue"
-            subtitle="منذ الإطلاق"
-          />
-          <StatCard
-            title="إجمالي المشتركين"
-            value={totalSubscribers.toLocaleString("ar-EG")}
-            icon={<Crown className="h-6 w-6" />}
-            color="purple"
-            subtitle="في جميع الخطط"
-          />
+        {/* KPI row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <KpiCard label="نشط الآن"           value={fmt(data.activeUsersNow)}      sub="مستخدم متصل"          icon={<Users className="h-5 w-5" />}          accent={COLORS.green}  pulse />
+          <KpiCard label="إجمالي المستخدمين"  value={fmt(data.totalUsers)}           sub="منذ الإطلاق"           icon={<TrendingUp className="h-5 w-5" />}      accent={COLORS.blue} />
+          <KpiCard label="إجمالي الرسائل"     value={fmt(data.totalMessages)}        sub="كل الأوقات"            icon={<MessageSquare className="h-5 w-5" />}   accent={COLORS.cyan} />
+          <KpiCard label="إجمالي المحادثات"   value={fmt(data.totalConversations)}   sub="محادثة محفوظة"         icon={<Activity className="h-5 w-5" />}        accent={COLORS.purple} />
         </div>
 
-        <Card className="mb-8 p-6 bg-[#0f2744] border-[#1e3a5f]">
-          <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
-            <Crown className="h-6 w-6 text-yellow-500" />
-            المشتركين حسب الخطة
-          </h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <SubscriptionCard
-              plan="مجاني"
-              count={analytics.subscriptionsByPlan?.free || 0}
-              icon={<Users className="h-8 w-8" />}
-              color="gray"
-            />
-            <SubscriptionCard
-              plan="Starter"
-              count={analytics.subscriptionsByPlan?.starter || 0}
-              icon={<Star className="h-8 w-8" />}
-              color="blue"
-            />
-            <SubscriptionCard
-              plan="Pro"
-              count={analytics.subscriptionsByPlan?.pro || 0}
-              icon={<Sparkles className="h-8 w-8" />}
-              color="purple"
-            />
-            <SubscriptionCard
-              plan="Advanced"
-              count={analytics.subscriptionsByPlan?.advanced || 0}
-              icon={<Crown className="h-8 w-8" />}
-              color="gold"
-            />
-          </div>
-        </Card>
-
-        {/* Main Stats Grid */}
-        <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="إجمالي المحادثات"
-            value={analytics.totalConversations.toLocaleString("ar-EG")}
-            icon={<MessageSquare className="h-6 w-6" />}
-            color="blue"
-          />
-          <StatCard
-            title="إجمالي الرسائل"
-            value={analytics.totalMessages.toLocaleString("ar-EG")}
-            icon={<Activity className="h-6 w-6" />}
-            color="green"
-          />
-          <StatCard
-            title="نشط اليوم"
-            value={analytics.activeUsers.toLocaleString("ar-EG")}
-            icon={<Users className="h-6 w-6" />}
-            color="purple"
-          />
-          <StatCard
-            title="متوسط وقت الاستجابة"
-            value={`${analytics.averageResponseTime.toFixed(2)} ث`}
-            icon={<Clock className="h-6 w-6" />}
-            color="orange"
-          />
+        {/* Tabs */}
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-5 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                tab === t.id
+                  ? "text-white"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              style={tab === t.id ? { background: COLORS.blue } : { background: COLORS.card, border: `1px solid ${COLORS.border}` }}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        {/* Feature Usage */}
-        <Card className="mb-8 p-6 bg-[#0f2744] border-[#1e3a5f]">
-          <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
-            <Zap className="h-6 w-6 text-yellow-500" />
-            استخدام المميزات
-          </h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {(() => {
-              const allFeatures = Object.values(analytics.featureUsage)
-              const maxFeature = Math.max(...allFeatures, 1)
-              return (
-                <>
-                  <FeatureBar label="توليد النصوص" value={analytics.featureUsage.textGeneration} maxValue={maxFeature} />
-                  <FeatureBar label="توليد الصور" value={analytics.featureUsage.imageGeneration} maxValue={maxFeature} />
-                  <FeatureBar label="توليد الفيديو" value={analytics.featureUsage.videoGeneration} maxValue={maxFeature} />
-                  <FeatureBar label="البحث العميق" value={analytics.featureUsage.deepSearch} maxValue={maxFeature} />
-                  <FeatureBar label="تحويل الأفكار" value={analytics.featureUsage.ideaToPrompt} maxValue={maxFeature} />
-                  <FeatureBar label="استنساخ الصوت" value={analytics.featureUsage.voiceCloning} maxValue={maxFeature} />
-                </>
-              )
-            })()}
-          </div>
-        </Card>
+        {/* ── Tab: Overview ─────────────────────────────────────────────────── */}
+        {tab === "overview" && (
+          <div className="space-y-6">
+            {/* Second KPI row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <KpiCard label="نشط اليوم"              value={fmt(data.activeUsers)}                sub="آخر 24 ساعة"      icon={<Clock className="h-5 w-5" />}          accent={COLORS.amber} />
+              <KpiCard label="رسائل / دقيقة"          value={String(data.messagesPerMinute)}       sub="الساعة الأخيرة"   icon={<Zap className="h-5 w-5" />}             accent={COLORS.cyan} />
+              <KpiCard label="وقت الاستجابة"          value={`${data.averageResponseTime.toFixed(2)} ث`} sub="متوسط"       icon={<Activity className="h-5 w-5" />}        accent={COLORS.green} />
+              <KpiCard label="إجمالي المشتركين"       value={fmt(totalPlans)}                      sub="في كل الخطط"      icon={<Crown className="h-5 w-5" />}           accent={COLORS.purple} />
+            </div>
 
-        {/* Response Types */}
-        <div className="mb-8 grid gap-6 md:grid-cols-2">
-          <Card className="p-6 bg-[#0f2744] border-[#1e3a5f]">
-            <h2 className="mb-6 text-2xl font-bold text-white">أنواع الردود</h2>
-            <div className="space-y-4">
-              {(() => {
-                const allTypes = Object.values(analytics.responseTypes)
-                const maxType = Math.max(...allTypes, 1)
-                return (
-                  <>
-                    <ResponseTypeBar label="نصوص" value={analytics.responseTypes.text} color="blue" maxValue={maxType} />
-                    <ResponseTypeBar label="بحث" value={analytics.responseTypes.search} color="green" maxValue={maxType} />
-                    <ResponseTypeBar label="إبداعي" value={analytics.responseTypes.creative} color="purple" maxValue={maxType} />
-                    <ResponseTypeBar label="تقني" value={analytics.responseTypes.technical} color="orange" maxValue={maxType} />
-                  </>
-                )
-              })()}
-            </div>
-          </Card>
+            {/* Hourly chart + Satisfaction */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <Panel>
+                <SectionTitle><Activity className="h-5 w-5 text-blue-400" />النشاط بالساعة (آخر 24 ساعة)</SectionTitle>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={hourlyData}>
+                    <defs>
+                      <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={COLORS.blue} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={COLORS.blue} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                    <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 11 }} interval={3} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 11 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="رسائل" stroke={COLORS.blue} fill="url(#blueGrad)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Panel>
 
-          <Card className="p-6 bg-[#0f2744] border-[#1e3a5f]">
-            <h2 className="mb-6 text-2xl font-bold text-white">صحة النظام</h2>
-            <div className="space-y-6">
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-gray-400">وقت استجابة API</span>
-                  <span className="font-bold text-white">{analytics.systemHealth.apiResponseTime.toFixed(2)} ث</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[#1e3a5f]">
-                  <div
-                    className="h-full bg-blue-500 transition-all"
-                    style={{ width: `${Math.min((analytics.systemHealth.apiResponseTime / 5) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-gray-400">وقت التشغيل</span>
-                  <span className="font-bold text-white">{analytics.systemHealth.uptime.toFixed(1)}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[#1e3a5f]">
-                  <div
-                    className="h-full bg-green-500 transition-all"
-                    style={{ width: `${analytics.systemHealth.uptime}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-gray-400">معدل الأخطاء</span>
-                  <span className="font-bold text-white">{(analytics.systemHealth.errorRate * 100).toFixed(2)}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[#1e3a5f]">
-                  <div
-                    className="h-full bg-red-500 transition-all"
-                    style={{ width: `${analytics.systemHealth.errorRate * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* User Satisfaction */}
-        <Card className="mb-8 p-6 bg-[#0f2744] border-[#1e3a5f]">
-          <h2 className="mb-6 text-2xl font-bold text-white">رضا المستخدمين</h2>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="text-center">
-              <CheckCircle className="mx-auto mb-2 h-12 w-12 text-green-500" />
-              <div className="text-3xl font-bold text-green-500">
-                {(analytics.userSatisfaction?.positive || 0).toLocaleString("ar-EG")}
-              </div>
-              <div className="text-sm text-gray-400">إيجابي</div>
-              {totalSatisfaction > 0 && (
-                <div className="text-xs text-gray-500 mt-1">
-                  {(((analytics.userSatisfaction?.positive || 0) / totalSatisfaction) * 100).toFixed(1)}%
-                </div>
-              )}
-            </div>
-            <div className="text-center">
-              <Activity className="mx-auto mb-2 h-12 w-12 text-yellow-500" />
-              <div className="text-3xl font-bold text-yellow-500">
-                {(analytics.userSatisfaction?.neutral || 0).toLocaleString("ar-EG")}
-              </div>
-              <div className="text-sm text-gray-400">محايد</div>
-              {totalSatisfaction > 0 && (
-                <div className="text-xs text-gray-500 mt-1">
-                  {(((analytics.userSatisfaction?.neutral || 0) / totalSatisfaction) * 100).toFixed(1)}%
-                </div>
-              )}
-            </div>
-            <div className="text-center">
-              <AlertCircle className="mx-auto mb-2 h-12 w-12 text-red-500" />
-              <div className="text-3xl font-bold text-red-500">
-                {(analytics.userSatisfaction?.negative || 0).toLocaleString("ar-EG")}
-              </div>
-              <div className="text-sm text-gray-400">سلبي</div>
-              {totalSatisfaction > 0 && (
-                <div className="text-xs text-gray-500 mt-1">
-                  {(((analytics.userSatisfaction?.negative || 0) / totalSatisfaction) * 100).toFixed(1)}%
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-6 text-center">
-            <div className="text-4xl font-bold text-green-500">
-              {totalSatisfaction > 0 ? satisfactionRate.toFixed(1) : "0.0"}%
-            </div>
-            <div className="text-gray-400">معدل الرضا الإجمالي</div>
-            <div className="text-sm text-gray-500 mt-2">
-              من إجمالي {totalSatisfaction.toLocaleString("ar-EG")} تقييم
-            </div>
-          </div>
-        </Card>
-
-        {/* Hourly Activity */}
-        <Card className="mb-8 p-6 bg-[#0f2744] border-[#1e3a5f]">
-          <h2 className="mb-6 text-2xl font-bold text-white">النشاط بالساعة (آخر 24 ساعة)</h2>
-          <div className="flex h-48 items-end justify-between gap-1">
-            {analytics.hourlyActivity.map((hour) => {
-              const maxMessages = Math.max(...analytics.hourlyActivity.map((h) => h.messages))
-              const height = maxMessages > 0 ? (hour.messages / maxMessages) * 100 : 0
-              return (
-                <div key={hour.hour} className="flex flex-1 flex-col items-center gap-2">
-                  <div
-                    className="w-full rounded-t bg-blue-500 transition-all hover:bg-blue-400"
-                    style={{ height: `${height}%`, minHeight: height > 0 ? "4px" : "0" }}
-                    title={`${hour.hour}:00 - ${hour.messages} رسالة`}
-                  />
-                  <div className="text-xs text-gray-500">{hour.hour}</div>
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-
-        {/* Top Queries */}
-        {analytics.topQueries.length > 0 && (
-          <Card className="p-6 bg-[#0f2744] border-[#1e3a5f]">
-            <h2 className="mb-6 text-2xl font-bold text-white">أكثر الاستفسارات شيوعاً</h2>
-            <div className="space-y-3">
-              {analytics.topQueries.map((query, index) => (
-                <div key={index} className="flex items-center justify-between rounded-lg border border-[#1e3a5f] p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-                      {index + 1}
-                    </div>
-                    <span className="text-white">{query.query}</span>
+              <Panel>
+                <SectionTitle>رضا المستخدمين</SectionTitle>
+                <div className="flex items-center gap-6">
+                  <ResponsiveContainer width="50%" height={180}>
+                    <PieChart>
+                      <Pie data={satisfactionPie} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={3}>
+                        {satisfactionPie.map((_, i) => <Cell key={i} fill={satColors[i]} />)}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-3 flex-1">
+                    {satisfactionPie.map((item, i) => (
+                      <div key={i}>
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="flex items-center gap-2 text-slate-300">
+                            <span className="w-2 h-2 rounded-full inline-block" style={{ background: satColors[i] }} />
+                            {item.name}
+                          </span>
+                          <span className="text-white font-semibold">{pct(item.value, satisfactionTotal)}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct(item.value, satisfactionTotal)}%`, background: satColors[i] }} />
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs text-slate-500 pt-1">من {fmt(satisfactionTotal)} تقييم</p>
                   </div>
-                  <span className="font-bold text-blue-400">{query.count.toLocaleString("ar-EG")}</span>
                 </div>
+              </Panel>
+            </div>
+
+            {/* System health */}
+            <Panel>
+              <SectionTitle>صحة النظام</SectionTitle>
+              <div className="grid md:grid-cols-3 gap-6">
+                {[
+                  { label: "وقت استجابة API", value: `${data.systemHealth.apiResponseTime.toFixed(2)} ث`, pct: Math.min((data.systemHealth.apiResponseTime / 5) * 100, 100), color: COLORS.blue },
+                  { label: "وقت التشغيل",      value: `${data.systemHealth.uptime.toFixed(1)}%`,             pct: data.systemHealth.uptime,                                    color: COLORS.green },
+                  { label: "معدل الأخطاء",     value: `${(data.systemHealth.errorRate * 100).toFixed(2)}%`,  pct: data.systemHealth.errorRate * 100,                           color: COLORS.red },
+                ].map((m, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-slate-400">{m.label}</span>
+                      <span className="text-white font-semibold">{m.value}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${m.pct}%`, background: m.color }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          </div>
+        )}
+
+        {/* ── Tab: Features ─────────────────────────────────────────────────── */}
+        {tab === "features" && (
+          <div className="space-y-6">
+            <Panel>
+              <SectionTitle><Zap className="h-5 w-5 text-amber-400" />استخدام المميزات</SectionTitle>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={featureBarData} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} horizontal={false} />
+                  <XAxis type="number" tick={{ fill: "#64748b", fontSize: 12 }} />
+                  <YAxis dataKey="name" type="category" tick={{ fill: "#94a3b8", fontSize: 13 }} width={70} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="value" name="الاستخدام" radius={[0, 6, 6, 0]}>
+                    {featureBarData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Panel>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                { label: "توليد النصوص",   value: data.featureUsage.textGeneration,  icon: <MessageSquare className="h-5 w-5" />,  color: COLORS.blue },
+                { label: "توليد الصور",     value: data.featureUsage.imageGeneration,  icon: <Image className="h-5 w-5" />,          color: COLORS.cyan },
+                { label: "توليد الفيديو",   value: data.featureUsage.videoGeneration,  icon: <Video className="h-5 w-5" />,          color: COLORS.purple },
+                { label: "البحث العميق",    value: data.featureUsage.deepSearch,        icon: <Activity className="h-5 w-5" />,       color: COLORS.green },
+                { label: "تحويل الأفكار",  value: data.featureUsage.ideaToPrompt,      icon: <Sparkles className="h-5 w-5" />,       color: COLORS.amber },
+                { label: "الدردشة الصوتية",value: data.featureUsage.voiceCloning,       icon: <Mic className="h-5 w-5" />,           color: COLORS.red },
+              ].map((f, i) => (
+                <KpiCard key={i} label={f.label} value={fmt(f.value)} sub="عملية" icon={f.icon} accent={f.color} />
               ))}
             </div>
-          </Card>
+
+            {/* Top queries */}
+            {data.topQueries.length > 0 && (
+              <Panel>
+                <SectionTitle>أكثر الاستفسارات شيوعاً (آخر 7 أيام)</SectionTitle>
+                <div className="space-y-2">
+                  {data.topQueries.map((q, i) => (
+                    <div key={i} className="flex items-center gap-3 rounded-xl border px-4 py-3" style={{ borderColor: COLORS.border }}>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white flex-shrink-0" style={{ background: COLORS.blue }}>
+                        {i + 1}
+                      </span>
+                      <span className="text-slate-300 text-sm flex-1 truncate">{q.query}</span>
+                      <span className="text-blue-400 font-bold text-sm">{fmt(q.count)}</span>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            )}
+          </div>
         )}
-      </div>
+
+        {/* ── Tab: Plans ────────────────────────────────────────────────────── */}
+        {tab === "plans" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: "مجاني",    value: data.subscriptionsByPlan.free,      icon: <Users className="h-5 w-5" />,     color: COLORS.slate },
+                { label: "Starter",  value: data.subscriptionsByPlan.starter,   icon: <Star className="h-5 w-5" />,      color: COLORS.blue },
+                { label: "Pro",      value: data.subscriptionsByPlan.pro,       icon: <Sparkles className="h-5 w-5" />,  color: COLORS.purple },
+                { label: "Advanced", value: data.subscriptionsByPlan.advanced,  icon: <Crown className="h-5 w-5" />,     color: COLORS.amber },
+              ].map((p, i) => (
+                <KpiCard key={i} label={p.label} value={fmt(p.value)} sub={`${pct(p.value, totalPlans)}% من الكل`} icon={p.icon} accent={p.color} />
+              ))}
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <Panel>
+                <SectionTitle>توزيع الخطط</SectionTitle>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie data={planPieData} cx="50%" cy="50%" outerRadius={100} dataKey="value" paddingAngle={4} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                      {planPieData.map((_, i) => <Cell key={i} fill={PLAN_COLORS[i]} />)}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend formatter={(v) => <span style={{ color: "#94a3b8" }}>{v}</span>} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Panel>
+
+              <Panel>
+                <SectionTitle>مقارنة الخطط</SectionTitle>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={planPieData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                    <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="value" name="المشتركين" radius={[6, 6, 0, 0]}>
+                      {planPieData.map((_, i) => <Cell key={i} fill={PLAN_COLORS[i]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Panel>
+            </div>
+          </div>
+        )}
+
+        {/* ── Tab: Activity ─────────────────────────────────────────────────── */}
+        {tab === "activity" && (
+          <div className="space-y-6">
+            <Panel>
+              <SectionTitle><Activity className="h-5 w-5 text-blue-400" />الرسائل بالساعة (آخر 24 ساعة)</SectionTitle>
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={hourlyData}>
+                  <defs>
+                    <linearGradient id="cyanGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={COLORS.cyan} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={COLORS.cyan} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                  <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 11 }} interval={2} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="رسائل" stroke={COLORS.cyan} fill="url(#cyanGrad)" strokeWidth={2} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Panel>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <Panel>
+                <SectionTitle>أنواع الردود</SectionTitle>
+                <div className="space-y-4">
+                  {[
+                    { label: "نصوص",   value: data.responseTypes.text,      color: COLORS.blue },
+                    { label: "بحث",    value: data.responseTypes.search,    color: COLORS.green },
+                    { label: "إبداعي", value: data.responseTypes.creative,  color: COLORS.purple },
+                    { label: "تقني",   value: data.responseTypes.technical, color: COLORS.amber },
+                  ].map((r, i) => {
+                    const total = Object.values(data.responseTypes).reduce((a, b) => a + b, 0)
+                    return (
+                      <div key={i}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-slate-300">{r.label}</span>
+                          <span className="text-white font-semibold">{fmt(r.value)}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct(r.value, total)}%`, background: r.color }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </Panel>
+
+              <Panel>
+                <SectionTitle>ملخص الاستخدام</SectionTitle>
+                <div className="space-y-4">
+                  {[
+                    { label: "إجمالي المستخدمين",  value: fmt(data.totalUsers) },
+                    { label: "نشط اليوم",          value: fmt(data.activeUsers) },
+                    { label: "نشط الآن",            value: fmt(data.activeUsersNow) },
+                    { label: "إجمالي المحادثات",   value: fmt(data.totalConversations) },
+                    { label: "إجمالي الرسائل",     value: fmt(data.totalMessages) },
+                    { label: "رسائل / دقيقة",      value: String(data.messagesPerMinute) },
+                  ].map((s, i) => (
+                    <div key={i} className="flex justify-between border-b pb-2" style={{ borderColor: COLORS.border }}>
+                      <span className="text-slate-400 text-sm">{s.label}</span>
+                      <span className="text-white font-semibold text-sm">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            </div>
+          </div>
+        )}
+      </main>
+
       <Footer />
-    </div>
-  )
-}
-
-function StatCard({
-  title,
-  value,
-  icon,
-  color,
-  subtitle,
-  pulse,
-}: { title: string; value: string; icon: React.ReactNode; color: string; subtitle?: string; pulse?: boolean }) {
-  const colorClasses = {
-    blue: "from-blue-500/20 to-blue-600/20 border-blue-500/30",
-    green: "from-green-500/20 to-green-600/20 border-green-500/30",
-    purple: "from-purple-500/20 to-purple-600/20 border-purple-500/30",
-    orange: "from-orange-500/20 to-orange-600/20 border-orange-500/30",
-  }
-
-  return (
-    <Card
-      className={`bg-gradient-to-br p-6 ${colorClasses[color as keyof typeof colorClasses]} bg-[#0f2744] border-[#1e3a5f]`}
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-gray-400">{title}</div>
-        <div className={`opacity-70 ${pulse ? "animate-pulse" : ""}`}>{icon}</div>
-      </div>
-      <div className="text-3xl font-bold text-white">{value}</div>
-      {subtitle && <div className="text-sm text-gray-500 mt-1">{subtitle}</div>}
-    </Card>
-  )
-}
-
-function SubscriptionCard({
-  plan,
-  count,
-  icon,
-  color,
-}: { plan: string; count: number; icon: React.ReactNode; color: string }) {
-  const colorClasses = {
-    gray: "text-gray-400 bg-gray-500/20 border-gray-500/30",
-    blue: "text-blue-400 bg-blue-500/20 border-blue-500/30",
-    purple: "text-purple-400 bg-purple-500/20 border-purple-500/30",
-    gold: "text-yellow-400 bg-yellow-500/20 border-yellow-500/30",
-  }
-
-  return (
-    <div className={`rounded-lg p-4 border ${colorClasses[color as keyof typeof colorClasses]}`}>
-      <div className="flex items-center gap-3 mb-2">
-        <div className={colorClasses[color as keyof typeof colorClasses].split(" ")[0]}>{icon}</div>
-        <span className="text-white font-semibold">{plan}</span>
-      </div>
-      <div className="text-2xl font-bold text-white">{count.toLocaleString("ar-EG")}</div>
-      <div className="text-sm text-gray-500">مشترك</div>
-    </div>
-  )
-}
-
-function FeatureBar({ label, value, maxValue }: { label: string; value: number; maxValue?: number }) {
-  const max = maxValue || 1000 // Default max value for percentage calculation
-  const percentage = Math.min((value / max) * 100, 100)
-  
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between text-sm">
-        <span className="text-gray-400">{label}</span>
-        <span className="font-bold text-white">{value.toLocaleString("ar-EG")}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-[#1e3a5f]">
-        <div
-          className="h-full bg-blue-500 transition-all"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-function ResponseTypeBar({
-  label,
-  value,
-  color,
-  maxValue,
-}: { label: string; value: number; color: string; maxValue?: number }) {
-  const colorClasses = {
-    blue: "bg-blue-500",
-    green: "bg-green-500",
-    purple: "bg-purple-500",
-    orange: "bg-orange-500",
-  }
-
-  const max = maxValue || 1
-  const percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0
-
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-gray-400">{label}</span>
-        <span className="font-bold text-white">{value.toLocaleString("ar-EG")}</span>
-      </div>
-      <div className="h-3 overflow-hidden rounded-full bg-[#1e3a5f]">
-        <div
-          className={`h-full transition-all ${colorClasses[color as keyof typeof colorClasses]}`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
     </div>
   )
 }
