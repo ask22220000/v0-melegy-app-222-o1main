@@ -137,7 +137,79 @@ export async function GET() {
       .slice(0, 10)
   } catch { /* ignore */ }
 
-  // ── 2. Vercel Analytics (page views / visitors) ───────────────────────────
+  // ── 2. user_usage stats ───────────────────────────────────────────────────
+  let totalImages = 0
+  let totalVideos = 0
+  let totalVoiceMinutes = 0
+  let messagesToday = 0
+  let monthlyMessages = 0
+  let monthlyImages = 0
+  let totalSubscribers = 0
+  let subscriptionsByPlan = { free: 0, starter: 0, pro: 0, advanced: 0 }
+  let dailyActivity: { date: string; conversations: number }[] = []
+
+  try {
+    const today = new Date().toISOString().split("T")[0]
+    const month = new Date().toISOString().slice(0, 7)
+
+    const { data: usageRows } = await supabase
+      .from("user_usage")
+      .select("*")
+
+    const rows = usageRows ?? []
+
+    totalImages       = rows.reduce((s, r) => s + (r.images ?? 0), 0)
+    totalVideos       = rows.reduce((s, r) => s + (r.animated_videos ?? 0), 0)
+    totalVoiceMinutes = rows.reduce((s, r) => s + (r.voice_minutes ?? 0), 0)
+
+    // Today's messages from user_usage
+    messagesToday = rows
+      .filter((r) => r.usage_date === today)
+      .reduce((s, r) => s + (r.messages ?? 0), 0)
+
+    // Monthly totals
+    const monthlyRows = rows.filter((r) => r.usage_month === month)
+    monthlyMessages = monthlyRows.reduce((s, r) => s + (r.messages ?? 0), 0)
+    monthlyImages   = monthlyRows.reduce((s, r) => s + (r.images ?? 0), 0)
+
+    // Plan distribution (unique IPs per plan)
+    const planMap: Record<string, Set<string>> = {
+      free: new Set(), starter: new Set(), pro: new Set(), advanced: new Set(),
+    }
+    for (const r of rows) {
+      const p = (r.plan ?? "free") as string
+      if (planMap[p]) planMap[p].add(r.user_ip)
+      else planMap["free"].add(r.user_ip)
+    }
+    subscriptionsByPlan = {
+      free:     planMap.free.size,
+      starter:  planMap.starter.size,
+      pro:      planMap.pro.size,
+      advanced: planMap.advanced.size,
+    }
+    totalSubscribers = Object.values(subscriptionsByPlan).reduce((a, b) => a + b, 0)
+
+    // Daily activity (last 14 days) — from melegy_history created_at
+    const { data: dailyRows } = await supabase
+      .from("melegy_history")
+      .select("created_at")
+      .gte("created_at", new Date(Date.now() - 14 * 86400000).toISOString())
+
+    const dayMap: Record<string, number> = {}
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000).toISOString().split("T")[0]
+      dayMap[d] = 0
+    }
+    for (const r of dailyRows ?? []) {
+      const d = (r.created_at as string).split("T")[0]
+      if (dayMap[d] !== undefined) dayMap[d]++
+    }
+    dailyActivity = Object.entries(dayMap).map(([date, conversations]) => ({ date, conversations }))
+  } catch (e: any) {
+    console.error("[v0] user_usage analytics error:", e.message)
+  }
+
+  // ── 3. Vercel Analytics (page views / visitors) ───────────────────────────
   const vercel = hasVercelToken()
     ? await fetchVercelAnalytics()
     : { pageviews: 0, visitors: 0, hourlyActivity: [] as { hour: number; messages: number }[] }
@@ -168,19 +240,34 @@ export async function GET() {
     messagesPerMinute,
     averageResponseTime: 0,
 
-    // Plan distribution (from melegy_history messages JSON if plan stored, else zeros)
-    subscriptionsByPlan: { free: 0, starter: 0, pro: 0, advanced: 0 },
+    // Plan distribution + feature usage from user_usage table
+    subscriptionsByPlan,
+    totalSubscribers,
 
     featureUsage: {
       textGeneration: totalConversations,
-      imageGeneration: 0,
-      videoGeneration: 0,
+      imageGeneration: totalImages,
+      videoGeneration: totalVideos,
       deepSearch: 0,
       ideaToPrompt: 0,
-      voiceCloning: 0,
+      voiceCloning: Math.round(totalVoiceMinutes),
     },
 
-    responseTypes:   { text: totalConversations, search: 0, creative: 0, technical: 0 },
+    // totals
+    totalImages,
+    totalVideos,
+    totalVoiceMinutes: Math.round(totalVoiceMinutes),
+    messagesToday,
+    conversationsToday: recentUsers24h,
+
+    // monthly
+    monthlyMessages,
+    monthlyImages,
+
+    // daily chart (last 14 days)
+    dailyActivity,
+
+    responseTypes: { text: totalConversations, search: 0, creative: 0, technical: 0 },
     userSatisfaction: { positive: 0, neutral: 0, negative: 0 },
 
     systemHealth: {
