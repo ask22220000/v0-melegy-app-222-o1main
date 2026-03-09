@@ -1,369 +1,283 @@
 import { getServiceRoleClient } from "@/lib/supabase/server"
 
-export async function GET() {
-  try {
-    const supabase = getServiceRoleClient()
+// ── Vercel Analytics REST API helper ─────────────────────────────────────────
+// Docs: https://vercel.com/docs/rest-api/endpoints#get-web-analytics-events
+async function fetchVercelAnalytics() {
+  const token     = process.env.VERCEL_TOKEN
+  const projectId = process.env.VERCEL_PROJECT_ID || process.env.NEXT_PUBLIC_VERCEL_PROJECT_ID
+  const teamId    = process.env.VERCEL_TEAM_ID
 
-    let activeUsersNow = 0
-    let totalUsers = 0
-    let subscriptionsByPlan = { free: 0, starter: 0, pro: 0, advanced: 0 }
-    let totalConversations = 0
-    let totalMessages = 0
-    let averageResponseTime = 0
-    let activeUsersToday = 0
-    let topQueries: { query: string; count: number }[] = []
-    let hourlyActivity = Array.from({ length: 24 }, (_, i) => ({ hour: i, messages: 0 }))
-
-    // ── 1. Total users tracked by mlg_user_id ──────────────────────────────
-    try {
-      const { count } = await supabase
-        .from("users")
-        .select("*", { count: "exact", head: true })
-        .not("mlg_user_id", "is", null)
-      totalUsers = count || 0
-    } catch { /* ignore */ }
-
-    // ── 2. Active users now: users seen in the last 5 minutes ─────────────
-    try {
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-      const { count } = await supabase
-        .from("users")
-        .select("*", { count: "exact", head: true })
-        .not("mlg_user_id", "is", null)
-        .gte("last_seen_at", fiveMinutesAgo)
-      activeUsersNow = count || 0
-    } catch { /* ignore */ }
-
-    // ── 3. Active users today: users seen in the last 24 hours ────────────
-    try {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      const { count } = await supabase
-        .from("users")
-        .select("*", { count: "exact", head: true })
-        .not("mlg_user_id", "is", null)
-        .gte("last_seen_at", oneDayAgo)
-      activeUsersToday = count || 0
-    } catch { /* ignore */ }
-
-    // ── 4. Subscriptions by plan (from users.plan column) ─────────────────
-    try {
-      const { data: planData } = await supabase
-        .from("users")
-        .select("plan")
-        .not("mlg_user_id", "is", null)
-
-      subscriptionsByPlan = {
-        free:     planData?.filter((u) => !u.plan || u.plan === "free").length || 0,
-        starter:  planData?.filter((u) => u.plan === "startup" || u.plan === "starter").length || 0,
-        pro:      planData?.filter((u) => u.plan === "pro").length || 0,
-        advanced: planData?.filter((u) => u.plan === "vip" || u.plan === "advanced").length || 0,
-      }
-    } catch { /* ignore */ }
-
-    // ── 5. Total conversations linked to real mlg_user_id ─────────────────
-    try {
-      const { count } = await supabase
-        .from("conversations")
-        .select("*", { count: "exact", head: true })
-      totalConversations = count || 0
-    } catch { /* ignore */ }
-
-    // ── 6. Total messages from chat_messages ──────────────────────────────
-    try {
-      const { count } = await supabase
-        .from("chat_messages")
-        .select("*", { count: "exact", head: true })
-      totalMessages = count || 0
-    } catch { /* ignore */ }
-
-    // ── 7. Average response time from users.messages_used (proxy) ─────────
-    try {
-      const { data: metricsData } = await supabase
-        .from("system_metrics")
-        .select("metric_value")
-        .eq("metric_name", "response_time")
-        .order("recorded_at", { ascending: false })
-        .limit(100)
-      if (metricsData && metricsData.length > 0) {
-        averageResponseTime =
-          metricsData.reduce((sum, m) => sum + Number(m.metric_value), 0) / metricsData.length
-      }
-    } catch { /* ignore */ }
-
-    // ── 8. Hourly activity from chat_messages in the last 24 hours ────────
-    try {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      const { data: hourlyData } = await supabase
-        .from("chat_messages")
-        .select("created_at")
-        .gte("created_at", oneDayAgo)
-        .eq("role", "user")
-
-      hourlyActivity = Array.from({ length: 24 }, (_, i) => ({ hour: i, messages: 0 }))
-      hourlyData?.forEach((msg) => {
-        const hour = new Date(msg.created_at).getHours()
-        hourlyActivity[hour].messages++
-      })
-    } catch { /* ignore */ }
-
-    // ── 9. Top queries from chat_messages (user messages, last 7 days) ────
-    try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const { data: msgData } = await supabase
-        .from("chat_messages")
-        .select("content")
-        .eq("role", "user")
-        .gte("created_at", sevenDaysAgo)
-        .limit(500)
-
-      const queryCount: Record<string, number> = {}
-      msgData?.forEach((msg) => {
-        if (msg.content && msg.content.trim().length > 3) {
-          const key = msg.content.trim().substring(0, 80)
-          queryCount[key] = (queryCount[key] || 0) + 1
-        }
-      })
-      topQueries = Object.entries(queryCount)
-        .map(([query, count]) => ({ query, count }))
-        .filter((q) => q.count > 1)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10)
-    } catch { /* ignore */ }
-
-    // ── 10. Feature usage (from feature_usage table if exists) ────────────
-    let featureUsage = {
-      textGeneration: 0, imageGeneration: 0, videoGeneration: 0,
-      deepSearch: 0, ideaToPrompt: 0, voiceCloning: 0, documentGeneration: 0,
-    }
-    try {
-      const { data: featureData } = await supabase.from("feature_usage").select("feature_name")
-      if (featureData) {
-        featureUsage = {
-          textGeneration:    featureData.filter((f) => f.feature_name === "text_generation").length,
-          imageGeneration:   featureData.filter((f) => f.feature_name === "image_generation").length,
-          videoGeneration:   featureData.filter((f) => f.feature_name === "video_generation").length,
-          deepSearch:        featureData.filter((f) => f.feature_name === "deep_search").length,
-          ideaToPrompt:      featureData.filter((f) => f.feature_name === "idea_to_prompt").length,
-          voiceCloning:      featureData.filter((f) => f.feature_name === "voice_cloning").length,
-          documentGeneration:featureData.filter((f) => f.feature_name === "document_generation").length,
-        }
-      }
-    } catch { /* ignore */ }
-
-    // ── 11. Response types & satisfaction (legacy tables, graceful fallback) ─
-    let responseTypes = { text: 0, search: 0, creative: 0, technical: 0 }
-    let userSatisfaction = { positive: 0, neutral: 0, negative: 0 }
-    try {
-      const { data: feedbackData } = await supabase.from("user_feedback").select("sentiment")
-      if (feedbackData) {
-        userSatisfaction = {
-          positive: feedbackData.filter((f) => f.sentiment === "positive").length,
-          neutral:  feedbackData.filter((f) => f.sentiment === "neutral").length,
-          negative: feedbackData.filter((f) => f.sentiment === "negative").length,
-        }
-      }
-    } catch { /* ignore */ }
-
-    const lastHourMessages = hourlyActivity[new Date().getHours()]?.messages || 0
-    const messagesPerMinute = Number((lastHourMessages / 60).toFixed(2))
-
-    return Response.json({
-      activeUsersNow,
-      totalUsers,
-      subscriptionsByPlan,
-      totalConversations,
-      totalMessages,
-      messagesPerMinute,
-      averageResponseTime: Number(averageResponseTime.toFixed(2)),
-      activeUsers: activeUsersToday,
-      featureUsage,
-      responseTypes,
-      userSatisfaction,
-      systemHealth: {
-        apiResponseTime: Number(averageResponseTime.toFixed(2)),
-        uptime: 99.9,
-        errorRate: 0.01,
-      },
-      topQueries,
-      hourlyActivity,
-      lastUpdated: new Date(),
-    })
-  } catch (error) {
-    console.error("[v0] Analytics error:", error)
-    return Response.json(
-      {
-        activeUsersNow: 0, totalUsers: 0,
-        subscriptionsByPlan: { free: 0, starter: 0, pro: 0, advanced: 0 },
-        totalConversations: 0, totalMessages: 0, messagesPerMinute: 0,
-        averageResponseTime: 0, activeUsers: 0,
-        featureUsage: { textGeneration:0, imageGeneration:0, videoGeneration:0, deepSearch:0, ideaToPrompt:0, voiceCloning:0, documentGeneration:0 },
-        responseTypes: { text:0, search:0, creative:0, technical:0 },
-        userSatisfaction: { positive:0, neutral:0, negative:0 },
-        systemHealth: { apiResponseTime:0, uptime:99.9, errorRate:0.01 },
-        topQueries: [], hourlyActivity: [],
-        lastUpdated: new Date(),
-      },
-      { status: 200 }
-    )
+  if (!token || !projectId) {
+    return { pageviews: 0, visitors: 0, hourlyActivity: [] as { hour: number; messages: number }[] }
   }
+
+  const now   = Date.now()
+  const day   = 24 * 60 * 60 * 1000
+  const from  = new Date(now - day).toISOString()
+  const to    = new Date(now).toISOString()
+
+  const base = `https://api.vercel.com/v1/web/projects/${projectId}/analytics`
+  const teamQ = teamId ? `&teamId=${teamId}` : ""
+  const headers = { Authorization: `Bearer ${token}` }
+
+  // Page views (last 24 h)
+  let pageviews = 0
+  let visitors  = 0
+  let hourlyActivity: { hour: number; messages: number }[] = Array.from({ length: 24 }, (_, i) => ({ hour: i, messages: 0 }))
+
+  try {
+    const pvRes = await fetch(
+      `${base}/pageviews?from=${from}&to=${to}&limit=1000${teamQ}`,
+      { headers, next: { revalidate: 60 } }
+    )
+    if (pvRes.ok) {
+      const pvData = await pvRes.json()
+      // shape: { data: [ { timestamp, pageviews, visitors } ] } or { total, data }
+      const rows: any[] = pvData?.data ?? pvData?.pageviews ?? []
+      rows.forEach((r: any) => {
+        const pv = Number(r.pageviews ?? r.count ?? r.value ?? 0)
+        const vis = Number(r.visitors ?? r.unique ?? 0)
+        pageviews += pv
+        visitors  += vis
+        // fill hourly bucket
+        const ts = r.timestamp ? new Date(r.timestamp) : null
+        if (ts) {
+          const h = ts.getHours()
+          hourlyActivity[h].messages += pv
+        }
+      })
+      // fallback: single summary object
+      if (rows.length === 0) {
+        pageviews = Number(pvData?.total?.pageviews ?? pvData?.pageviews ?? 0)
+        visitors  = Number(pvData?.total?.visitors  ?? pvData?.visitors  ?? 0)
+      }
+    }
+  } catch { /* ignore */ }
+
+  return { pageviews, visitors, hourlyActivity }
 }
 
-export async function POST(req: Request) {
+// ── Vercel token env-var check helper ────────────────────────────────────────
+function hasVercelToken() {
+  return !!(process.env.VERCEL_TOKEN)
+}
+
+// ── GET ───────────────────────────────────────────────────────────────────────
+export async function GET() {
+  const supabase = getServiceRoleClient()
+
+  // ── 1. melegy_history stats (real, always available) ─────────────────────
+  let totalConversations = 0
+  let uniqueUsers        = 0
+  let recentUsers24h     = 0
+  let hourlyFromDB: { hour: number; messages: number }[] = Array.from({ length: 24 }, (_, i) => ({ hour: i, messages: 0 }))
+  let topQueries: { query: string; count: number }[]     = []
+
   try {
-    const supabase = getServiceRoleClient()
-    const body = await req.json()
-    const { action, data } = body
+    // Total saved conversations
+    const { count: convCount } = await supabase
+      .from("melegy_history")
+      .select("*", { count: "exact", head: true })
+    totalConversations = convCount || 0
+  } catch { /* ignore */ }
 
-    switch (action) {
-      case "trackMessage":
-        await supabase.from("messages").insert({
-          conversation_id: data.conversationId,
-          role: data.role || "user",
-          content: data.content || "",
-          message_type: data.type || "text",
-        })
-        break
+  try {
+    // Unique users (by mlg_user_id)
+    const { data: userRows } = await supabase
+      .from("melegy_history")
+      .select("mlg_user_id")
+      .not("mlg_user_id", "is", null)
+    const uniqueIds = new Set((userRows ?? []).map((r: any) => r.mlg_user_id))
+    uniqueUsers = uniqueIds.size
+  } catch { /* ignore */ }
 
-      case "trackConversation":
-        await supabase.from("conversations").insert({
-          id: data.conversationId, // Use provided UUID
-          user_id: data.userId || "anonymous",
-          started_at: new Date().toISOString(),
-        })
-        break
+  try {
+    // Active in last 24 h
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data: recentRows } = await supabase
+      .from("melegy_history")
+      .select("mlg_user_id")
+      .gte("created_at", since)
+      .not("mlg_user_id", "is", null)
+    const recent24Set = new Set((recentRows ?? []).map((r: any) => r.mlg_user_id))
+    recentUsers24h = recent24Set.size
+  } catch { /* ignore */ }
 
-      case "trackFeature":
-        await supabase.from("feature_usage").insert({
-          feature_name: data.feature,
-          user_id: data.userId || "anonymous",
-        })
-        break
+  try {
+    // Hourly activity (created_at in last 24 h)
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data: hourRows } = await supabase
+      .from("melegy_history")
+      .select("created_at")
+      .gte("created_at", since)
+    hourlyFromDB = Array.from({ length: 24 }, (_, i) => ({ hour: i, messages: 0 }))
+    ;(hourRows ?? []).forEach((r: any) => {
+      const h = new Date(r.created_at).getHours()
+      hourlyFromDB[h].messages++
+    })
+  } catch { /* ignore */ }
 
-      case "trackResponseTime":
-        await supabase.from("system_metrics").insert({
-          metric_name: "response_time",
-          metric_value: data.time,
-        })
-        break
+  try {
+    // Top queries from chat titles (proxy for what users asked)
+    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: titleRows } = await supabase
+      .from("melegy_history")
+      .select("chat_title")
+      .gte("created_at", since7d)
+      .not("chat_title", "is", null)
+      .limit(500)
+    const freq: Record<string, number> = {}
+    ;(titleRows ?? []).forEach((r: any) => {
+      const k = (r.chat_title as string).trim().substring(0, 60)
+      if (k.length > 2) freq[k] = (freq[k] || 0) + 1
+    })
+    topQueries = Object.entries(freq)
+      .map(([query, count]) => ({ query, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+  } catch { /* ignore */ }
 
-      case "trackSatisfaction":
-        await supabase.from("user_feedback").insert({
-          conversation_id: data.conversationId,
-          sentiment: data.sentiment,
-        })
-        break
+  // ── 2. user_usage stats ───────────────────────────────────────────────────
+  let totalImages = 0
+  let totalVideos = 0
+  let totalVoiceMinutes = 0
+  let messagesToday = 0
+  let monthlyMessages = 0
+  let monthlyImages = 0
+  let totalSubscribers = 0
+  let subscriptionsByPlan = { free: 0, starter: 0, pro: 0, advanced: 0 }
+  let dailyActivity: { date: string; conversations: number }[] = []
 
-      case "trackSession":
-        try {
-          const { data: existingSession } = await supabase
-            .from("active_sessions")
-            .select("id")
-            .eq("session_id", data.sessionId)
-            .maybeSingle()
+  try {
+    const today = new Date().toISOString().split("T")[0]
+    const month = new Date().toISOString().slice(0, 7)
 
-          if (existingSession) {
-            await supabase
-              .from("active_sessions")
-              .update({
-                last_ping_at: new Date().toISOString(),
-                page_path: data.pagePath,
-              })
-              .eq("session_id", data.sessionId)
-          } else {
-            const userIdentifier = data.userFingerprint || data.userIp || "unknown"
+    const { data: usageRows } = await supabase
+      .from("user_usage")
+      .select("*")
 
-            try {
-              const { data: existingUser } = await supabase
-                .from("users")
-                .select("id")
-                .eq("user_ip", userIdentifier)
-                .maybeSingle()
+    const rows = usageRows ?? []
 
-              let userId = existingUser?.id
+    totalImages       = rows.reduce((s, r) => s + (r.images ?? 0), 0)
+    totalVideos       = rows.reduce((s, r) => s + (r.animated_videos ?? 0), 0)
+    totalVoiceMinutes = rows.reduce((s, r) => s + (r.voice_minutes ?? 0), 0)
 
-              if (!userId) {
-                const { data: newUser } = await supabase
-                  .from("users")
-                  .insert({
-                    user_ip: userIdentifier,
-                    device_info: data.deviceInfo || "unknown",
-                  })
-                  .select("id")
-                  .maybeSingle()
-                userId = newUser?.id
-              }
+    // Today's messages from user_usage
+    messagesToday = rows
+      .filter((r) => r.usage_date === today)
+      .reduce((s, r) => s + (r.messages ?? 0), 0)
 
-              if (userId) {
-                await supabase.from("active_sessions").insert({
-                  user_id: userId,
-                  session_id: data.sessionId,
-                  user_ip: userIdentifier,
-                  page_path: data.pagePath,
-                })
-              }
-            } catch (userError) {
-              console.error("[v0] Error tracking user for session:", userError)
-              // Create session without user association if user tracking fails
-              await supabase.from("active_sessions").insert({
-                session_id: data.sessionId,
-                page_path: data.pagePath,
-              })
-            }
-          }
-        } catch (sessionError) {
-          console.error("[v0] Error tracking session:", sessionError)
-          // Fail silently - don't crash the user experience
-        }
-        break
+    // Monthly totals
+    const monthlyRows = rows.filter((r) => r.usage_month === month)
+    monthlyMessages = monthlyRows.reduce((s, r) => s + (r.messages ?? 0), 0)
+    monthlyImages   = monthlyRows.reduce((s, r) => s + (r.images ?? 0), 0)
 
-      case "trackUser":
-        try {
-          const userIdentifierForTrack = data.userFingerprint || data.userIp || "unknown"
-
-          const { data: existingUserForTrack } = await supabase
-            .from("users")
-            .select("id")
-            .eq("user_ip", userIdentifierForTrack)
-            .maybeSingle()
-
-          if (existingUserForTrack) {
-            await supabase
-              .from("users")
-              .update({
-                last_active_at: new Date().toISOString(),
-              })
-              .eq("id", existingUserForTrack.id)
-          } else {
-            const { data: newUserForTrack } = await supabase
-              .from("users")
-              .insert({
-                user_ip: userIdentifierForTrack,
-                device_info: data.deviceInfo || "unknown",
-              })
-              .select("id")
-              .maybeSingle()
-
-            if (newUserForTrack) {
-              await supabase.from("subscriptions").insert({
-                user_id: newUserForTrack.id,
-                plan_name: "free",
-                status: "active",
-              })
-            }
-          }
-        } catch (userTrackError) {
-          console.error("[v0] Error tracking user:", userTrackError)
-          // Fail silently - don't crash the user experience
-        }
-        break
-
-      default:
-        return Response.json({ error: "Invalid action" }, { status: 400 })
+    // Plan distribution (unique IPs per plan)
+    const planMap: Record<string, Set<string>> = {
+      free: new Set(), starter: new Set(), pro: new Set(), advanced: new Set(),
     }
+    for (const r of rows) {
+      const p = (r.plan ?? "free") as string
+      if (planMap[p]) planMap[p].add(r.user_ip)
+      else planMap["free"].add(r.user_ip)
+    }
+    subscriptionsByPlan = {
+      free:     planMap.free.size,
+      starter:  planMap.starter.size,
+      pro:      planMap.pro.size,
+      advanced: planMap.advanced.size,
+    }
+    totalSubscribers = Object.values(subscriptionsByPlan).reduce((a, b) => a + b, 0)
 
-    return Response.json({ success: true })
-  } catch (error) {
-    console.error("[v0] Analytics tracking error:", error)
-    return Response.json({ error: "Failed to track analytics" }, { status: 500 })
+    // Daily activity (last 14 days) — from melegy_history created_at
+    const { data: dailyRows } = await supabase
+      .from("melegy_history")
+      .select("created_at")
+      .gte("created_at", new Date(Date.now() - 14 * 86400000).toISOString())
+
+    const dayMap: Record<string, number> = {}
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000).toISOString().split("T")[0]
+      dayMap[d] = 0
+    }
+    for (const r of dailyRows ?? []) {
+      const d = (r.created_at as string).split("T")[0]
+      if (dayMap[d] !== undefined) dayMap[d]++
+    }
+    dailyActivity = Object.entries(dayMap).map(([date, conversations]) => ({ date, conversations }))
+  } catch (e: any) {
+    console.error("[v0] user_usage analytics error:", e.message)
   }
+
+  // ── 3. Vercel Analytics (page views / visitors) ───────────────────────────
+  const vercel = hasVercelToken()
+    ? await fetchVercelAnalytics()
+    : { pageviews: 0, visitors: 0, hourlyActivity: [] as { hour: number; messages: number }[] }
+
+  // Merge hourly: prefer Vercel data (has page views) on top of DB saves
+  const hourlyActivity = Array.from({ length: 24 }, (_, i) => ({
+    hour: i,
+    messages: (vercel.hourlyActivity[i]?.messages || 0) + (hourlyFromDB[i]?.messages || 0),
+  }))
+
+  const lastHourMessages = hourlyActivity[new Date().getHours()]?.messages || 0
+  const messagesPerMinute = Number((lastHourMessages / 60).toFixed(2))
+
+  // ── 3. Build response ─────────────────────────────────────────────────────
+  return Response.json({
+    // Real numbers from DB
+    totalConversations,
+    totalMessages:     totalConversations, // best proxy we have
+    totalUsers:        uniqueUsers,
+    activeUsersNow:    recentUsers24h,
+    activeUsers:       recentUsers24h,
+
+    // From Vercel Analytics (0 if no token)
+    pageviewsToday:    vercel.pageviews,
+    visitorsToday:     vercel.visitors,
+
+    // Derived
+    messagesPerMinute,
+    averageResponseTime: 0,
+
+    // Plan distribution + feature usage from user_usage table
+    subscriptionsByPlan,
+    totalSubscribers,
+
+    featureUsage: {
+      textGeneration: totalConversations,
+      imageGeneration: totalImages,
+      videoGeneration: totalVideos,
+      deepSearch: 0,
+      ideaToPrompt: 0,
+      voiceCloning: Math.round(totalVoiceMinutes),
+    },
+
+    // totals
+    totalImages,
+    totalVideos,
+    totalVoiceMinutes: Math.round(totalVoiceMinutes),
+    messagesToday,
+    conversationsToday: recentUsers24h,
+
+    // monthly
+    monthlyMessages,
+    monthlyImages,
+
+    // daily chart (last 14 days)
+    dailyActivity,
+
+    responseTypes: { text: totalConversations, search: 0, creative: 0, technical: 0 },
+    userSatisfaction: { positive: 0, neutral: 0, negative: 0 },
+
+    systemHealth: {
+      apiResponseTime: 0,
+      uptime: 99.9,
+      errorRate: 0,
+    },
+
+    topQueries,
+    hourlyActivity,
+    lastUpdated: new Date().toISOString(),
+  })
 }

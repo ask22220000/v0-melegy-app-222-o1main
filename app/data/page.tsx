@@ -22,6 +22,8 @@ interface AnalyticsData {
   messagesPerMinute: number
   averageResponseTime: number
   activeUsers: number
+  pageviewsToday: number
+  visitorsToday: number
   featureUsage: {
     textGeneration: number
     imageGeneration: number
@@ -35,6 +37,15 @@ interface AnalyticsData {
   systemHealth: { apiResponseTime: number; uptime: number; errorRate: number }
   topQueries: { query: string; count: number }[]
   hourlyActivity: { hour: number; messages: number }[]
+  dailyActivity: { date: string; conversations: number }[]
+  totalImages: number
+  totalVideos: number
+  totalVoiceMinutes: number
+  messagesToday: number
+  conversationsToday: number
+  monthlyMessages: number
+  monthlyImages: number
+  totalSubscribers: number
   lastUpdated: string
 }
 
@@ -229,10 +240,10 @@ export default function DataPage() {
 
         {/* KPI row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <KpiCard label="نشط الآن"           value={fmt(data.activeUsersNow)}      sub="مستخدم متصل"          icon={<Users className="h-5 w-5" />}          accent={COLORS.green}  pulse />
-          <KpiCard label="إجمالي المستخدمين"  value={fmt(data.totalUsers)}           sub="منذ الإطلاق"           icon={<TrendingUp className="h-5 w-5" />}      accent={COLORS.blue} />
-          <KpiCard label="إجمالي الرسائل"     value={fmt(data.totalMessages)}        sub="كل الأوقات"            icon={<MessageSquare className="h-5 w-5" />}   accent={COLORS.cyan} />
-          <KpiCard label="إجمالي المحادثات"   value={fmt(data.totalConversations)}   sub="محادثة محفوظة"         icon={<Activity className="h-5 w-5" />}        accent={COLORS.purple} />
+          <KpiCard label="مستخدمون نشطون (24س)"  value={fmt(data.activeUsersNow)}         sub="آخر 24 ساعة"         icon={<Users className="h-5 w-5" />}         accent={COLORS.green}  pulse />
+          <KpiCard label="إجمالي المستخدمين"      value={fmt(data.totalUsers)}              sub="منذ الإطلاق"          icon={<TrendingUp className="h-5 w-5" />}     accent={COLORS.blue} />
+          <KpiCard label="إجمالي المحادثات"       value={fmt(data.totalConversations)}      sub="محادثة محفوظة"        icon={<MessageSquare className="h-5 w-5" />}  accent={COLORS.cyan} />
+          <KpiCard label="رسائل اليوم"  value={fmt(data.messagesToday ?? 0)} sub="منذ منتصف الليل" icon={<Activity className="h-5 w-5" />} accent={COLORS.purple} />
         </div>
 
         {/* Tabs */}
@@ -258,10 +269,10 @@ export default function DataPage() {
           <div className="space-y-6">
             {/* Second KPI row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard label="نشط اليوم"              value={fmt(data.activeUsers)}                sub="آخر 24 ساعة"      icon={<Clock className="h-5 w-5" />}          accent={COLORS.amber} />
-              <KpiCard label="رسائل / دقيقة"          value={String(data.messagesPerMinute)}       sub="الساعة الأخيرة"   icon={<Zap className="h-5 w-5" />}             accent={COLORS.cyan} />
-              <KpiCard label="وقت الاستجابة"          value={`${data.averageResponseTime.toFixed(2)} ث`} sub="متوسط"       icon={<Activity className="h-5 w-5" />}        accent={COLORS.green} />
-              <KpiCard label="إجمالي المشتركين"       value={fmt(totalPlans)}                      sub="في كل الخطط"      icon={<Crown className="h-5 w-5" />}           accent={COLORS.purple} />
+              <KpiCard label="صور مولّدة"          value={fmt(data.totalImages ?? 0)}          sub="كل الأوقات"        icon={<Image className="h-5 w-5" />}    accent={COLORS.cyan} />
+              <KpiCard label="فيديوهات مولّدة"     value={fmt(data.totalVideos ?? 0)}          sub="كل الأوقات"        icon={<Video className="h-5 w-5" />}    accent={COLORS.purple} />
+              <KpiCard label="دقائق صوتية"         value={fmt(data.totalVoiceMinutes ?? 0)}    sub="إجمالي"            icon={<Mic className="h-5 w-5" />}      accent={COLORS.amber} />
+              <KpiCard label="إجمالي المشتركين"    value={fmt(data.totalSubscribers ?? totalPlans)} sub="في كل الخطط"  icon={<Crown className="h-5 w-5" />}   accent={COLORS.green} />
             </div>
 
             {/* Hourly chart + Satisfaction */}
@@ -441,9 +452,32 @@ export default function DataPage() {
         {/* ── Tab: Activity ─────────────────────────────────────────────────── */}
         {tab === "activity" && (
           <div className="space-y-6">
+            {/* Daily conversations — last 14 days */}
+            {data.dailyActivity?.length > 0 && (
+              <Panel>
+                <SectionTitle><TrendingUp className="h-5 w-5 text-green-400" />المحادثات اليومية (آخر 14 يوم)</SectionTitle>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={data.dailyActivity.map((d) => ({ name: d.date.slice(5), محادثات: d.conversations }))}>
+                    <defs>
+                      <linearGradient id="greenGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={COLORS.green} stopOpacity={0.8} />
+                        <stop offset="95%" stopColor={COLORS.green} stopOpacity={0.3} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+                    <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 11 }} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="محادثات" fill="url(#greenGrad)" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Panel>
+            )}
+
+            {/* Hourly chart */}
             <Panel>
-              <SectionTitle><Activity className="h-5 w-5 text-blue-400" />الرسائل بالساعة (آخر 24 ساعة)</SectionTitle>
-              <ResponsiveContainer width="100%" height={280}>
+              <SectionTitle><Activity className="h-5 w-5 text-blue-400" />المحادثات بالساعة (آخر 24 ساعة)</SectionTitle>
+              <ResponsiveContainer width="100%" height={240}>
                 <AreaChart data={hourlyData}>
                   <defs>
                     <linearGradient id="cyanGrad" x1="0" y1="0" x2="0" y2="1">
@@ -453,7 +487,7 @@ export default function DataPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
                   <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 11 }} interval={2} />
-                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="رسائل" stroke={COLORS.cyan} fill="url(#cyanGrad)" strokeWidth={2} dot={false} />
                 </AreaChart>
@@ -462,15 +496,15 @@ export default function DataPage() {
 
             <div className="grid md:grid-cols-2 gap-6">
               <Panel>
-                <SectionTitle>أنواع الردود</SectionTitle>
+                <SectionTitle>الميزات المستخدمة</SectionTitle>
                 <div className="space-y-4">
                   {[
-                    { label: "نصوص",   value: data.responseTypes.text,      color: COLORS.blue },
-                    { label: "بحث",    value: data.responseTypes.search,    color: COLORS.green },
-                    { label: "إبداعي", value: data.responseTypes.creative,  color: COLORS.purple },
-                    { label: "تقني",   value: data.responseTypes.technical, color: COLORS.amber },
+                    { label: "محادثات محفوظة",    value: data.totalConversations,   color: COLORS.blue },
+                    { label: "صور مولّدة",          value: data.totalImages ?? 0,     color: COLORS.cyan },
+                    { label: "فيديوهات مولّدة",    value: data.totalVideos ?? 0,     color: COLORS.purple },
+                    { label: "دقائق صوتية",        value: data.totalVoiceMinutes ?? 0, color: COLORS.amber },
                   ].map((r, i) => {
-                    const total = Object.values(data.responseTypes).reduce((a, b) => a + b, 0)
+                    const total = (data.totalConversations) + (data.totalImages ?? 0) + (data.totalVideos ?? 0) + (data.totalVoiceMinutes ?? 0)
                     return (
                       <div key={i}>
                         <div className="flex justify-between text-sm mb-1">
@@ -490,12 +524,12 @@ export default function DataPage() {
                 <SectionTitle>ملخص الاستخدام</SectionTitle>
                 <div className="space-y-4">
                   {[
-                    { label: "إجمالي المستخدمين",  value: fmt(data.totalUsers) },
-                    { label: "نشط اليوم",          value: fmt(data.activeUsers) },
-                    { label: "نشط الآن",            value: fmt(data.activeUsersNow) },
-                    { label: "إجمالي المحادثات",   value: fmt(data.totalConversations) },
-                    { label: "إجمالي الرسائل",     value: fmt(data.totalMessages) },
-                    { label: "رسائل / دقيقة",      value: String(data.messagesPerMinute) },
+                    { label: "إجمالي المستخدمين",   value: fmt(data.totalUsers) },
+                    { label: "نشط آخر 24 ساعة",     value: fmt(data.activeUsersNow) },
+                    { label: "إجمالي المحادثات",    value: fmt(data.totalConversations) },
+                    { label: "رسائل اليوم",          value: fmt(data.messagesToday ?? 0) },
+                    { label: "رسائل هذا الشهر",     value: fmt(data.monthlyMessages ?? 0) },
+                    { label: "صور هذا الشهر",        value: fmt(data.monthlyImages ?? 0) },
                   ].map((s, i) => (
                     <div key={i} className="flex justify-between border-b pb-2" style={{ borderColor: COLORS.border }}>
                       <span className="text-slate-400 text-sm">{s.label}</span>

@@ -22,7 +22,7 @@ const translations = {
     // Hero
     heroTitle: "Melegy",
     heroSubtitle: "مساعدك الذكي المتطور",
-    heroVersion: "(v2.3)",
+    heroVersion: "(v2.4)",
     heroDescription: "مساعد ذكاء اصطناعي متطور يوفر لك إجابات دقيقة، بحث متقدم، وتوليد محتوى إبداعي",
     startChat: "ابدأ المحادثة 🧠",
     heroCta: "تخيل يكون عندك أشطر موظف في مصر؛ بيكتب، ويرسم، ويحلل، وبيفهمك من كلمة.. ومبيطلبش منك مرتب كبير! .. دلوقتي امتلك ذكاء ميليجي 'فول أوبشن' في باقة VIP.",
@@ -96,7 +96,7 @@ const translations = {
     // Hero
     heroTitle: "Melegy",
     heroSubtitle: "Your Advanced Smart Assistant",
-    heroVersion: "(v2.3)",
+    heroVersion: "(v2.4)",
     heroDescription:
       "An advanced AI assistant providing accurate answers, advanced search, and creative content generation",
     startChat: "Start Chat 🧠",
