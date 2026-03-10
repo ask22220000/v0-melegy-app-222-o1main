@@ -80,7 +80,8 @@ export default function ChatStarterPage() {
   const [monthlyWords, setMonthlyWords] = useState(0)
   const [monthlyImages, setMonthlyImages] = useState(0)
   const [isListening, setIsListening] = useState(false)
-  const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null)
+  const [attachedImages, setAttachedImages] = useState<{ url: string; name: string }[]>([])
+  const attachedImage = attachedImages[0] ?? null // backward compat
   const [playingAudio, setPlayingAudio] = useState<string | null>(null)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [countdown, setCountdown] = useState(10)
@@ -111,7 +112,8 @@ export default function ChatStarterPage() {
   // قائمة الوظائف المتاحة
   const functionsList = [
     { id: "image", label: "اعمل صورة", icon: Image, prompt: "اعملي صورة " },
-    { id: "edit-image", label: "إرفاق و تعديل صورة", icon: Image, action: "attach-edit-image" },
+    { id: "upload-image", label: "تحميل صورة", icon: Image, action: "upload-image" },
+    { id: "edit-image", label: "تعديل صورة", icon: Image, action: "attach-edit-image" },
     { id: "animate-image", label: "حرك صورة", icon: Film, action: "animate-image" },
     { id: "attach-file", label: "إرفاق ملف", icon: Paperclip, action: "attach-file" },
     { id: "write", label: "اكتب نص", icon: FileText, prompt: "اكتبلي " },
@@ -164,7 +166,10 @@ export default function ChatStarterPage() {
   }
 
   const handleFunctionSelect = (func: any) => {
-    if (func.action === "attach-edit-image") {
+    if (func.action === "upload-image") {
+      fileInputRef.current?.click()
+      setShowFunctionsMenu(false)
+    } else if (func.action === "attach-edit-image") {
       fileInputRef.current?.click()
       setInput("عدل الصورة و ")
       setShowFunctionsMenu(false)
@@ -350,26 +355,30 @@ export default function ChatStarterPage() {
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
 
-    if (!file.type.startsWith("image/")) {
-      toast({
-        title: "نوع ملف غير مدعوم",
-        description: "من فضلك ارفع صورة فقط",
-        variant: "destructive",
-      })
+    const MAX_ATTACH = 3
+    const remaining = MAX_ATTACH - attachedImages.length
+    if (remaining <= 0) {
+      toast({ title: "الحد الأقصى 3 صور", description: "احذف صورة قبل إضافة جديدة", variant: "destructive" })
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      setAttachedImage({
-        url: event.target?.result as string,
-        name: file.name,
-      })
+    const validFiles = files.filter(f => f.type.startsWith("image/")).slice(0, remaining)
+    if (!validFiles.length) {
+      toast({ title: "نوع ملف غير مدعوم", description: "من فضلك ارفع صور فقط", variant: "destructive" })
+      return
     }
-    reader.readAsDataURL(file)
+
+    validFiles.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setAttachedImages(prev => [...prev, { url: event.target?.result as string, name: file.name }])
+      }
+      reader.readAsDataURL(file)
+    })
+    e.target.value = ""
   }
 
   const generateImageWithPrompt = async (userPrompt: string) => {
@@ -522,7 +531,7 @@ export default function ChatStarterPage() {
       setMessages((prev) => [...prev, userMessage])
 
       const tempAttachedImage = attachedImage
-      setAttachedImage(null)
+      setAttachedImages([])
 
       // تعديل الصورة مع دعم Text Layers
       try {
