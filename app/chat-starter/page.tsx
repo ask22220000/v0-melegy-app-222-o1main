@@ -80,8 +80,7 @@ export default function ChatStarterPage() {
   const [monthlyWords, setMonthlyWords] = useState(0)
   const [monthlyImages, setMonthlyImages] = useState(0)
   const [isListening, setIsListening] = useState(false)
-  const [attachedImages, setAttachedImages] = useState<{ url: string; name: string }[]>([])
-  const attachedImage = attachedImages[0] ?? null // backward compat
+  const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null)
   const [playingAudio, setPlayingAudio] = useState<string | null>(null)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [countdown, setCountdown] = useState(10)
@@ -112,8 +111,7 @@ export default function ChatStarterPage() {
   // قائمة الوظائف المتاحة
   const functionsList = [
     { id: "image", label: "اعمل صورة", icon: Image, prompt: "اعملي صورة " },
-    { id: "upload-image", label: "تحميل صورة", icon: Image, action: "upload-image" },
-    { id: "edit-image", label: "تعديل صورة", icon: Image, action: "attach-edit-image" },
+    { id: "edit-image", label: "إرفاق و تعديل صورة", icon: Image, action: "attach-edit-image" },
     { id: "animate-image", label: "حرك صورة", icon: Film, action: "animate-image" },
     { id: "attach-file", label: "إرفاق ملف", icon: Paperclip, action: "attach-file" },
     { id: "write", label: "اكتب نص", icon: FileText, prompt: "اكتبلي " },
@@ -166,10 +164,7 @@ export default function ChatStarterPage() {
   }
 
   const handleFunctionSelect = (func: any) => {
-    if (func.action === "upload-image") {
-      fileInputRef.current?.click()
-      setShowFunctionsMenu(false)
-    } else if (func.action === "attach-edit-image") {
+    if (func.action === "attach-edit-image") {
       fileInputRef.current?.click()
       setInput("عدل الصورة و ")
       setShowFunctionsMenu(false)
@@ -355,30 +350,26 @@ export default function ChatStarterPage() {
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
-    if (!files.length) return
+    const file = e.target.files?.[0]
+    if (!file) return
 
-    const MAX_ATTACH = 3
-    const remaining = MAX_ATTACH - attachedImages.length
-    if (remaining <= 0) {
-      toast({ title: "الحد الأقصى 3 صور", description: "احذف صورة قبل إضافة جديدة", variant: "destructive" })
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "نوع ملف غير مدعوم",
+        description: "من فضلك ارفع صورة فقط",
+        variant: "destructive",
+      })
       return
     }
 
-    const validFiles = files.filter(f => f.type.startsWith("image/")).slice(0, remaining)
-    if (!validFiles.length) {
-      toast({ title: "نوع ملف غير مدعوم", description: "من فضلك ارفع صور فقط", variant: "destructive" })
-      return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setAttachedImage({
+        url: event.target?.result as string,
+        name: file.name,
+      })
     }
-
-    validFiles.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setAttachedImages(prev => [...prev, { url: event.target?.result as string, name: file.name }])
-      }
-      reader.readAsDataURL(file)
-    })
-    e.target.value = ""
+    reader.readAsDataURL(file)
   }
 
   const generateImageWithPrompt = async (userPrompt: string) => {
@@ -531,7 +522,7 @@ export default function ChatStarterPage() {
       setMessages((prev) => [...prev, userMessage])
 
       const tempAttachedImage = attachedImage
-      setAttachedImages([])
+      setAttachedImage(null)
 
       // تعديل الصورة مع دعم Text Layers
       try {
@@ -613,7 +604,7 @@ export default function ChatStarterPage() {
     setMessages((prev) => [...prev, userMessage])
     const currentInput = messageToSend
     const currentAttachedImage = attachedImage
-    setAttachedImages([])
+    setAttachedImage(null)
     setIsLoading(true)
 
     try {
@@ -1155,30 +1146,16 @@ export default function ChatStarterPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {attachedImages.length > 0 && (
+      {attachedImage && (
         <div className="px-4 py-2 border-t border-border bg-card">
-          <div className="flex gap-2 flex-wrap items-center">
-            {attachedImages.map((img, idx) => (
-              <div key={idx} className="relative inline-block group">
-                <img src={img.url} alt={img.name} className="h-20 w-20 object-cover rounded-lg border border-border" />
-                <button
-                  type="button"
-                  onClick={() => setAttachedImages(prev => prev.filter((_, i) => i !== idx))}
-                  className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 shadow"
-                >
-                  <X className="h-3 w-3 text-white" />
-                </button>
-              </div>
-            ))}
-            {attachedImages.length < 3 && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="h-20 w-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-blue-500 hover:text-blue-500 transition-colors text-xs"
-              >
-                + صورة
-              </button>
-            )}
+          <div className="relative inline-block">
+            <img src={attachedImage.url || "/placeholder.svg"} alt="preview" className="h-20 rounded-lg" />
+            <button
+              onClick={() => setAttachedImage(null)}
+              className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+            >
+              <X className="h-3 w-3" />
+            </button>
           </div>
         </div>
       )}
@@ -1248,14 +1225,7 @@ export default function ChatStarterPage() {
   >
     <Radio className="h-5 w-5" />
   </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileUpload}
-              className="hidden"
-            />
+  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
   </div>
   </form>
 

@@ -92,8 +92,7 @@ export default function ChatAdvancedPage() {
   const { toast } = useToast()
   const [isListening, setIsListening] = useState(false)
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
-  const [attachedImages, setAttachedImages] = useState<{ url: string; name: string }[]>([])
-  const attachedImage = attachedImages[0] ?? null
+  const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [countdown, setCountdown] = useState(10)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
@@ -119,8 +118,7 @@ export default function ChatAdvancedPage() {
   // قائمة الوظائف المتاحة
   const functionsList = [
     { id: "image", label: "اعمل صورة", icon: Image, prompt: "اعملي صورة " },
-    { id: "upload-image", label: "تحميل صورة", icon: Image, action: "upload-image" },
-    { id: "edit-image", label: "تعديل صورة", icon: Image, action: "attach-edit-image" },
+    { id: "edit-image", label: "إرفاق و تعديل صورة", icon: Image, action: "attach-edit-image" },
     { id: "animate-image", label: "حرك صورة", icon: Film, action: "animate-image" },
     { id: "attach-file", label: "إرفاق ملف", icon: Paperclip, action: "attach-file" },
     { id: "write", label: "اكتب نص", icon: FileText, prompt: "اكتبلي " },
@@ -173,10 +171,7 @@ export default function ChatAdvancedPage() {
   }
 
   const handleFunctionSelect = (func: any) => {
-    if (func.action === "upload-image") {
-      fileInputRef.current?.click()
-      setShowFunctionsMenu(false)
-    } else if (func.action === "attach-edit-image") {
+    if (func.action === "attach-edit-image") {
       fileInputRef.current?.click()
       setInput("عدل الصورة و ")
       setShowFunctionsMenu(false)
@@ -906,24 +901,22 @@ export default function ChatAdvancedPage() {
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
-    if (!files.length) return
-    const remaining = 3 - attachedImages.length
-    if (remaining <= 0) {
-      toast({ title: "الحد الأقصى 3 صور", description: "احذف صورة قبل إضافة جديدة", variant: "destructive" })
-      return
-    }
-    const imageFiles = files.filter(f => f.type.startsWith("image/")).slice(0, remaining)
-    const otherFiles = files.filter(f => !f.type.startsWith("image/"))
-    imageFiles.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setAttachedImages(prev => [...prev, { url: event.target?.result as string, name: file.name }])
-      }
-      reader.readAsDataURL(file)
-    })
-    otherFiles.forEach(file => {
-      setInput((prev) => prev + `\n[ملف مرفق: ${file.name}]`)
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          const imageData = event.target?.result as string
+          setAttachedImage({ url: imageData, name: file.name })
+          setInput((prev) => prev + `\n[صورة مرفقة: ${file.name}]`)
+          toast({
+            title: "تم إرفاق الصورة",
+            description: `تم إرفاق ${file.name} بنجاح`,
+          })
+        }
+        reader.readAsDataURL(file)
+      } else {
+        setInput((prev) => prev + `\n[ملف مرفق: ${file.name}]`)
         toast({
           title: "تم إرفاق الملف",
           description: `تم إرفاق ${file.name} بنجاح`,
