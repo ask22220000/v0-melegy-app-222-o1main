@@ -613,7 +613,7 @@ export default function ChatStarterPage() {
     setMessages((prev) => [...prev, userMessage])
     const currentInput = messageToSend
     const currentAttachedImage = attachedImage
-    setAttachedImage(null)
+    setAttachedImages([])
     setIsLoading(true)
 
     try {
@@ -1155,16 +1155,30 @@ export default function ChatStarterPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {attachedImage && (
+      {attachedImages.length > 0 && (
         <div className="px-4 py-2 border-t border-border bg-card">
-          <div className="relative inline-block">
-            <img src={attachedImage.url || "/placeholder.svg"} alt="preview" className="h-20 rounded-lg" />
-            <button
-              onClick={() => setAttachedImage(null)}
-              className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-            >
-              <X className="h-3 w-3" />
-            </button>
+          <div className="flex gap-2 flex-wrap items-center">
+            {attachedImages.map((img, idx) => (
+              <div key={idx} className="relative inline-block group">
+                <img src={img.url} alt={img.name} className="h-20 w-20 object-cover rounded-lg border border-border" />
+                <button
+                  type="button"
+                  onClick={() => setAttachedImages(prev => prev.filter((_, i) => i !== idx))}
+                  className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 shadow"
+                >
+                  <X className="h-3 w-3 text-white" />
+                </button>
+              </div>
+            ))}
+            {attachedImages.length < 3 && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-20 w-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-blue-500 hover:text-blue-500 transition-colors text-xs"
+              >
+                + صورة
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1234,7 +1248,14 @@ export default function ChatStarterPage() {
   >
     <Radio className="h-5 w-5" />
   </Button>
-  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+            />
   </div>
   </form>
 

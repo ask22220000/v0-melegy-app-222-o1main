@@ -82,7 +82,8 @@ export default function ChatProPage() {
   const [monthlyImages, setMonthlyImages] = useState(0)
   const [playingAudio, setPlayingAudio] = useState<string | null>(null)
   const [isListening, setIsListening] = useState(false)
-  const [attachedImage, setAttachedImage] = useState<{ url: string; name: string } | null>(null)
+  const [attachedImages, setAttachedImages] = useState<{ url: string; name: string }[]>([])
+  const attachedImage = attachedImages[0] ?? null
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [countdown, setCountdown] = useState(10)
   const [showChatHistory, setShowChatHistory] = useState(false)
@@ -119,7 +120,8 @@ export default function ChatProPage() {
   // قائمة الوظائف المتاحة
   const functionsList = [
     { id: "image", label: "اعمل صورة", icon: Image, prompt: "اعملي صورة " },
-    { id: "edit-image", label: "إرفاق و تعديل صورة", icon: Image, action: "attach-edit-image" },
+    { id: "upload-image", label: "تحميل صورة", icon: Image, action: "upload-image" },
+    { id: "edit-image", label: "تعديل صورة", icon: Image, action: "attach-edit-image" },
     { id: "animate-image", label: "حرك صورة", icon: Film, action: "animate-image" },
     { id: "attach-file", label: "إرفاق ملف", icon: Paperclip, action: "attach-file" },
     { id: "write", label: "اكتب نص", icon: FileText, prompt: "اكتبلي " },
@@ -172,7 +174,10 @@ export default function ChatProPage() {
   }
 
   const handleFunctionSelect = (func: any) => {
-    if (func.action === "attach-edit-image") {
+    if (func.action === "upload-image") {
+      fileInputRef.current?.click()
+      setShowFunctionsMenu(false)
+    } else if (func.action === "attach-edit-image") {
       fileInputRef.current?.click()
       setInput("عدل الصورة و ")
       setShowFunctionsMenu(false)
@@ -353,26 +358,26 @@ export default function ChatProPage() {
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith("image/")) {
-      toast({
-        title: "نوع ملف غير مدعوم",
-        description: "من فضلك ارفع صورة فقط",
-        variant: "destructive",
-      })
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    const remaining = 3 - attachedImages.length
+    if (remaining <= 0) {
+      toast({ title: "الحد الأقصى 3 صور", description: "احذف صورة قبل إضافة جديدة", variant: "destructive" })
       return
     }
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      setAttachedImage({
-        url: event.target?.result as string,
-        name: file.name,
-      })
+    const validFiles = files.filter(f => f.type.startsWith("image/")).slice(0, remaining)
+    if (!validFiles.length) {
+      toast({ title: "نوع ملف غير مدعوم", description: "من فضلك ارفع صور فقط", variant: "destructive" })
+      return
     }
-    reader.readAsDataURL(file)
+    validFiles.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setAttachedImages(prev => [...prev, { url: event.target?.result as string, name: file.name }])
+      }
+      reader.readAsDataURL(file)
+    })
+    e.target.value = ""
   }
 
   const generateImageWithPrompt = async (userPrompt: string) => {
@@ -552,90 +557,8 @@ export default function ChatProPage() {
       setMessages((prev) => [...prev, userMessage])
 
       const tempAttachedImage = attachedImage
-      setAttachedImage(null)
-
-      // تعديل الصورة مع دعم Text Layers
-      try {
-        const textMatch = messageToSend.match(/"([^"]+)"|'([^']+)'|(?:اكتب|write|كتابة)\s+(.+?)(?:\s+على|\s+فوق|$)/i)
-        const extractedText = textMatch ? (textMatch[1] || textMatch[2] || textMatch[3]) : null
-
-        const cleanEditPrompt = messageToSend
-          .replace(/"[^"]+"|'[^']+'/, "")
-          .replace(/(?:اكتب|write|كتابة)\s+.+?(?:\s+على|\s+فوق|$)/gi, "")
-          .trim()
-
-        const editResponse = await fetch("/api/edit-image-fal", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageUrl: tempAttachedImage?.url,
-            prompt: cleanEditPrompt || messageToSend,
-          }),
-        })
-
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
-
-        const { editedImageUrl } = await editResponse.json()
-
-        if (extractedText) {
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            role: "assistant",
-            content: "تم تعديل الصورة وإضافة النص!",
-            imageUrl: editedImageUrl,
-            designData: {
-              backgroundImage: editedImageUrl,
-              textLayer: {
-                content: extractedText,
-                position: "center",
-                style: {},
-              },
-            },
-          }
-          setMessages((prev) => [...prev, assistantMessage])
-        } else {
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            role: "assistant",
-            content: "تم تعديل الصورة بنجاح!",
-            imageUrl: editedImageUrl,
-          }
-          setMessages((prev) => [...prev, assistantMessage])
-        }
-      } catch (error) {
-        toast({
-          title: "خطأ في تعديل الصورة",
-          description: "حاول مرة تانية",
-          variant: "destructive",
-        })
-      }
-
-      setIsLoading(false)
-      return
-    }
-
-    const wordCount = countWords(messageToSend)
-    if (monthlyWords + wordCount > MAX_WORDS) {
-      toast({
-        title: "انتهت الكلمات الشهرية",
-        description: "ترقى لباقة الأساطير للحصول على استخدام بلا حدود!",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: messageToSend,
-      imageUrl: attachedImage?.url,
-    }
-
-    setMessages((prev) => [...prev, userMessage])
-    const currentInput = messageToSend
-    const currentAttachedImage = attachedImage
-    setAttachedImage(null)
-    setIsLoading(true)
+      setAttachedImages([])
+      setIsLoading(true)
 
     try {
       const isImageRequest = detectImageRequest(currentInput)
@@ -1204,16 +1127,30 @@ export default function ChatProPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {attachedImage && (
-        <div className="px-4 py-2 border-t border-border">
-          <div className="relative inline-block">
-            <img src={attachedImage.url || "/placeholder.svg"} alt="preview" className="h-20 rounded-lg" />
-            <button
-              onClick={() => setAttachedImage(null)}
-              className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-            >
-              <X className="h-3 w-3" />
-            </button>
+      {attachedImages.length > 0 && (
+        <div className="px-4 py-2 border-t border-border bg-card">
+          <div className="flex gap-2 flex-wrap items-center">
+            {attachedImages.map((img, idx) => (
+              <div key={idx} className="relative inline-block">
+                <img src={img.url} alt={img.name} className="h-20 w-20 object-cover rounded-lg border border-border" />
+                <button
+                  type="button"
+                  onClick={() => setAttachedImages(prev => prev.filter((_, i) => i !== idx))}
+                  className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 rounded-full p-1 shadow"
+                >
+                  <X className="h-3 w-3 text-white" />
+                </button>
+              </div>
+            ))}
+            {attachedImages.length < 3 && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-20 w-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-purple-500 hover:text-purple-500 transition-colors text-xs"
+              >
+                + صورة
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1287,7 +1224,7 @@ export default function ChatProPage() {
   >
     <Radio className="h-5 w-5" />
   </Button>
-  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+  <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
   </div>
   </form>
 
