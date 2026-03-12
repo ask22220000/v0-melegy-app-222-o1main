@@ -113,6 +113,7 @@ export default function ChatAdvancedPage() {
   const [animateImageUrl, setAnimateImageUrl] = useState<string>("")
   const [animatePrompt, setAnimatePrompt] = useState<string>("")
   const [animateMode, setAnimateMode] = useState<"i2v" | "r2v">("i2v")
+  const [animateAudio, setAnimateAudio] = useState<boolean>(false)
   const animateFileRef = useRef<HTMLInputElement>(null)
 
   // قائمة الوظائف المتاحة
@@ -148,7 +149,7 @@ export default function ChatAdvancedPage() {
       const res = await fetch("/api/animate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: animateImageUrl, prompt: animatePrompt, mode: animateMode }),
+        body: JSON.stringify({ imageUrl: animateImageUrl, prompt: animatePrompt, mode: animateMode, generateAudio: animateAudio }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "فشل التوليد")
@@ -1503,6 +1504,12 @@ export default function ChatAdvancedPage() {
                 <button onClick={() => setAnimateMode("r2v")} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors border ${animateMode === "r2v" ? "bg-purple-600/30 border-purple-500 text-purple-300" : "bg-gray-800 border-gray-600 text-gray-400"}`} style={{ fontFamily: "Cairo, sans-serif" }}>مشهد جديد (مرجع)</button>
               </div>
               <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: "Cairo, sans-serif" }}>{animateMode === "i2v" ? "الصورة هتتحرك بشكل سلس (10 ثانية)" : "الشخصية هتظهر في مشهد جديد حسب البرومبت (10 ثانية)"}</p>
+            </div>
+            <div className="mb-4 flex items-center justify-between bg-gray-800 rounded-lg px-4 py-3 border border-gray-600">
+              <span className="text-sm text-gray-300" style={{ fontFamily: "Cairo, sans-serif" }}>توليد صوت مع الفيديو</span>
+              <button onClick={() => setAnimateAudio((v) => !v)} className={`relative w-12 h-6 rounded-full transition-colors ${animateAudio ? "bg-purple-600" : "bg-gray-600"}`}>
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${animateAudio ? "right-1" : "left-1"}`} />
+              </button>
             </div>
             <div className="mb-5">
               <p className="text-xs text-gray-400 mb-2" style={{ fontFamily: "Cairo, sans-serif" }}>البرومبت (عربي أو إنجليزي)</p>
