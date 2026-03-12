@@ -3,7 +3,7 @@ import * as fal from "@fal-ai/serverless-client"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 
-export const maxDuration = 300
+export const maxDuration = 120
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
