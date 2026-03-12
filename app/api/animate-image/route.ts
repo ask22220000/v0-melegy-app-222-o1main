@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { fal } from "@fal-ai/client"
+import { experimental_generateVideo as generateVideo } from "ai"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 
@@ -79,32 +79,27 @@ export async function POST(req: Request) {
     // 2. Ensure the image is on Vercel Blob (Wan requires a public URL)
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    // 3. Configure fal.ai and generate video
-    fal.config({ credentials: process.env.FAL_KEY })
-
-    const result = await fal.subscribe("fal-ai/fast-animatediff/image-to-video", {
-      input: {
-        image_url: publicImageUrl,
-        prompt: englishPrompt,
-        video_size: { width: 512, height: 512 },
-        num_frames: 16,
-        num_inference_steps: 15,
-        guidance_scale: 7.5,
+    // 3. Generate video via Vercel AI Gateway — seedance-v1.5-pro (with audio)
+    const result = await generateVideo({
+      model: "bytedance/seedance-v1.5-pro",
+      prompt: {
+        image: publicImageUrl,
+        text: englishPrompt,
       },
-    }) as any
+      providerOptions: {
+        bytedance: {
+          generate_audio: true,
+          resolution: "720p",
+          duration: 5,
+        },
+      },
+    })
 
-    // 4. Get video URL from fal result
-    const rawVideoUrl: string | undefined =
-      result?.video?.url || result?.data?.video?.url || result?.videos?.[0]?.url
+    // 4. Save to Vercel Blob for permanent hosting
+    const videoData = result.videos?.[0]?.uint8Array
+    if (!videoData) throw new Error("No video data returned from model")
 
-    if (!rawVideoUrl) throw new Error("No video URL returned from model")
-
-    // 5. Save to Vercel Blob for permanent hosting
-    const vidRes = await fetch(rawVideoUrl)
-    if (!vidRes.ok) throw new Error(`Cannot fetch video: ${vidRes.status}`)
-    const vidBuffer = await vidRes.arrayBuffer()
-
-    const { url: videoUrl } = await put(`melegy-video-${Date.now()}.mp4`, Buffer.from(vidBuffer), {
+    const { url: videoUrl } = await put(`melegy-video-${Date.now()}.mp4`, videoData, {
       access: "public",
       contentType: "video/mp4",
     })
