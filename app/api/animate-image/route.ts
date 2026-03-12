@@ -15,7 +15,7 @@ async function translateToEnglish(prompt: string): Promise<string> {
   if (!hasArabic) return prompt
   try {
     const res = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       messages: [
         {
           role: "system",
@@ -24,7 +24,7 @@ async function translateToEnglish(prompt: string): Promise<string> {
         },
         { role: "user", content: prompt },
       ],
-      max_tokens: 200,
+      max_tokens: 300,
     })
     return res.choices[0]?.message?.content?.trim() || prompt
   } catch {
