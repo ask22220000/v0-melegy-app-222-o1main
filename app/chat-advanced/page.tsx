@@ -936,38 +936,6 @@ export default function ChatAdvancedPage() {
     document.body.removeChild(a)
   }
 
-  const animateImage = async (imageUrl: string, animationPrompt?: string) => {
-    try {
-      const videoResponse = await fetch("/api/perplexity-image-to-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl, prompt: animationPrompt || "" }),
-      })
-
-      if (!videoResponse.ok) {
-        throw new Error("Failed to animate image")
-      }
-
-      const { videoUrl } = await videoResponse.json()
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "تم تحريك الصورة بنجاح!",
-        videoUrl,
-      }
-
-      setMessages((prev) => [...prev, assistantMessage])
-    } catch (error) {
-      console.error("[v0] Animation error:", error)
-      toast({
-        title: "خطأ",
-        description: "فشل في تحريك الصورة",
-        variant: "destructive",
-      })
-    }
-  }
-
   const toggleListening = () => {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({

@@ -89,6 +89,7 @@ export async function POST(req: Request) {
         image_url: publicImageUrl,
         prompt: finalPrompt,
         prompt_optimizer: true,
+        duration: 10,
       },
     }) as any
 
