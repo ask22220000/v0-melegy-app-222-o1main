@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
           prompt: enhancedPrompt,
           image_urls: finalImageUrls, // must be an array — image_url (singular) is not supported
           image_size: "portrait_4_3",
-          guidance_scale: 2.5,
+          guidance_scale: 4.0,
           num_images: 1,
           enable_safety_checker: false,
           output_format: "jpeg",

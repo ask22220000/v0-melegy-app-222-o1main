@@ -28,13 +28,13 @@ async function callGroq(systemPrompt: string, userMessage: string): Promise<stri
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
-      temperature: 0.4,
-      max_tokens: 300,
+      temperature: 0.2,
+      max_tokens: 350,
     }),
   })
 
@@ -83,7 +83,7 @@ Your job:
  * Kept in one place so all routes stay in sync.
  */
 export const IMAGE_EDIT_QUALITY_CONSTANTS =
-  "No anatomical errors. Correct human anatomy with accurate proportions, natural limb placement, proper finger count, and realistic muscle structure. High quality, sharp details, professional result."
+  "PRESERVE 100% SUBJECT IDENTITY: keep identical face structure, exact facial features, same skin tone, same eye color, same nose shape, same lip shape, same hair color and texture — NO facial modifications whatsoever. PERFECT ANATOMY: correct human proportions, exactly five fingers on each hand, natural limb placement, no extra or missing limbs, no body distortions. NO anatomical errors, NO artifacts, NO glitches, NO deformities. Photorealistic, ultra high quality, sharp details, professional photography result."
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.
@@ -101,13 +101,14 @@ export async function processPromptForImageEditing(userPrompt: string): Promise<
 Your job:
 1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully — do NOT omit any detail.
 2. Write a precise editing instruction that applies ONLY what the user explicitly asks to change. Nothing more.
-3. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly mentions a person in their request.
-4. CRITICAL: Do NOT add animals, objects, or elements not mentioned by the user.
-5. Preserve the original subject, content, and background unless the user explicitly asks to change them.
-6. Do NOT add text overlays or watermarks.
-7. Start your response with: "Apply only the following changes:" then describe exactly what the user asked for.
-8. ALWAYS end with: "${IMAGE_EDIT_QUALITY_CONSTANTS}"
-9. Return ONLY the instruction in English, under 100 words. No explanations.`
+3. IDENTITY LOCK: The subject's face, facial features, skin tone, eye color, nose shape, lips, hair must remain 100% IDENTICAL — do NOT alter them in any way.
+4. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly mentions adding a person.
+5. CRITICAL: Do NOT add animals, objects, or elements not mentioned by the user.
+6. Preserve the original subject identity, face, and all personal features unless the user explicitly asks to change them.
+7. ANATOMY: ensure correct human anatomy — exactly five fingers on each hand, no extra limbs, natural proportions.
+8. Do NOT add text overlays or watermarks.
+9. Start your response with: "Apply ONLY the following changes while preserving 100% of the subject's face, identity, and features:" then describe exactly what the user asked for.
+10. Return ONLY the instruction in English, under 120 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and write an image editing instruction for: "${userPrompt}"`
