@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import { experimental_generateVideo as generateVideo } from "ai"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 
@@ -30,10 +30,8 @@ async function translateToEnglish(prompt: string): Promise<string> {
 }
 
 async function ensurePublicBlobUrl(imageUrl: string): Promise<string> {
-  // Already a Vercel Blob URL — reuse it directly
   if (imageUrl.includes("public.blob.vercel-storage.com")) return imageUrl
 
-  // Data URL (base64 image from file upload) — upload to Blob
   if (imageUrl.startsWith("data:")) {
     const matches = imageUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/)
     if (!matches) throw new Error("Invalid data URL format")
@@ -48,7 +46,6 @@ async function ensurePublicBlobUrl(imageUrl: string): Promise<string> {
     return url
   }
 
-  // External URL — fetch and re-host on Vercel Blob
   const imgRes = await fetch(imageUrl)
   if (!imgRes.ok) throw new Error(`Cannot fetch image: ${imgRes.status}`)
   const imgBuffer = await imgRes.arrayBuffer()
@@ -63,7 +60,7 @@ async function ensurePublicBlobUrl(imageUrl: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, prompt, mode } = await req.json()
+    const { imageUrl, prompt, generateAudio } = await req.json()
 
     if (!imageUrl) {
       return NextResponse.json({ error: "imageUrl مطلوب" }, { status: 400 })
@@ -75,46 +72,36 @@ export async function POST(req: Request) {
     // 1. Translate Arabic prompt to English
     const englishPrompt = await translateToEnglish(prompt)
 
-    // 2. Ensure the image is on Vercel Blob (Wan requires a public URL)
+    // 2. Ensure the image is on Vercel Blob (Seedance requires a public URL)
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    // 3. Generate video via fal.ai — fast-animatediff image-to-video
-    fal.config({ credentials: process.env.FAL_KEY })
-
-    // Fixed positive suffix: preserve faces/people identity 100%, natural cinematic motion
+    // 3. Fixed prompt constants — preserve people/products identity 100%
     const FACE_PRESERVE_SUFFIX =
-      "preserve exact facial features and identity of all people, photorealistic face, consistent appearance, natural smooth cinematic motion, subtle gentle movement, realistic human movement, no face distortion, no morphing, no warping, high fidelity"
-
-    // Fixed negative prompt: prevent any face or identity alteration
-    const NEGATIVE_PROMPT =
-      "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion, fast motion, ai-looking, artificial"
+      "preserve exact facial features and identity of all people and products, photorealistic, consistent appearance, natural smooth cinematic motion, subtle gentle movement, no face distortion, no morphing, no warping, high fidelity"
 
     const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
 
-    const result = await fal.subscribe("fal-ai/fast-animatediff/image-to-video", {
-      input: {
-        image_url: publicImageUrl,
-        prompt: finalPrompt,
-        negative_prompt: NEGATIVE_PROMPT,
-        video_size: { width: 512, height: 512 },
-        num_frames: 16,
-        num_inference_steps: 20,
-        guidance_scale: 9.0,
-        fps: 8,
+    // 4. Generate video via Vercel AI Gateway — bytedance/seedance-v1.0-lite
+    const result = await generateVideo({
+      model: "bytedance/seedance-v1.0-lite",
+      prompt: {
+        image: publicImageUrl,
+        text: finalPrompt,
       },
-    }) as any
+      providerOptions: {
+        bytedance: {
+          generate_audio: generateAudio === true,
+          resolution: "480p",
+          duration: 5,
+        },
+      },
+    })
 
-    const rawVideoUrl: string | undefined =
-      result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
+    // 5. Save to Vercel Blob for permanent hosting
+    const videoData = result.videos?.[0]?.uint8Array
+    if (!videoData) throw new Error("No video data returned from model")
 
-    if (!rawVideoUrl) throw new Error("No video URL returned from model")
-
-    // 4. Fetch and save to Vercel Blob for permanent hosting
-    const vidRes = await fetch(rawVideoUrl)
-    if (!vidRes.ok) throw new Error(`Cannot fetch video: ${vidRes.status}`)
-    const vidBuffer = await vidRes.arrayBuffer()
-
-    const { url: videoUrl } = await put(`melegy-video-${Date.now()}.mp4`, Buffer.from(vidBuffer), {
+    const { url: videoUrl } = await put(`melegy-video-${Date.now()}.mp4`, videoData, {
       access: "public",
       contentType: "video/mp4",
     })
