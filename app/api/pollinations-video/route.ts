@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server"
+import Groq from "groq-sdk"
 
-async function translateToEnglish(arabicText: string): Promise<string> {
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+
+async function translateToEnglish(prompt: string): Promise<string> {
+  const hasArabic = /[\u0600-\u06FF]/.test(prompt)
+  if (!hasArabic) return prompt
   try {
-    const response = await fetch(
-      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(arabicText)}`,
-    )
-    if (!response.ok) return arabicText
-    const data = await response.json()
-    return data?.[0]?.[0]?.[0] || arabicText
+    const res = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a professional translator. Translate the following Arabic text (including Egyptian dialect) to English. Return ONLY the English translation — no explanations, no extra text.",
+        },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 300,
+    })
+    return res.choices[0]?.message?.content?.trim() || prompt
   } catch {
-    return arabicText
+    return prompt
   }
 }
 
