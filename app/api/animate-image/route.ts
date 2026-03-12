@@ -78,28 +78,31 @@ export async function POST(req: Request) {
     // 2. Ensure the image is on Vercel Blob (Wan requires a public URL)
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    // 3. Generate video via fal.ai — LTX-2 Fast image-to-video
+    // 3. Generate video via fal.ai — fast-animatediff image-to-video
     fal.config({ credentials: process.env.FAL_KEY })
 
-    // Fixed positive suffix: preserve faces/people identity 100%, natural cinematic motion
     const FACE_PRESERVE_SUFFIX =
       "preserve exact facial features and identity of all people, photorealistic face, consistent appearance, natural smooth cinematic motion, subtle gentle movement, realistic human movement, no face distortion, no morphing, no warping, high fidelity"
 
+    const NEGATIVE_PROMPT =
+      "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion, fast motion"
+
     const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
 
-    const result = await fal.subscribe("fal-ai/ltx-video/image-to-video", {
+    const result = await fal.subscribe("fal-ai/fast-animatediff/image-to-video", {
       input: {
         image_url: publicImageUrl,
         prompt: finalPrompt,
-        negative_prompt:
-          "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion, fast motion, ai-looking, artificial",
-        guidance_scale: 3,
-        num_inference_steps: 30,
+        negative_prompt: NEGATIVE_PROMPT,
+        num_frames: 16,
+        num_inference_steps: 20,
+        guidance_scale: 7.5,
+        fps: 8,
       },
     })
 
     const rawVideoUrl: string | undefined =
-      (result as any)?.data?.video?.url ?? (result as any)?.video?.url
+      (result as any)?.video?.url ?? (result as any)?.data?.video?.url
 
     if (!rawVideoUrl) throw new Error("No video URL returned from model")
 
