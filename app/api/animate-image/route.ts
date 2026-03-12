@@ -83,13 +83,13 @@ export async function POST(req: Request) {
 
     const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
 
-    // 4. Generate video via fal.ai — minimax image-to-video (supports audio)
-    const result = await fal.subscribe("fal-ai/minimax/video-01/image-to-video", {
+    // 4. Generate video via fal.ai — minimax hailuo-02-fast image-to-video (10s support)
+    const result = await fal.subscribe("fal-ai/minimax/hailuo-02-fast/image-to-video", {
       input: {
         image_url: publicImageUrl,
         prompt: finalPrompt,
         prompt_optimizer: true,
-        duration: 10,
+        duration: "10",
       },
     }) as any
 
