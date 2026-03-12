@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server"
-import { experimental_generateVideo as generateVideo } from "ai"
+import * as fal from "@fal-ai/serverless-client"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 
-// Allow up to 5 minutes for video generation
 export const maxDuration = 300
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
@@ -79,26 +78,29 @@ export async function POST(req: Request) {
     // 2. Ensure the image is on Vercel Blob (Wan requires a public URL)
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    // 3. Generate video via Vercel AI Gateway — seedance-v1.0-pro-fast
-    const result = await generateVideo({
-      model: "bytedance/seedance-v1.0-pro-fast",
-      prompt: {
-        image: publicImageUrl,
-        text: englishPrompt,
-      },
-      providerOptions: {
-        bytedance: {
-          resolution: "1080p",
-          duration: 10,
-        },
-      },
-    })
+    // 3. Generate video via fal.ai — Seedance v1.0 Pro (fast, no balance requirement)
+    fal.config({ credentials: process.env.FAL_KEY })
 
-    // 4. Save to Vercel Blob for permanent hosting
-    const videoData = result.videos?.[0]?.uint8Array
-    if (!videoData) throw new Error("No video data returned from model")
+    const result = await fal.subscribe("fal-ai/seedance/v1/pro/image-to-video", {
+      input: {
+        image_url: publicImageUrl,
+        prompt: englishPrompt,
+        resolution: "1080p",
+        duration: 10,
+      },
+    }) as any
 
-    const { url: videoUrl } = await put(`melegy-video-${Date.now()}.mp4`, videoData, {
+    const rawVideoUrl: string | undefined =
+      result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
+
+    if (!rawVideoUrl) throw new Error("No video URL returned from model")
+
+    // 4. Fetch and save to Vercel Blob for permanent hosting
+    const vidRes = await fetch(rawVideoUrl)
+    if (!vidRes.ok) throw new Error(`Cannot fetch video: ${vidRes.status}`)
+    const vidBuffer = await vidRes.arrayBuffer()
+
+    const { url: videoUrl } = await put(`melegy-video-${Date.now()}.mp4`, Buffer.from(vidBuffer), {
       access: "public",
       contentType: "video/mp4",
     })
