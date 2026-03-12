@@ -21,7 +21,7 @@ async function generateVideo(translatedPrompt: string): Promise<string> {
 
   const seed = Math.floor(Math.random() * 999999)
   const encodedPrompt = encodeURIComponent(cleanPrompt)
-  return `https://video.pollinations.ai/prompt/${encodedPrompt}?model=seedance-pro&seed=${seed}`
+  return `https://video.pollinations.ai/prompt/${encodedPrompt}?model=seedance-pro&seed=${seed}&duration=10`
 }
 
 export async function POST(req: Request) {

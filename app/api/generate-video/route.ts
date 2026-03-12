@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     // Build video URL with proper query parameters
     const params = new URLSearchParams({
       model: "veo", // Video model
-      duration: "5", // 5 seconds default
+      duration: "10", // 10 seconds for paid plans
       aspect_ratio: "16:9", // Widescreen format
       private: "true", // Don't add to public feed
       enhance: "true", // Enhance the prompt

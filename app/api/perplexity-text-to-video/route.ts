@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
     const enhancedPrompt = enhanceArabicPrompt(prompt)
 
-    const videoUrl = `https://video.pollinations.ai/${encodeURIComponent(enhancedPrompt)}.mp4?width=1280&height=720&fps=24&duration=3`
+    const videoUrl = `https://video.pollinations.ai/${encodeURIComponent(enhancedPrompt)}.mp4?width=1280&height=720&fps=24&duration=10`
 
     return NextResponse.json({ videoUrl })
   } catch (error: any) {
