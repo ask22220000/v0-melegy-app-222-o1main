@@ -78,15 +78,29 @@ export async function POST(req: Request) {
     // 2. Ensure the image is on Vercel Blob (Wan requires a public URL)
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    // 3. Generate video via fal.ai — Seedance v1.0 Pro (fast, no balance requirement)
+    // 3. Generate video via fal.ai — fast-animatediff image-to-video
     fal.config({ credentials: process.env.FAL_KEY })
 
-    const result = await fal.subscribe("fal-ai/seedance/v1/pro/image-to-video", {
+    // Fixed positive suffix: preserve faces/people identity 100%, natural cinematic motion
+    const FACE_PRESERVE_SUFFIX =
+      "preserve exact facial features and identity of all people, photorealistic face, consistent appearance, natural smooth cinematic motion, subtle gentle movement, realistic human movement, no face distortion, no morphing, no warping, high fidelity"
+
+    // Fixed negative prompt: prevent any face or identity alteration
+    const NEGATIVE_PROMPT =
+      "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion, fast motion, ai-looking, artificial"
+
+    const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
+
+    const result = await fal.subscribe("fal-ai/fast-animatediff/image-to-video", {
       input: {
         image_url: publicImageUrl,
-        prompt: englishPrompt,
-        resolution: "1080p",
-        duration: 10,
+        prompt: finalPrompt,
+        negative_prompt: NEGATIVE_PROMPT,
+        video_size: { width: 512, height: 512 },
+        num_frames: 16,
+        num_inference_steps: 20,
+        guidance_scale: 9.0,
+        fps: 8,
       },
     }) as any
 
