@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import { experimental_generateVideo as generateVideo } from "ai"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 
@@ -79,18 +79,17 @@ export async function POST(req: Request) {
     // 2. Ensure the image is on Vercel Blob (Wan requires a public URL)
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    // 3. Generate video via Vercel AI Gateway — seedance-v1.5-pro (with audio)
+    // 3. Generate video via Vercel AI Gateway — seedance-v1.0-pro-fast
     const result = await generateVideo({
-      model: "bytedance/seedance-v1.5-pro",
+      model: "bytedance/seedance-v1.0-pro-fast",
       prompt: {
         image: publicImageUrl,
         text: englishPrompt,
       },
       providerOptions: {
         bytedance: {
-          generate_audio: true,
-          resolution: "720p",
-          duration: 5,
+          resolution: "1080p",
+          duration: 10,
         },
       },
     })
