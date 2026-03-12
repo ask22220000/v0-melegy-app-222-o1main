@@ -50,12 +50,17 @@ export async function POST(req: Request) {
       finalPrompt = enhanceArabicPrompt(prompt)
     }
 
-    const result = await fal.subscribe("klingai/kling-v2.5-turbo-i2v", {
+    const result = await fal.subscribe("fal-ai/fast-animatediff/image-to-video", {
       input: {
         image_url: imageUrl,
         prompt: finalPrompt,
-        duration: "5",
-        aspect_ratio: "16:9",
+        video_size: {
+          width: 512,
+          height: 512,
+        },
+        num_frames: 8,
+        num_inference_steps: 25,
+        guidance_scale: 7.5,
       },
     })
 

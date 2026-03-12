@@ -1,31 +1,35 @@
-import * as fal from "@fal-ai/serverless-client"
 import { NextResponse } from "next/server"
-import Groq from "groq-sdk"
 
-export const maxDuration = 300
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
-async function translateToEnglish(prompt: string): Promise<string> {
-  const hasArabic = /[\u0600-\u06FF]/.test(prompt)
-  if (!hasArabic) return prompt
-  try {
-    const res = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a professional translator. Translate the following Arabic text (including Egyptian dialect) to English. Return ONLY the English translation — no explanations, no extra text.",
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 200,
-    })
-    return res.choices[0]?.message?.content?.trim() || prompt
-  } catch {
-    return prompt
+function enhanceArabicPrompt(prompt: string): string {
+  const arabicToEnglish: Record<string, string> = {
+    "الفن القبطي": "Coptic art style, traditional Egyptian Christian iconography, gold leaf details",
+    العدرا: "Virgin Mary, Saint Mary, blessed mother Mary, religious icon",
+    العذراء: "Virgin Mary, Saint Mary, holy Madonna",
+    فرعوني: "ancient Egyptian pharaonic style, hieroglyphics, golden details",
+    الأهرامات: "Great Pyramids of Giza, ancient Egyptian monuments",
+    واقعي: "photorealistic, ultra realistic, lifelike",
+    كرتون: "cartoon style, animated art",
+    طبيعة: "natural landscape, nature scenery",
+    جبال: "mountains, mountain range",
+    بحر: "sea, ocean, water",
+    جميل: "beautiful, aesthetic",
   }
+
+  let enhancedPrompt = prompt.toLowerCase()
+
+  for (const [arabic, english] of Object.entries(arabicToEnglish)) {
+    const regex = new RegExp(arabic, "gi")
+    enhancedPrompt = enhancedPrompt.replace(regex, english)
+  }
+
+  const fillerWords = ["عاوز", "عايز", "اعمللي", "اعملي", "فيديو", "باسلوب", "لـ", "ل", "في"]
+  fillerWords.forEach((word) => {
+    const regex = new RegExp(`\\b${word}\\b`, "gi")
+    enhancedPrompt = enhancedPrompt.replace(regex, "")
+  })
+
+  enhancedPrompt = enhancedPrompt.replace(/\s+/g, " ").trim()
+  return enhancedPrompt + ", cinematic, smooth motion, high quality animation"
 }
 
 export async function POST(req: Request) {
@@ -36,32 +40,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 })
     }
 
-    if (!process.env.FAL_KEY) {
-      return NextResponse.json({ error: "FAL_KEY is not configured" }, { status: 500 })
-    }
+    const enhancedPrompt = enhanceArabicPrompt(prompt)
 
-    fal.config({ credentials: process.env.FAL_KEY })
-
-    const englishPrompt = await translateToEnglish(prompt)
-
-    const result = await fal.subscribe("klingai/kling-v2.5-turbo-t2v", {
-      input: {
-        prompt: englishPrompt,
-        duration: "5",
-        aspect_ratio: "16:9",
-      },
-    }) as any
-
-    const videoUrl: string | undefined =
-      result?.data?.video?.url || result?.video?.url
-
-    if (!videoUrl) {
-      throw new Error("No video URL returned from kling model")
-    }
+    const videoUrl = `https://video.pollinations.ai/${encodeURIComponent(enhancedPrompt)}.mp4?width=1280&height=720&fps=24&duration=3`
 
     return NextResponse.json({ videoUrl })
   } catch (error: any) {
-    console.error("[v0] kling text-to-video error:", error)
+    console.error("[v0] Video generation error:", error)
     return NextResponse.json({ error: `فشل في توليد الفيديو: ${error.message}` }, { status: 500 })
   }
 }
