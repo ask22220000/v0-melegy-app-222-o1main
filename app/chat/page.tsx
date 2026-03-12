@@ -331,7 +331,7 @@ export default function ChatPage() {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({
         title: "غير مدعوم",
-        description: "المتصفح ده مش بيدعم التعرف على الصوت",
+        description: "المتصفح ده مش بيدعم التعرف على الصو��",
         variant: "destructive",
       })
       return
@@ -1519,17 +1519,6 @@ export default function ChatPage() {
               <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: "Cairo, sans-serif" }}>
                 {animateMode === "i2v" ? "الصورة هتتحرك بشكل سلس (10 ثانية)" : "الشخصية هتظهر في مشهد جديد حسب البرومبت (10 ثانية)"}
               </p>
-            </div>
-
-            {/* Audio toggle */}
-            <div className="mb-4 flex items-center justify-between bg-gray-800 rounded-lg px-4 py-3 border border-gray-600">
-              <span className="text-sm text-gray-300" style={{ fontFamily: "Cairo, sans-serif" }}>توليد صوت مع الفيديو</span>
-              <button
-                onClick={() => setAnimateAudio((v) => !v)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${animateAudio ? "bg-purple-600" : "bg-gray-600"}`}
-              >
-                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${animateAudio ? "right-1" : "left-1"}`} />
-              </button>
             </div>
 
             {/* Prompt */}
