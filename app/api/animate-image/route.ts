@@ -79,23 +79,22 @@ export async function POST(req: Request) {
     // 2. Ensure the image is on Vercel Blob (Wan requires a public URL)
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    // 3. Generate video via Vercel AI Gateway + Wan i2v
+    // 3. Generate video via Vercel AI Gateway — seedance-v1.0-pro-fast
     const result = await generateVideo({
-      model: "alibaba/wan-v2.6-i2v",
+      model: "bytedance/seedance-v1.0-pro-fast",
       prompt: {
         image: publicImageUrl,
         text: englishPrompt,
       },
-      duration: 10,
       providerOptions: {
-        alibaba: {
-          audio: false,
-          watermark: false,
+        bytedance: {
+          resolution: "1080p",
+          duration: 10,
         },
       },
     })
 
-    // 4. Save generated video to Vercel Blob for permanent hosting
+    // 4. Save to Vercel Blob for permanent hosting
     const videoData = result.videos?.[0]?.uint8Array
     if (!videoData) throw new Error("No video data returned from model")
 
