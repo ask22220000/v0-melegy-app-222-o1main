@@ -87,14 +87,12 @@ export async function POST(req: Request) {
 
     const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
 
-    const result = await fal.subscribe("fal-ai/ltx-2/image-to-video/fast", {
+    const result = await fal.subscribe("fal-ai/ltx-video/image-to-video", {
       input: {
         image_url: publicImageUrl,
         prompt: finalPrompt,
         negative_prompt:
           "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion, fast motion, ai-looking, artificial",
-        duration: 6,
-        resolution: "720p",
         guidance_scale: 3.5,
         num_inference_steps: 30,
       },
