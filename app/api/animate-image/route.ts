@@ -93,13 +93,13 @@ export async function POST(req: Request) {
         prompt: finalPrompt,
         negative_prompt:
           "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion, fast motion, ai-looking, artificial",
-        guidance_scale: 3.5,
+        guidance_scale: 3,
         num_inference_steps: 30,
       },
-    }) as any
+    })
 
     const rawVideoUrl: string | undefined =
-      result?.data?.video?.url ?? result?.video?.url ?? result?.videos?.[0]?.url
+      (result as any)?.data?.video?.url ?? (result as any)?.video?.url
 
     if (!rawVideoUrl) throw new Error("No video URL returned from model")
 
