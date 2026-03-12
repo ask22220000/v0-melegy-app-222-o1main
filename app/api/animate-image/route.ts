@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import { fal } from "@fal-ai/client"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 
@@ -78,34 +78,30 @@ export async function POST(req: Request) {
     // 2. Ensure the image is on Vercel Blob (Wan requires a public URL)
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    // 3. Generate video via fal.ai — fast-animatediff image-to-video
+    // 3. Generate video via fal.ai — LTX-2 Fast image-to-video
     fal.config({ credentials: process.env.FAL_KEY })
 
     // Fixed positive suffix: preserve faces/people identity 100%, natural cinematic motion
     const FACE_PRESERVE_SUFFIX =
       "preserve exact facial features and identity of all people, photorealistic face, consistent appearance, natural smooth cinematic motion, subtle gentle movement, realistic human movement, no face distortion, no morphing, no warping, high fidelity"
 
-    // Fixed negative prompt: prevent any face or identity alteration
-    const NEGATIVE_PROMPT =
-      "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion, fast motion, ai-looking, artificial"
-
     const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
 
-    const result = await fal.subscribe("fal-ai/fast-animatediff/image-to-video", {
+    const result = await fal.subscribe("fal-ai/ltx-2/image-to-video/fast", {
       input: {
         image_url: publicImageUrl,
         prompt: finalPrompt,
-        negative_prompt: NEGATIVE_PROMPT,
-        video_size: { width: 512, height: 512 },
-        num_frames: 16,
-        num_inference_steps: 20,
-        guidance_scale: 9.0,
-        fps: 8,
+        negative_prompt:
+          "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion, fast motion, ai-looking, artificial",
+        duration: 6,
+        resolution: "720p",
+        guidance_scale: 3.5,
+        num_inference_steps: 30,
       },
     }) as any
 
     const rawVideoUrl: string | undefined =
-      result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
+      result?.data?.video?.url ?? result?.video?.url ?? result?.videos?.[0]?.url
 
     if (!rawVideoUrl) throw new Error("No video URL returned from model")
 
