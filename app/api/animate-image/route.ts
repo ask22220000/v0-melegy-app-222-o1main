@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { experimental_generateVideo as generateVideo } from "ai"
+import * as fal from "@fal-ai/serverless-client"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 
