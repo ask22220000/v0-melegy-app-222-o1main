@@ -32,6 +32,31 @@ async function translateToEnglish(prompt: string): Promise<string> {
   }
 }
 
+async function describeSubjectFromImage(imageUrl: string): Promise<string> {
+  // Uses Groq vision to extract precise details of the person or product in the image
+  try {
+    const res = await groq.chat.completions.create({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Describe in detail the main subject of this image (person or product). Include: exact appearance, clothing/outfit color and style, hair color and style, skin tone, face features, body proportions, product shape/color/logo/material. Be very specific and concise — max 80 words. Return ONLY the description, no intro.",
+            },
+            { type: "image_url", image_url: { url: imageUrl } },
+          ],
+        },
+      ],
+      max_tokens: 150,
+    })
+    return res.choices[0]?.message?.content?.trim() || ""
+  } catch {
+    return ""
+  }
+}
+
 async function ensurePublicBlobUrl(imageUrl: string): Promise<string> {
   if (imageUrl.includes("public.blob.vercel-storage.com")) return imageUrl
 
@@ -78,18 +103,21 @@ export async function POST(req: Request) {
 
     if (mode === "r2v") {
       // ===== مشهد جديد (مرجع) =====
-      // Uses subject_reference_image_url — generates a BRAND NEW scene from the prompt
-      // while preserving the person's/product's identity and details from the reference image.
-      const REFERENCE_LOCK =
-        "The subject from the reference image must appear EXACTLY as shown: same face, same skin tone, same hair color and style, same body proportions, same clothing details, same product appearance — do NOT alter any physical detail of the subject. Only the scene, background, environment, and action change according to the prompt. Photorealistic, high fidelity, consistent identity throughout."
+      // 1. Extract precise subject details from the reference image using vision
+      // 2. Build a rich prompt: user scene description + locked subject details
+      // 3. Generate video using hailuo-02-fast with the enriched prompt
+      const subjectDescription = await describeSubjectFromImage(publicImageUrl)
 
-      const finalR2VPrompt = `${englishPrompt}. ${REFERENCE_LOCK}`
+      const finalR2VPrompt = subjectDescription
+        ? `${englishPrompt}. The main subject must look EXACTLY like this: ${subjectDescription}. Do NOT alter any physical detail of the subject — only the scene, background, and action change. Photorealistic, high fidelity, cinematic.`
+        : `${englishPrompt}. Preserve the exact appearance, clothing, and all physical details of the subject from the reference image. Photorealistic, high fidelity, cinematic.`
 
-      const result = await fal.subscribe("fal-ai/minimax/video-01-subject-reference", {
+      const result = await fal.subscribe("fal-ai/minimax/hailuo-02-fast/image-to-video", {
         input: {
+          image_url: publicImageUrl,
           prompt: finalR2VPrompt,
-          subject_reference_image_url: publicImageUrl,
           prompt_optimizer: false,
+          duration: "10",
         },
       }) as any
       rawVideoUrl = result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
