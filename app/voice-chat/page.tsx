@@ -331,10 +331,28 @@ export default function VoiceChatPage() {
     }
   }, [])
 
+  // Fix ambiguous Arabic words by adding tashkeel so TTS pronounces them correctly
+  const fixPronunciation = useCallback((text: string): string => {
+    const fixes: [RegExp, string][] = [
+      [/وحش/g,    "وَحْش"],
+      [/علم/g,    "عِلْم"],
+      [/عمل/g,    "عَمَل"],
+      [/كلب/g,    "كَلْب"],
+      [/قلب/g,    "قَلْب"],
+      [/ولد/g,    "وَلَد"],
+      [/بيت/g,    "بَيْت"],
+      [/كتب/g,    "كَتَب"],
+      [/حكم/g,    "حُكْم"],
+      [/صبر/g,    "صَبْر"],
+    ]
+    return fixes.reduce((t, [pattern, replacement]) => t.replace(pattern, replacement), text)
+  }, [])
+
   // TTS: fetch audio → connect analyser → play
-  const speakReply = useCallback(async (tashkeelText: string) => {
+  const speakReply = useCallback(async (rawText: string) => {
     setOrbState("speaking")
     orbStateRef.current = "speaking"
+    const tashkeelText = fixPronunciation(rawText)
     try {
       const ttsRes = await fetch("/api/text-to-speech", {
         method: "POST",
