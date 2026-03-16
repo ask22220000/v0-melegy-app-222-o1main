@@ -15,6 +15,7 @@ export function Hero() {
   const [isAndroid, setIsAndroid] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
+  const [isInAppBrowser, setIsInAppBrowser] = useState(false)
   const [showBanner, setShowBanner] = useState(false)
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -24,6 +25,12 @@ export function Hero() {
     const android = /Android/i.test(ua)
     setIsIOS(ios)
     setIsAndroid(android)
+    
+    // Detect in-app browsers (WebView)
+    const isWebView = /FBAN|FBAV|Instagram|Line|WhatsApp|Snapchat|Twitter|LinkedIn|TikTok|wv|WebView/i.test(ua)
+    const isStandaloneBrowser = /Chrome\/[\d.]+ Mobile Safari|Safari\/[\d.]+ Mobile/i.test(ua) && !/wv|WebView/i.test(ua)
+    setIsInAppBrowser(isWebView || (android && !isStandaloneBrowser && !/Chrome/i.test(ua)))
+    
     // Check if already installed as PWA
     const installed = window.matchMedia("(display-mode: standalone)").matches
     setIsInstalled(installed)
@@ -101,6 +108,11 @@ export function Hero() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+            {isInAppBrowser && (
+              <div className="mb-4 p-3 bg-amber-500/20 border border-amber-500/50 rounded-lg">
+                <p className="text-amber-200 text-sm font-medium">انت بتستخدم متصفح داخلي (من تطبيق تاني). افتح الموقع في Chrome عشان تقدر تثبت التطبيق مباشرة.</p>
+              </div>
+            )}
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <span className="bg-blue-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">1</span>
@@ -122,6 +134,19 @@ export function Hero() {
             <p className="mt-4 text-xs text-gray-500 dark:text-slate-400 text-center">
               لو مش شايف الخيار، جرب تفتح الموقع في نافذة جديدة أو تأكد إنك بتستخدم Chrome
             </p>
+            {isInAppBrowser && (
+              <button
+                onClick={() => {
+                  // Try to open in external browser
+                  const url = window.location.href
+                  // Use intent for Android to open in Chrome
+                  window.open(`intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`, '_blank')
+                }}
+                className="mt-4 w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-colors"
+              >
+                فتح في Chrome
+              </button>
+            )}
             <button
               onClick={() => setShowAndroidGuide(false)}
               className="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-colors"
