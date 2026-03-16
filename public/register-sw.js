@@ -12,13 +12,28 @@
     }
   });
 
+  // Listen for SW_UPDATED message from service worker
+  navigator.serviceWorker.addEventListener('message', function (event) {
+    if (event.data && event.data.type === 'SW_UPDATED') {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    }
+  });
+
   window.addEventListener('load', function () {
     navigator.serviceWorker
-      .register('/sw.js', { scope: '/', updateViaCache: 'none' })
+      .register('/sw.js?' + Date.now(), { scope: '/', updateViaCache: 'none' })
       .then(function (registration) {
 
         // Check for a new SW version on every page load
         registration.update();
+
+        // Also check for updates periodically (every 30 seconds)
+        setInterval(function () {
+          registration.update();
+        }, 30000);
 
         // When a new SW is found — skip waiting immediately (no user prompt)
         registration.addEventListener('updatefound', function () {
