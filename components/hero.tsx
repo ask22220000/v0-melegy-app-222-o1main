@@ -69,7 +69,7 @@ export function Hero() {
       {/* PWA Install Banner (Android) */}
       {showBanner && !isInstalled && (
         <div className="fixed bottom-4 left-4 right-4 z-50 bg-[#1a1f2e] border border-blue-500/40 rounded-2xl p-4 flex items-center gap-3 shadow-2xl shadow-blue-900/40 max-w-sm mx-auto">
-          <img src="/images/logo.png" alt="Melegy" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+          <img src="/images/logo.jpg" alt="Melegy" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
           <div className="flex-1 text-right" dir="rtl">
             <p className="text-white font-bold text-sm">حمل تطبيق ميليجي</p>
             <p className="text-slate-400 text-xs">بالمجان على جهازك</p>
@@ -175,7 +175,7 @@ export function Hero() {
           <div className="absolute inset-0 bg-blue-600/30 rounded-full blur-3xl" />
           <div className="relative w-48 h-48 rounded-full bg-gradient-to-br from-blue-900/80 to-blue-950/80 backdrop-blur-xl border border-blue-500/30 flex items-center justify-center overflow-hidden">
             <img
-              src="/images/logo.png"
+              src="/images/logo.jpg"
               alt="Melegy Logo"
               className="w-full h-full object-cover"
             />

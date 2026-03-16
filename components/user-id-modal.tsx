@@ -89,7 +89,7 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
       <div className="bg-[#0d1117] border border-blue-900/40 rounded-2xl p-8 w-full max-w-md mx-4 shadow-2xl">
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <img src="/images/logo.png" alt="Melegy" className="w-16 h-16 rounded-full object-cover border-2 border-blue-600" />
+          <img src="/images/logo.jpg" alt="Melegy" className="w-16 h-16 rounded-full object-cover border-2 border-blue-600" />
         </div>
 
         {/* CHOICE VIEW */}
