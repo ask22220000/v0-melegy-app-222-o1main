@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as fal from "@fal-ai/serverless-client"
-import { processPromptForImageGeneration } from "@/lib/prompt-enhancer"
+import { processPromptForImageGeneration, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
 
 export const maxDuration = 60
 export const runtime = "nodejs"
@@ -29,16 +29,19 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Generating image with enhanced prompt:", finalPrompt)
 
-    // Generate image using the fal schnell model with 4:5 portrait format (1080x1350)
-    const result = await fal.subscribe("fal-ai/flux/schnell", {
+    // Generate image using fal-ai/flux-pro/v1.1 for better quality and anatomy
+    const result = await fal.subscribe("fal-ai/flux-pro/v1.1", {
       input: {
         prompt: finalPrompt,
+        negative_prompt: NEGATIVE_PROMPT_CONSTANTS,
         image_size: {
           width: 1080,
           height: 1350
         },
-        num_inference_steps: 4,
+        num_inference_steps: 28,
+        guidance_scale: 3.5,
         num_images: 1,
+        safety_tolerance: "2",
       },
     })
 

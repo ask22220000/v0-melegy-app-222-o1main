@@ -62,7 +62,14 @@ Your job:
 4. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly asks for a person in their prompt.
 5. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
 6. Do NOT add text overlays, watermarks, or typography.
-7. Return ONLY the final English prompt, under 120 words. No explanations.`
+7. ANATOMY RULES FOR HUMANS: If generating a person, ALWAYS include these anatomical specifications:
+   - "anatomically correct human body"
+   - "exactly five fingers on each hand (one thumb and four fingers)"
+   - "correct finger joints and proportions"
+   - "natural hand positioning"
+   - "two arms, two legs, proper limb attachment"
+8. If showing hands, describe them as: "realistic human hands with exactly 5 fingers each, natural finger length proportions, correct thumb placement"
+9. Return ONLY the final English prompt, under 150 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -70,11 +77,13 @@ Your job:
 
   try {
     const result = await callGroq(system, userMsg)
-    return result || userPrompt
+    const enhancedResult = result 
+      ? `${result}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
+      : `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
+    return enhancedResult
   } catch (error) {
     console.error("[prompt-enhancer] Groq generation error:", error)
-    // Fallback: send as-is — flux handles some Arabic
-    return userPrompt
+    return `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
   }
 }
 
@@ -83,7 +92,19 @@ Your job:
  * Kept in one place so all routes stay in sync.
  */
 export const IMAGE_EDIT_QUALITY_CONSTANTS =
-  "PRESERVE 100% SUBJECT IDENTITY: keep identical face structure, exact facial features, same skin tone, same eye color, same nose shape, same lip shape, same hair color and texture — NO facial modifications whatsoever. PERFECT ANATOMY: correct human proportions, exactly five fingers on each hand, natural limb placement, no extra or missing limbs, no body distortions. NO anatomical errors, NO artifacts, NO glitches, NO deformities. Photorealistic, ultra high quality, sharp details, professional photography result."
+  "PRESERVE 100% SUBJECT IDENTITY: keep identical face structure, exact facial features, same skin tone, same eye color, same nose shape, same lip shape, same hair color and texture — NO facial modifications whatsoever. PERFECT ANATOMY: anatomically correct human body, exactly 5 fingers per hand (thumb + 4 fingers), correct finger proportions and joints, natural hand poses, two arms, two legs, proper limb attachment, realistic body proportions. HIGH QUALITY: 8K resolution, sharp focus, professional photography, cinematic lighting, photorealistic details."
+
+/**
+ * Negative prompt to avoid common AI generation issues
+ */
+export const NEGATIVE_PROMPT_CONSTANTS =
+  "bad anatomy, wrong anatomy, extra fingers, fewer fingers, missing fingers, extra limbs, missing limbs, fused fingers, too many fingers, six fingers, mutated hands, poorly drawn hands, malformed hands, deformed hands, bad hands, extra hands, missing hands, floating limbs, disconnected limbs, extra legs, missing legs, extra arms, missing arms, long neck, duplicate, morbid, mutilated, out of frame, extra bodies, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped"
+
+/**
+ * Quality constants for image generation
+ */
+export const IMAGE_GEN_QUALITY_CONSTANTS =
+  "masterpiece, best quality, highly detailed, sharp focus, 8K UHD, professional photography, cinematic lighting, photorealistic, anatomically correct, correct hand anatomy with exactly 5 fingers, natural pose, proper body proportions"
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.
@@ -105,10 +126,16 @@ Your job:
 4. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly mentions adding a person.
 5. CRITICAL: Do NOT add animals, objects, or elements not mentioned by the user.
 6. Preserve the original subject identity, face, and all personal features unless the user explicitly asks to change them.
-7. ANATOMY: ensure correct human anatomy — exactly five fingers on each hand, no extra limbs, natural proportions.
+7. STRICT ANATOMY RULES:
+   - Every human hand MUST have exactly 5 fingers (1 thumb + 4 fingers)
+   - Fingers must have correct proportions and natural joints
+   - No extra, missing, fused, or deformed fingers
+   - Two arms attached naturally to shoulders
+   - Two legs attached naturally to hips
+   - Correct body proportions throughout
 8. Do NOT add text overlays or watermarks.
-9. Start your response with: "Apply ONLY the following changes while preserving 100% of the subject's face, identity, and features:" then describe exactly what the user asked for.
-10. Return ONLY the instruction in English, under 120 words. No explanations.`
+9. Start your response with: "Apply ONLY the following changes while preserving 100% of the subject's face, identity, and features. Maintain perfect hand anatomy with exactly 5 fingers per hand:" then describe exactly what the user asked for.
+10. Return ONLY the instruction in English, under 150 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and write an image editing instruction for: "${userPrompt}"`
@@ -117,11 +144,11 @@ Your job:
   try {
     const result = await callGroq(system, userMsg)
     return result
-      ? `${result} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
-      : `Preserve all facial features, skin tone, and original background. ${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
+      ? `${result} ${IMAGE_EDIT_QUALITY_CONSTANTS} AVOID: ${NEGATIVE_PROMPT_CONSTANTS}`
+      : `Preserve all facial features, skin tone, and original background. ${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS} AVOID: ${NEGATIVE_PROMPT_CONSTANTS}`
   } catch (error) {
     console.error("[prompt-enhancer] Groq editing error:", error)
-    return `Preserve all facial features, skin tone, and original background. ${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
+    return `Preserve all facial features, skin tone, and original background. ${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS} AVOID: ${NEGATIVE_PROMPT_CONSTANTS}`
   }
 }
 
