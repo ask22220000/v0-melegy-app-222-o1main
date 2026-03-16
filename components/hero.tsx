@@ -165,9 +165,8 @@ export function Hero() {
           {/* Android */}
           <button
             onClick={handleAndroidInstall}
-            className="flex items-center gap-3 bg-[#1a1f2e] hover:bg-[#222840] border border-slate-700 hover:border-blue-500/50 text-white px-5 py-3 rounded-xl transition-all w-full sm:w-auto justify-center"
+            className="flex items-center gap-3 bg-gray-900 dark:bg-[#1a1f2e] hover:bg-gray-800 dark:hover:bg-[#222840] border border-gray-700 dark:border-slate-700 hover:border-blue-500/70 text-white px-5 py-3 rounded-xl transition-all w-full sm:w-auto justify-center shadow-md"
           >
-            {/* Google Play Icon */}
             <svg className="w-7 h-7 flex-shrink-0" viewBox="0 0 24 24" fill="none">
               <path d="M3.18 23.76a2 2 0 0 0 2.18-.22l12.29-7.1-3.06-3.06-11.41 10.38z" fill="#EA4335"/>
               <path d="M21.54 10.27a2 2 0 0 0 0 3.46l.02.01-2.34 1.35-3.28-3.28 3.28-3.28 2.32 1.74z" fill="#FBBC04"/>
@@ -175,23 +174,22 @@ export function Hero() {
               <path d="M3.18.24l11.41 11.76 3.06-3.06L5.36.46A2 2 0 0 0 3.18.24z" fill="#34A853"/>
             </svg>
             <div className="text-right">
-              <p className="text-xs text-slate-400">تنزيل مجاني</p>
-              <p className="text-sm font-bold">Android</p>
+              <p className="text-xs text-gray-400">تنزيل مجاني</p>
+              <p className="text-sm font-bold text-white">Android</p>
             </div>
           </button>
 
           {/* iOS */}
           <button
             onClick={() => setShowIOSGuide(true)}
-            className="flex items-center gap-3 bg-[#1a1f2e] hover:bg-[#222840] border border-slate-700 hover:border-blue-500/50 text-white px-5 py-3 rounded-xl transition-all w-full sm:w-auto justify-center"
+            className="flex items-center gap-3 bg-gray-900 dark:bg-[#1a1f2e] hover:bg-gray-800 dark:hover:bg-[#222840] border border-gray-700 dark:border-slate-700 hover:border-blue-500/70 text-white px-5 py-3 rounded-xl transition-all w-full sm:w-auto justify-center shadow-md"
           >
-            {/* Apple Icon */}
-            <svg className="w-7 h-7 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-7 h-7 flex-shrink-0" viewBox="0 0 24 24" fill="white">
               <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
             </svg>
             <div className="text-right">
-              <p className="text-xs text-slate-400">تنزيل مجاني</p>
-              <p className="text-sm font-bold">iPhone / iPad</p>
+              <p className="text-xs text-gray-400">تنزيل مجاني</p>
+              <p className="text-sm font-bold text-white">iPhone / iPad</p>
             </div>
           </button>
         </div>
