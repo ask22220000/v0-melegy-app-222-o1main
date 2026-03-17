@@ -4,7 +4,10 @@ import { ImageIcon } from "lucide-react"
 import { useApp } from "@/lib/contexts/AppContext"
 
 export function Features() {
-  const { translations, language } = useApp()
+  const { translations, language, mounted } = useApp()
+
+  // Prevent hydration mismatch by using consistent default during SSR
+  const dir = mounted ? (language === "ar" ? "rtl" : "ltr") : "rtl"
 
   const features = [
     { icon: "🖼️", key: "imageAnalysis" as const },
@@ -31,10 +34,10 @@ export function Features() {
               <div className="text-5xl mb-4">
                 {feature.icon === "🖼️" ? <ImageIcon className="h-12 w-12 text-blue-400" /> : feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-white mb-3" dir={language === "ar" ? "rtl" : "ltr"}>
+              <h3 className="text-xl font-bold text-white mb-3" dir={dir}>
                 {featureText.title}
               </h3>
-              <p className="text-white/60 leading-relaxed" dir={language === "ar" ? "rtl" : "ltr"}>
+              <p className="text-white/60 leading-relaxed" dir={dir}>
                 {featureText.description}
               </p>
             </div>

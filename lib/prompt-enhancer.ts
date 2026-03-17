@@ -10,6 +10,26 @@
  * Egyptian Arabic food terms dictionary for better translations
  */
 const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
+  // CRITICAL Egyptian foods - very specific descriptions for AI accuracy
+  "فسيخ": "fesikh (traditional Egyptian salted fermented fish, grey-silver boneless fish fillets preserved in salt brine, similar to sardines or mullet)",
+  "الفسيخ": "fesikh (traditional Egyptian salted fermented fish, grey-silver boneless fish fillets preserved in salt brine)",
+  "فسيخ مخلي": "boneless fesikh fillets (grey-silver fish fillets without bones, Egyptian salted fish)",
+  "فسيخ مخلية": "boneless fesikh fillets (grey-silver fish fillets without bones, Egyptian salted fish)",
+  "مخلي": "boneless, filleted",
+  "مخلية": "boneless, filleted",
+  
+  // Egyptian breads - VERY IMPORTANT
+  "عيش بلدي": "authentic Egyptian baladi bread (traditional round flatbread, puffy with air pocket inside, light brown color with dark brown charred spots, rustic texture, made from whole wheat flour, served in traditional woven baskets)",
+  "العيش البلدي": "authentic Egyptian baladi bread (traditional round flatbread, puffy with air pocket inside, light brown color with dark brown charred spots, rustic texture)",
+  "عيش شمسي": "Egyptian sun-dried bread (shamsi bread, traditional flatbread)",
+  "عيش فينو": "Egyptian fino bread (soft elongated white bread rolls)",
+  "عيش": "Egyptian bread (aish baladi - round puffy flatbread with brown spots)",
+  
+  // Egyptian environment/setting
+  "بيئة مصرية": "authentic Egyptian setting (traditional Egyptian market street, rustic wooden tables, woven baskets, warm sunlight, terracotta pots, old Cairo architecture in background)",
+  "مصري": "authentic Egyptian style, traditional Egyptian setting",
+  "شعبي": "Egyptian street food style, traditional popular Egyptian, rustic market setting",
+  
   // Common Egyptian foods
   "كنافة": "konafa (Egyptian pastry dessert with cheese and syrup)",
   "كنافه": "konafa (Egyptian pastry dessert with cheese and syrup)",
@@ -23,8 +43,6 @@ const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
   "محشي": "mahshi (stuffed vegetables)",
   "ملوخية": "molokhia (traditional Egyptian stew)",
   "ملوخيه": "molokhia (traditional Egyptian stew)",
-  "عيش": "aish (Egyptian bread)",
-  "عيش بلاش": "simple Egyptian bread",
   "فاصوليا": "beans (Egyptian style)",
   "فول": "fava beans (Egyptian breakfast staple)",
   "فول مصري": "Egyptian fava beans",
@@ -165,25 +183,32 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   // Detect if the prompt mentions hands or includes hand-related actions
   const mentionsHands = /hand|ايد|يد|ترش|رش|ممسك|امسك|امساك|قابض|اصابع|اصابع|وضع|يضع|يمسك|بيرش|برش/i.test(userPrompt)
 
-  const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for AUTHENTIC EGYPTIAN FOOD PHOTOGRAPHY — realistic, naturally lit, as if captured by a professional food photographer using a real camera.
+  const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for HYPER-REALISTIC EGYPTIAN FOOD PHOTOGRAPHY — as if captured by a professional food photographer with a real DSLR camera.
+
+CRITICAL EGYPTIAN FOOD KNOWLEDGE:
+- "فسيخ" (fesikh) = Traditional Egyptian salted fermented FISH. It is GREY-SILVER colored boneless fish fillets (similar to sardines/mullet), NOT orange vegetables or squash. The fish is preserved in salt and has a distinctive grey metallic sheen.
+- "عيش بلدي" (baladi bread) = Traditional Egyptian round FLATBREAD. It is PUFFY with an air pocket inside, LIGHT BROWN color with DARK BROWN charred spots, rough rustic texture. It is NOT Western bread, NOT brioche, NOT smooth bread. Always shown in traditional woven baskets.
+- "بيئة مصرية" (Egyptian setting) = Traditional Egyptian market/street setting with: rustic weathered wooden tables, woven straw baskets, terracotta pottery, old Cairo architecture, warm sunlight, traditional market stalls in background.
 
 Your job:
-1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully and completely — do NOT omit any detail.
-2. If the text mentions Egyptian foods, describe them with AUTHENTIC FOOD PHOTOGRAPHY DETAILS:
-   - Rich natural colors (golden-brown grilled fish, vibrant green herbs, warm wooden surfaces)
-   - Visible textures and moisture (water droplets, shiny surfaces, grilled marks)
-   - Authentic Egyptian home/street food setting (simple wooden surfaces, ceramic, traditional presentation)
-   - Professional but natural lighting (golden hour, soft directional light, shadows)
-   - NO plastic, no artificial, no overly styled/magazine look
-3. Photography STYLE specifics: "shot with professional DSLR, shallow depth of field (blurred background), warm golden lighting, macro food photography, documentary style, real-life Egyptian setting, authentic street food aesthetic"
-4. For objects: "wooden box" = simple rustic wooden crate, "kitchen setting" = authentic Egyptian home kitchen with warm lights
-5. Enrich the translation with photographic details: NATURAL lighting, SHALLOW DEPTH OF FIELD (bokeh), MACRO DETAILS, WARM COLOR PALETTE
-6. Do NOT change or remove any subject, person, object, or scene the user described.
-7. If the user mentions "a person" or hand actions → INCLUDE person/hands. If user says "no people/no hands" → STRICTLY EXCLUDE them.
-8. Do NOT add elements the user didn't mention.
-9. Do NOT add text overlays, watermarks, or artificial elements.
-10. AUTHENTICITY: Avoid "hyper-polished" or "studio product photography" look. Make it look like real food photography from real life.
-11. Return ONLY the final English prompt, under 220 words. No explanations.`
+1. If the text is Arabic (Egyptian dialect), translate EVERY detail faithfully to English — do NOT omit anything.
+2. For Egyptian foods: describe them with EXACT visual characteristics:
+   - Fesikh: grey-silver boneless fish fillets, glistening with oil, preserved fish texture
+   - Baladi bread: round puffy flatbread with brown charred spots, in woven baskets
+   - Egyptian setting: rustic wood, woven baskets, terracotta, warm golden sunlight
+3. PHOTOREALISM is KEY:
+   - "shot with Canon 5D Mark IV, 50mm f/1.4 lens"
+   - "shallow depth of field with creamy bokeh background"
+   - "warm golden hour natural lighting"
+   - "visible moisture, oil droplets, realistic textures"
+   - "documentary-style food photography"
+4. For containers: "علبة شفافة" = clear glass bowl or container (NOT wooden box)
+5. For actions: "شوكة مرفوعة" = silver metal fork lifting a piece dynamically, frozen mid-action
+6. Do NOT change any subject the user described. Keep EXACT items mentioned.
+7. If user mentions hand actions → INCLUDE realistic hands. If user says "no people" → EXCLUDE.
+8. Do NOT add elements not mentioned by the user.
+9. AVOID: CGI look, plastic appearance, overly stylized, fake lighting, Western food styles.
+10. Return ONLY the final English prompt, under 250 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -237,7 +262,7 @@ export const NEGATIVE_PROMPT_CONSTANTS =
  * Quality constants for image generation - STRONG EMPHASIS ON REALISTIC PHOTOGRAPHY STYLE
  */
 export const IMAGE_GEN_QUALITY_CONSTANTS =
-  "masterpiece, best quality, professional food photography, shot with professional DSLR camera, sharp focus on subject, shallow depth of field (bokeh background), warm golden lighting, natural soft directional light, authentic Egyptian street food style, real life Egyptian setting, macro food photography, rich warm color palette, authentic rustic wooden surfaces, water droplets and moisture visible, fresh natural ingredients, no CGI artifacts, no overprocessing, documentary photography style, captured by professional photographer, fine art food photography, authentic Mediterranean/Egyptian aesthetic, shot with 50mm or 85mm lens, rich warm tones (golden hour lighting), cinematic color grading, film photography quality, realistic textures and details"
+  "PHOTOREALISTIC, masterpiece, best quality, professional food photography, shot with Canon 5D Mark IV DSLR camera with 50mm f/1.4 lens, ultra sharp focus on subject, shallow depth of field with creamy bokeh background, warm golden hour natural lighting, soft directional sunlight with natural shadows, authentic Egyptian street food style, real life Egyptian market setting, macro food photography showing realistic textures, rich warm Mediterranean color palette, authentic rustic weathered wooden surfaces, visible oil droplets and moisture on food, fresh natural ingredients, NO CGI NO artificial look NO plastic appearance, documentary photography style like National Geographic, captured by professional food photographer, authentic Egyptian/Middle Eastern aesthetic, rich warm golden tones, film photography quality, hyper-realistic textures and fine details visible, natural imperfections that make it look real"
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.

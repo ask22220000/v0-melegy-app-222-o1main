@@ -8,10 +8,13 @@ import Link from "next/link"
 import { useApp } from "@/lib/contexts/AppContext"
 
 export default function HomePage() {
-  const { translations, language } = useApp()
+  const { translations, language, mounted } = useApp()
+
+  // Use consistent default during SSR to prevent hydration mismatch
+  const dir = mounted ? (language === "ar" ? "rtl" : "ltr") : "rtl"
 
   return (
-    <div className="min-h-screen bg-background homepage-dark-bg" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-background homepage-dark-bg" dir={dir}>
       <Header />
       <Hero />
       <Features />

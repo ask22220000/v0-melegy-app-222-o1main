@@ -7,7 +7,10 @@ import { useApp } from "@/lib/contexts/AppContext"
 import { useEffect, useState, useRef } from "react"
 
 export function Hero() {
-  const { translations, language } = useApp()
+  const { translations, language, mounted } = useApp()
+
+  // Use consistent default during SSR to prevent hydration mismatch
+  const dir = mounted ? (language === "ar" ? "rtl" : "ltr") : "rtl"
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showIOSGuide, setShowIOSGuide] = useState(false)
   const [showAndroidGuide, setShowAndroidGuide] = useState(false)
@@ -187,21 +190,21 @@ export function Hero() {
 
       <p
         className="text-2xl md:text-3xl text-white mb-4 font-semibold text-center"
-        dir={language === "ar" ? "rtl" : "ltr"}
+        dir={dir}
       >
         {translations.heroSubtitle}
       </p>
 
       <p className="text-base text-blue-400/80 mb-8">{translations.heroVersion}</p>
 
-      <p className="text-lg text-white/70 mb-12 max-w-3xl mx-auto text-center" dir={language === "ar" ? "rtl" : "ltr"}>
+      <p className="text-lg text-white/70 mb-12 max-w-3xl mx-auto text-center" dir={dir}>
         {translations.heroDescription}
       </p>
 
       <div className="flex justify-center">
         <Link href="/chat">
           <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg rounded-xl">
-            <MessageSquare className={language === "ar" ? "ml-2 h-5 w-5" : "mr-2 h-5 w-5"} />
+            <MessageSquare className={dir === "rtl" ? "ml-2 h-5 w-5" : "mr-2 h-5 w-5"} />
             {translations.startChat}
           </Button>
         </Link>
@@ -264,10 +267,10 @@ export function Hero() {
       )}
 
       <div className="mt-8 flex flex-col items-center gap-3">
-        <p className="text-lg text-white/80 font-medium text-center max-w-3xl" dir={language === "ar" ? "rtl" : "ltr"}>
+        <p className="text-lg text-white/80 font-medium text-center max-w-3xl" dir={dir}>
           {translations.heroCta}
         </p>
-        <p className="text-base text-white/70 text-center" dir={language === "ar" ? "rtl" : "ltr"}>
+        <p className="text-base text-white/70 text-center" dir={dir}>
           {translations.heroCtaSub}
         </p>
         <ArrowDown className="h-8 w-8 text-cyan-400 animate-bounce drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
