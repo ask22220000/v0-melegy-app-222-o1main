@@ -23,6 +23,16 @@ const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
   "خرز": "beads/pearls (small round spherical items)",
   "علبة البطارخ": "container of fish roe caviar (glass jar or container filled with glistening orange-amber fish egg beads/pearls)",
   
+  // SARDINES and SMALL FISH - CORRECT ANATOMY
+  "سردين": "sardines (small silver fish with HEAD ON ONE END and TAIL ON THE OTHER END - correct fish anatomy: one head, elongated silver body, one tail fin at opposite end. NOT two heads. Each fish has: 1 head with eye, silver scaled body, dorsal fin on top, 1 forked tail at back)",
+  "السردين": "sardines (small silver fish - CORRECT ANATOMY: head on front, tail on back, NOT two-headed)",
+  "سردين صغير": "small sardines (tiny silver fish with proper anatomy: single head at front, tail fin at back, silver shiny body)",
+  
+  // MESHNA - Traditional Egyptian woven basket
+  "مشنة": "meshna (traditional Egyptian shallow woven basket made of palm fronds or wicker, round or oval shape, rustic handwoven texture, used for displaying fish and food in Egyptian markets)",
+  "المشنة": "meshna (traditional Egyptian woven palm basket for food display)",
+  "مشنة خشبية": "wooden meshna basket (traditional Egyptian shallow wooden basket or tray with woven/slatted construction)",
+  
   // FESIKH - salted fermented fish
   "فسيخ": "fesikh (traditional Egyptian salted fermented fish, grey-silver boneless fish fillets preserved in salt brine, similar to sardines or mullet)",
   "الفسيخ": "fesikh (traditional Egyptian salted fermented fish, grey-silver boneless fish fillets preserved in salt brine)",
@@ -30,6 +40,10 @@ const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
   "فسيخ مخلية": "boneless fesikh fillets (grey-silver fish fillets without bones, Egyptian salted fish)",
   "مخلي": "boneless, filleted",
   "مخلية": "boneless, filleted",
+  
+  // General fish anatomy rule
+  "سمك": "fish (CORRECT FISH ANATOMY: head with eye on ONE end, elongated body with scales, tail fin on OPPOSITE end - never two heads)",
+  "سمكة": "a fish (single fish with correct anatomy: one head, one body, one tail)",
   
   // Egyptian breads - VERY IMPORTANT
   "عيش بلدي": "authentic Egyptian baladi bread (traditional round flatbread, puffy with air pocket inside, light brown color with dark brown charred spots, rustic texture, made from whole wheat flour, served in traditional woven baskets)",
@@ -199,6 +213,9 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for HYPER-REALISTIC EGYPTIAN FOOD PHOTOGRAPHY — as if captured by a professional food photographer with a real DSLR camera.
 
 CRITICAL EGYPTIAN FOOD KNOWLEDGE:
+- FISH ANATOMY IS CRITICAL: Every fish MUST have HEAD on ONE end and TAIL on the OPPOSITE end. NEVER draw fish with two heads! Correct fish anatomy = 1 head with eye -> elongated silver body with scales -> 1 forked tail fin at back.
+- "سردين" (sardines) = Small silver fish with CORRECT ANATOMY: head at front, silver scaled body, tail fin at back. Stack them neatly showing heads on one side, tails on the other.
+- "مشنة" (meshna) = Traditional Egyptian shallow WOVEN BASKET made of palm fronds or wicker. Round/oval shape, rustic handwoven texture. Used to display fish in Egyptian markets.
 - "بطارخ" (bottarga) = Cured PRESSED fish roe sac. When SLICED or CUT, the cross-section MUST show GRAINY TEXTURE with thousands of tiny compressed fish eggs visible inside. It is NOT smooth, NOT jelly-like, NOT homogeneous - the interior has a GRANULAR appearance from the densely packed fish eggs. Color is amber-orange-brown. The texture is firm but clearly shows the individual compressed roe granules.
 - "بطارخ الخرز" (bottarga beads/fish roe caviar) = Individual small ROUND GLISTENING FISH EGGS (like salmon roe or tobiko caviar). They are ORANGE-AMBER colored SPHERICAL BEADS that are translucent and shiny. This is NOT whole fish! It is loose fish roe/caviar pearls packed in a container. Each bead is small, round, and glistens.
 - "فسيخ" (fesikh) = Traditional Egyptian salted fermented FISH. It is GREY-SILVER colored boneless fish fillets (similar to sardines/mullet), NOT orange vegetables or squash. The fish is preserved in salt and has a distinctive grey metallic sheen.
