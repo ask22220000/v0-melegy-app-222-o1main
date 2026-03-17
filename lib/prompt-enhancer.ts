@@ -123,11 +123,20 @@ async function callGroq(systemPrompt: string, userMessage: string): Promise<stri
 }
 
 /**
+ * Hand anatomy specification for consistent results
+ */
+const HAND_ANATOMY_SPEC =
+  "realistic human hands with exactly 5 fingers per hand (1 thumb + 4 fingers), natural finger anatomy with correct joints and proportions, proper thumb placement and rotation, realistic finger length ratios, correct finger spacing, natural hand shape and palm structure, accurate skin texture on hands"
+
+/**
  * For image GENERATION via fal-ai/flux/schnell.
  * Translates Arabic Egyptian dialect to English and engineers a professional prompt.
  */
 export async function processPromptForImageGeneration(userPrompt: string): Promise<string> {
   const hasArabic = /[\u0600-\u06FF]/.test(userPrompt)
+  
+  // Detect if the prompt mentions hands or includes hand-related actions
+  const mentionsHands = /hand|ايد|يد|ترش|رش|ممسك|امسك|امساك|قابض|اصابع|اصابع|وضع|يضع|يمسك|بيرش|برش/i.test(userPrompt)
 
   const system = `You are a professional prompt engineer for AI image generation (Flux model).
 Your job:
@@ -144,7 +153,7 @@ Your job:
    - "correct finger joints and proportions"
    - "natural hand positioning"
    - "two arms, two legs, proper limb attachment"
-9. If showing hands, describe them as: "realistic human hands with exactly 5 fingers each, natural finger length proportions, correct thumb placement"
+9. HAND PRIORITY: If the prompt mentions showing hands, fingers, or hand actions (like holding, pouring, sprinkling, picking, touching, etc.), add DETAILED hand specifications: "perfect hand anatomy with exactly 5 fingers per hand, correct finger joints, realistic finger proportions, natural hand shape, proper thumb placement, visible hand details"
 10. Return ONLY the final English prompt, under 150 words. No explanations.`
 
   const userMsg = hasArabic
@@ -153,13 +162,26 @@ Your job:
 
   try {
     const result = await callGroq(system, userMsg)
-    const enhancedResult = result 
+    let enhancedResult = result 
       ? `${result}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
       : `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
+    
+    // If hands are mentioned, add explicit hand anatomy specification
+    if (mentionsHands) {
+      enhancedResult = enhancedResult.replace(
+        IMAGE_GEN_QUALITY_CONSTANTS,
+        `${IMAGE_GEN_QUALITY_CONSTANTS}, ${HAND_ANATOMY_SPEC}`
+      )
+    }
+    
     return enhancedResult
   } catch (error) {
     console.error("[prompt-enhancer] Groq generation error:", error)
-    return `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
+    let fallback = `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
+    if (mentionsHands) {
+      fallback = `${fallback}, ${HAND_ANATOMY_SPEC}`
+    }
+    return fallback
   }
 }
 
@@ -171,16 +193,16 @@ export const IMAGE_EDIT_QUALITY_CONSTANTS =
   "PRESERVE 100% SUBJECT IDENTITY: keep identical face structure, exact facial features, same skin tone, same eye color, same nose shape, same lip shape, same hair color and texture — NO facial modifications whatsoever. PERFECT ANATOMY: anatomically correct human body, exactly 5 fingers per hand (thumb + 4 fingers), correct finger proportions and joints, natural hand poses, two arms, two legs, proper limb attachment, realistic body proportions. HIGH QUALITY: 8K resolution, sharp focus, professional photography, cinematic lighting, photorealistic details."
 
 /**
- * Negative prompt to avoid common AI generation issues
+ * Negative prompt to avoid common AI generation issues - HEAVY EMPHASIS ON HANDS
  */
 export const NEGATIVE_PROMPT_CONSTANTS =
-  "bad anatomy, wrong anatomy, extra fingers, fewer fingers, missing fingers, extra limbs, missing limbs, fused fingers, too many fingers, six fingers, mutated hands, poorly drawn hands, malformed hands, deformed hands, bad hands, extra hands, missing hands, floating limbs, disconnected limbs, extra legs, missing legs, extra arms, missing arms, long neck, duplicate, morbid, mutilated, out of frame, extra bodies, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped"
+  "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, extra bodies, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped"
 
 /**
- * Quality constants for image generation
+ * Quality constants for image generation - STRONG EMPHASIS ON HAND QUALITY
  */
 export const IMAGE_GEN_QUALITY_CONSTANTS =
-  "masterpiece, best quality, highly detailed, sharp focus, 8K UHD, professional photography, cinematic lighting, photorealistic, anatomically correct, correct hand anatomy with exactly 5 fingers, natural pose, proper body proportions"
+  "masterpiece, best quality, highly detailed, sharp focus, 8K UHD, professional photography, cinematic lighting, photorealistic, anatomically correct human body, PERFECT HANDS with exactly 5 fingers each (one thumb and four fingers), natural finger anatomy, correct finger joints, proper thumb positioning, realistic hand proportions, natural hand positioning, accurate hand proportions, proper body proportions, professional lighting"
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.
