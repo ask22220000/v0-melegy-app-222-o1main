@@ -54,10 +54,10 @@ export function Features() {
               <div className="text-5xl mb-4">
                 {feature.icon === "🖼️" ? <ImageIcon className="h-12 w-12 text-blue-400" /> : feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-white mb-3" dir={dir}>
+              <h3 className="text-xl font-bold text-white mb-3" dir={dir} suppressHydrationWarning>
                 {featureText.title}
               </h3>
-              <p className="text-white/60 leading-relaxed" dir={dir}>
+              <p className="text-white/60 leading-relaxed" dir={dir} suppressHydrationWarning>
                 {featureText.description}
               </p>
             </div>

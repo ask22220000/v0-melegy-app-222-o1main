@@ -206,24 +206,25 @@ export function Hero() {
         </div>
       </div>
 
-      <h1 className="text-6xl md:text-7xl font-bold text-blue-400 mb-6">{translations.heroTitle}</h1>
+      <h1 className="text-6xl md:text-7xl font-bold text-blue-400 mb-6" suppressHydrationWarning>{translations.heroTitle}</h1>
 
       <p
         className="text-2xl md:text-3xl text-white mb-4 font-semibold text-center"
         dir={dir}
+        suppressHydrationWarning
       >
         {translations.heroSubtitle}
       </p>
 
-      <p className="text-base text-blue-400/80 mb-8">{translations.heroVersion}</p>
+      <p className="text-base text-blue-400/80 mb-8" suppressHydrationWarning>{translations.heroVersion}</p>
 
-      <p className="text-lg text-white/70 mb-12 max-w-3xl mx-auto text-center" dir={dir}>
+      <p className="text-lg text-white/70 mb-12 max-w-3xl mx-auto text-center" dir={dir} suppressHydrationWarning>
         {translations.heroDescription}
       </p>
 
       <div className="flex justify-center">
         <Link href="/chat">
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg rounded-xl">
+          <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg rounded-xl" suppressHydrationWarning>
             <MessageSquare className={dir === "rtl" ? "ml-2 h-5 w-5" : "mr-2 h-5 w-5"} />
             {translations.startChat}
           </Button>
@@ -282,15 +283,15 @@ export function Hero() {
       {isInstalled && (
         <div className="mt-6 flex items-center justify-center gap-2 text-green-400 text-sm">
           <Smartphone className="w-4 h-4" />
-          <span>التطبيق مثبت على جها��ك</span>
+          <span>التطبيق مثبت على جه����ك</span>
         </div>
       )}
 
       <div className="mt-8 flex flex-col items-center gap-3">
-        <p className="text-lg text-white/80 font-medium text-center max-w-3xl" dir={dir}>
+        <p className="text-lg text-white/80 font-medium text-center max-w-3xl" dir={dir} suppressHydrationWarning>
           {translations.heroCta}
         </p>
-        <p className="text-base text-white/70 text-center" dir={dir}>
+        <p className="text-base text-white/70 text-center" dir={dir} suppressHydrationWarning>
           {translations.heroCtaSub}
         </p>
         <ArrowDown className="h-8 w-8 text-cyan-400 animate-bounce drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
