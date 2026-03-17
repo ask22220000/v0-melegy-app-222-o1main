@@ -135,6 +135,9 @@ const HAND_ANATOMY_SPEC =
 export async function processPromptForImageGeneration(userPrompt: string): Promise<string> {
   const hasArabic = /[\u0600-\u06FF]/.test(userPrompt)
   
+  // Detect if user explicitly says "no people" or "no hands"
+  const noPeople = /بدون ناس|بدون اشخاص|بدون شخص|بدون ايادي|بدون ايد|بدون يد|بدون انسان|بدون أشخاص|بدون أيادي|بدون أيد|بدون يد|without people|without person|without hands|no people|no person|no hands|solo|alone|by itself/i.test(userPrompt)
+  
   // Detect if the prompt mentions hands or includes hand-related actions
   const mentionsHands = /hand|ايد|يد|ترش|رش|ممسك|امسك|امساك|قابض|اصابع|اصابع|وضع|يضع|يمسك|بيرش|برش/i.test(userPrompt)
 
@@ -144,17 +147,13 @@ Your job:
 2. If the text mentions Egyptian foods (like konafa, basboussa, koshari, molokheya, falafel, etc.), describe them clearly with appetizing details: vibrant colors, textures, plating style, restaurant or home setting.
 3. Enrich the translation with professional visual details: lighting, composition, color palette, mood, camera angle, photographic style.
 4. Do NOT change or remove any subject, person, object, or scene the user described.
-5. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly asks for a person in their prompt.
-6. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
-7. Do NOT add text overlays, watermarks, or typography.
-8. ANATOMY RULES FOR HUMANS: If generating a person, ALWAYS include these anatomical specifications:
-   - "anatomically correct human body"
-   - "exactly five fingers on each hand (one thumb and four fingers)"
-   - "correct finger joints and proportions"
-   - "natural hand positioning"
-   - "two arms, two legs, proper limb attachment"
-9. HAND PRIORITY: If the prompt mentions showing hands, fingers, or hand actions (like holding, pouring, sprinkling, picking, touching, etc.), add DETAILED hand specifications: "perfect hand anatomy with exactly 5 fingers per hand, correct finger joints, realistic finger proportions, natural hand shape, proper thumb placement, visible hand details"
-10. Return ONLY the final English prompt, under 150 words. No explanations.`
+5. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user EXPLICITLY and CLEARLY asks for a person in their prompt.
+6. CRITICAL: If the prompt says "without people", "without hands", "no hands", "solo", "alone", "by itself" — STRICTLY ENFORCE this. Never add people or hands unless explicitly requested.
+7. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
+8. Do NOT add text overlays, watermarks, or typography.
+9. ANATOMY RULES FOR HUMANS: Only include hands/people if the user EXPLICITLY asks for them. If the user says "no hands" or "no people", NEVER include them — not even partially visible.
+10. If the prompt mentions hand actions (holding, pouring, sprinkling, etc.), interpret this as needing good hand anatomy in the final image, but ONLY if the user hasn't said "no hands" or "without people".
+11. Return ONLY the final English prompt, under 150 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -166,8 +165,12 @@ Your job:
       ? `${result}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
       : `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
     
-    // If hands are mentioned, add explicit hand anatomy specification
-    if (mentionsHands) {
+    // If user says "no people" or "no hands", add explicit instruction to negative prompt
+    if (noPeople) {
+      enhancedResult = `${enhancedResult} STRICTLY: no people, no humans, no hands visible, no body parts, isolated subject only`
+    }
+    // Otherwise, if hands are mentioned and user didn't say "no people", add hand anatomy specification
+    else if (mentionsHands) {
       enhancedResult = enhancedResult.replace(
         IMAGE_GEN_QUALITY_CONSTANTS,
         `${IMAGE_GEN_QUALITY_CONSTANTS}, ${HAND_ANATOMY_SPEC}`
@@ -178,7 +181,9 @@ Your job:
   } catch (error) {
     console.error("[prompt-enhancer] Groq generation error:", error)
     let fallback = `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
-    if (mentionsHands) {
+    if (noPeople) {
+      fallback = `${fallback} STRICTLY: no people, no humans, no hands visible, no body parts, isolated subject only`
+    } else if (mentionsHands) {
       fallback = `${fallback}, ${HAND_ANATOMY_SPEC}`
     }
     return fallback
@@ -193,10 +198,10 @@ export const IMAGE_EDIT_QUALITY_CONSTANTS =
   "PRESERVE 100% SUBJECT IDENTITY: keep identical face structure, exact facial features, same skin tone, same eye color, same nose shape, same lip shape, same hair color and texture — NO facial modifications whatsoever. PERFECT ANATOMY: anatomically correct human body, exactly 5 fingers per hand (thumb + 4 fingers), correct finger proportions and joints, natural hand poses, two arms, two legs, proper limb attachment, realistic body proportions. HIGH QUALITY: 8K resolution, sharp focus, professional photography, cinematic lighting, photorealistic details."
 
 /**
- * Negative prompt to avoid common AI generation issues - HEAVY EMPHASIS ON HANDS
+ * Negative prompt to avoid common AI generation issues - HEAVY EMPHASIS ON HANDS AND NO PEOPLE
  */
 export const NEGATIVE_PROMPT_CONSTANTS =
-  "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, extra bodies, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped"
+  "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, people, humans, persons, human hand, human body, human figure, hands visible, hands in frame, hand holding, person, man, woman, child, face, head, body parts, arm visible, fingers visible, extra bodies, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped"
 
 /**
  * Quality constants for image generation - STRONG EMPHASIS ON HAND QUALITY
