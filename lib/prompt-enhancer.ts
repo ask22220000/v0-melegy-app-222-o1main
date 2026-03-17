@@ -43,6 +43,8 @@ const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
   "الكشري": "koshari (Egyptian mixed dish)",
   "فرن": "oven baked dishes",
   "سمك": "fish",
+  "رنجة": "ringa (salted dried fish, Egyptian staple)",
+  "رنجه": "ringa (salted dried fish, Egyptian staple)",
   "جمبري": "shrimp",
   "روبيان": "shrimp",
   "دجاج": "chicken",
@@ -64,6 +66,20 @@ const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
   "تقليدي": "traditional",
   "شهي": "delicious",
   "لذيذ": "tasty",
+  // Objects and descriptive terms
+  "صندوق": "box, crate",
+  "صندوق خشبي": "wooden box, wooden crate",
+  "خشبي": "wooden, simple wood",
+  "رصوص": "neatly stacked, organized, neat rows",
+  "مرصوص": "neatly stacked, organized, arranged in neat rows",
+  "ذهبي": "golden, golden-colored, shimmering gold",
+  "يخطف": "eye-catching, stunning, striking",
+  "تحت إضاءة": "under lighting, under bright lighting",
+  "إضاءة قوية": "strong lighting, bright lighting, professional lighting",
+  "شخص": "person, man, woman",
+  "بيفتح": "opening, is opening, opens",
+  "بيرفع": "lifting, is lifting, raises",
+  "بيشيل": "holding, is holding, picking up",
 }
 
 const NO_CHANGE_PATTERNS = [
@@ -144,16 +160,16 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   const system = `You are a professional prompt engineer for AI image generation (Flux model).
 Your job:
 1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully and completely — do NOT omit any detail.
-2. If the text mentions Egyptian foods (like konafa, basboussa, koshari, molokheya, falafel, etc.), describe them clearly with appetizing details: vibrant colors, textures, plating style, restaurant or home setting.
-3. Enrich the translation with professional visual details: lighting, composition, color palette, mood, camera angle, photographic style.
-4. Do NOT change or remove any subject, person, object, or scene the user described.
-5. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user EXPLICITLY and CLEARLY asks for a person in their prompt.
-6. CRITICAL: If the prompt says "without people", "without hands", "no hands", "solo", "alone", "by itself" — STRICTLY ENFORCE this. Never add people or hands unless explicitly requested.
-7. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
-8. Do NOT add text overlays, watermarks, or typography.
-9. ANATOMY RULES FOR HUMANS: Only include hands/people if the user EXPLICITLY asks for them. If the user says "no hands" or "no people", NEVER include them — not even partially visible.
-10. If the prompt mentions hand actions (holding, pouring, sprinkling, etc.), interpret this as needing good hand anatomy in the final image, but ONLY if the user hasn't said "no hands" or "without people".
-11. Return ONLY the final English prompt, under 150 words. No explanations.`
+2. If the text mentions Egyptian foods (like konafa, basboussa, koshari, molokheya, ringa in wooden boxes, etc.), describe them clearly with appetizing details: vibrant colors, textures, plating style, restaurant or home setting, storage condition.
+3. For specific items mentioned: if user says "wooden box", translate as "rustic wooden crate/box" (simple, not ornate). If user says "person opening/holding", describe the action explicitly: "person holding open the wooden box", "hands opening the lid", "person reaching into", etc.
+4. Enrich the translation with professional visual details: lighting (especially if mentioned), composition, color palette, mood, camera angle, photographic style.
+5. Do NOT change or remove any subject, person, object, or scene the user described.
+6. CRITICAL: If the user mentions "a person" or hand actions (opening, holding, reaching, sprinkling, etc.), INCLUDE a full person or visible hands in the prompt. Don't remove them.
+7. CRITICAL: If the prompt says "without people", "without hands", "no hands", "solo", "alone", "by itself" — STRICTLY ENFORCE this. Never add people or hands unless explicitly requested.
+8. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
+9. Do NOT add text overlays, watermarks, or typography.
+10. IMPORTANT: Specify wooden box/crate details accurately: simple vs ornate, size, condition. Use words like "rustic", "simple wooden crate", "sturdy wooden box" for regular boxes.
+11. Return ONLY the final English prompt, under 180 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
