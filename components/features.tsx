@@ -6,8 +6,6 @@ import { useApp } from "@/lib/contexts/AppContext"
 export function Features() {
   const { translations, language, mounted } = useApp()
 
-  const dir = language === "ar" ? "rtl" : "ltr"
-
   const features = [
     { icon: "🖼️", key: "imageAnalysis" as const },
     { icon: "🔍", key: "deepSearch" as const },
@@ -20,7 +18,7 @@ export function Features() {
     { icon: "🤔", key: "deepThinking" as const },
   ]
 
-  // Don't render until mounted to prevent hydration mismatch
+  // Don't render content until mounted to prevent hydration mismatch with Arabic text
   if (!mounted) {
     return (
       <section className="container mx-auto px-6 pb-20">
@@ -28,18 +26,20 @@ export function Features() {
           {features.map((_, index) => (
             <div
               key={index}
-              className="group relative bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-8 animate-pulse"
+              className="group relative bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-8"
             >
-              <div className="h-12 w-12 bg-slate-700 rounded mb-4" />
-              <div className="h-6 bg-slate-700 rounded mb-3 w-3/4" />
-              <div className="h-4 bg-slate-700 rounded w-full" />
-              <div className="h-4 bg-slate-700 rounded w-2/3 mt-2" />
+              <div className="h-12 w-12 bg-slate-800/50 rounded mb-4" />
+              <div className="h-6 bg-slate-800/50 rounded mb-3 w-3/4" />
+              <div className="h-4 bg-slate-800/50 rounded w-full" />
+              <div className="h-4 bg-slate-800/50 rounded w-2/3 mt-2" />
             </div>
           ))}
         </div>
       </section>
     )
   }
+
+  const dir = language === "ar" ? "rtl" : "ltr"
 
   return (
     <section className="container mx-auto px-6 pb-20">

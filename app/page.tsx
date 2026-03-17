@@ -10,8 +10,6 @@ import { useApp } from "@/lib/contexts/AppContext"
 export default function HomePage() {
   const { translations, language, mounted } = useApp()
 
-  const dir = language === "ar" ? "rtl" : "ltr"
-
   // Show loading state until mounted to prevent hydration mismatch
   if (!mounted) {
     return (
@@ -22,6 +20,8 @@ export default function HomePage() {
       </div>
     )
   }
+
+  const dir = language === "ar" ? "rtl" : "ltr"
 
   return (
     <div className="min-h-screen bg-background homepage-dark-bg" dir={dir}>

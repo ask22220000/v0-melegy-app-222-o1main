@@ -9,7 +9,6 @@ import { useEffect, useState, useRef } from "react"
 export function Hero() {
   const { translations, language, mounted } = useApp()
 
-  const dir = language === "ar" ? "rtl" : "ltr"
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showIOSGuide, setShowIOSGuide] = useState(false)
   const [showAndroidGuide, setShowAndroidGuide] = useState(false)
@@ -85,6 +84,8 @@ export function Hero() {
       </section>
     )
   }
+
+  const dir = language === "ar" ? "rtl" : "ltr"
 
   return (
     <section className="container mx-auto px-6 pt-32 pb-20 text-center">
@@ -281,7 +282,7 @@ export function Hero() {
       {isInstalled && (
         <div className="mt-6 flex items-center justify-center gap-2 text-green-400 text-sm">
           <Smartphone className="w-4 h-4" />
-          <span>التطبيق مثبت على جهازك</span>
+          <span>التطبيق مثبت على جها��ك</span>
         </div>
       )}
 
