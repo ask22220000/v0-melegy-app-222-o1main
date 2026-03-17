@@ -6,6 +6,66 @@
  * Falls back to the raw user prompt if Groq is unavailable.
  */
 
+/**
+ * Egyptian Arabic food terms dictionary for better translations
+ */
+const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
+  // Common Egyptian foods
+  "كنافة": "konafa (Egyptian pastry dessert with cheese and syrup)",
+  "كنافه": "konafa (Egyptian pastry dessert with cheese and syrup)",
+  "بسبوسة": "basboussa (semolina coconut cake)",
+  "بسبوسه": "basboussa (semolina coconut cake)",
+  "الكنافة": "konafa (Egyptian pastry dessert)",
+  "الكنافه": "konafa (Egyptian pastry dessert)",
+  "حلويات": "traditional Egyptian sweets and desserts",
+  "فتة": "fetta (bread salad with meat and yogurt)",
+  "فتة اللحم": "fetta with meat (traditional Egyptian dish)",
+  "محشي": "mahshi (stuffed vegetables)",
+  "ملوخية": "molokhia (traditional Egyptian stew)",
+  "ملوخيه": "molokhia (traditional Egyptian stew)",
+  "عيش": "aish (Egyptian bread)",
+  "عيش بلاش": "simple Egyptian bread",
+  "فاصوليا": "beans (Egyptian style)",
+  "فول": "fava beans (Egyptian breakfast staple)",
+  "فول مصري": "Egyptian fava beans",
+  "فول الشامي": "Syrian beans Egyptian style",
+  "حمص": "hummus (Egyptian style)",
+  "بابا غنوج": "baba ganoush",
+  "تعميّة": "tameya (Egyptian falafel)",
+  "تميه": "tameya (Egyptian falafel)",
+  "شاورما": "shawarma",
+  "كباب": "kebab",
+  "كفتة": "kofta (meatballs)",
+  "شيش طاووق": "shish taouk (chicken kebab)",
+  "الشيش": "kebab skewers",
+  "كشك": "kishk (traditional soup)",
+  "كشري": "koshari (mixed pasta rice lentils)",
+  "الكشري": "koshari (Egyptian mixed dish)",
+  "فرن": "oven baked dishes",
+  "سمك": "fish",
+  "جمبري": "shrimp",
+  "روبيان": "shrimp",
+  "دجاج": "chicken",
+  "لحم": "meat",
+  "لحمة": "meat",
+  "كبده": "liver",
+  "نقانق": "sausages",
+  "أرز": "rice",
+  "جرجير": "arugula salad",
+  "خس": "lettuce",
+  "خضار": "vegetables",
+  "طماطم": "tomatoes",
+  "خيار": "cucumber",
+  "بصل": "onion",
+  "ثوم": "garlic",
+  "حار": "spicy",
+  "مصري": "Egyptian",
+  "شعبي": "street food, popular Egyptian",
+  "تقليدي": "traditional",
+  "شهي": "delicious",
+  "لذيذ": "tasty",
+}
+
 const NO_CHANGE_PATTERNS = [
   /من غير ما تغير/i,
   /بدون ما تغير/i,
@@ -17,9 +77,24 @@ const NO_CHANGE_PATTERNS = [
   /no change/i,
 ]
 
+/**
+ * Replace Egyptian food terms with English equivalents to improve translation accuracy
+ */
+function substituteEgyptianFoods(text: string): string {
+  let result = text
+  for (const [arabic, english] of Object.entries(EGYPTIAN_FOOD_DICTIONARY)) {
+    const regex = new RegExp(arabic, 'gi')
+    result = result.replace(regex, english)
+  }
+  return result
+}
+
 async function callGroq(systemPrompt: string, userMessage: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) throw new Error("GROQ_API_KEY is not set")
+
+  // Pre-substitute Egyptian food terms to improve translation
+  const substitutedMessage = substituteEgyptianFoods(userMessage)
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -31,7 +106,7 @@ async function callGroq(systemPrompt: string, userMessage: string): Promise<stri
       model: "llama-3.1-8b-instant",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
+        { role: "user", content: substitutedMessage },
       ],
       temperature: 0.2,
       max_tokens: 350,
@@ -57,19 +132,20 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   const system = `You are a professional prompt engineer for AI image generation (Flux model).
 Your job:
 1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully and completely — do NOT omit any detail.
-2. Enrich the translation with professional visual details: lighting, composition, color palette, mood, camera angle, photographic style.
-3. Do NOT change or remove any subject, person, object, or scene the user described.
-4. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly asks for a person in their prompt.
-5. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
-6. Do NOT add text overlays, watermarks, or typography.
-7. ANATOMY RULES FOR HUMANS: If generating a person, ALWAYS include these anatomical specifications:
+2. If the text mentions Egyptian foods (like konafa, basboussa, koshari, molokheya, falafel, etc.), describe them clearly with appetizing details: vibrant colors, textures, plating style, restaurant or home setting.
+3. Enrich the translation with professional visual details: lighting, composition, color palette, mood, camera angle, photographic style.
+4. Do NOT change or remove any subject, person, object, or scene the user described.
+5. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly asks for a person in their prompt.
+6. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
+7. Do NOT add text overlays, watermarks, or typography.
+8. ANATOMY RULES FOR HUMANS: If generating a person, ALWAYS include these anatomical specifications:
    - "anatomically correct human body"
    - "exactly five fingers on each hand (one thumb and four fingers)"
    - "correct finger joints and proportions"
    - "natural hand positioning"
    - "two arms, two legs, proper limb attachment"
-8. If showing hands, describe them as: "realistic human hands with exactly 5 fingers each, natural finger length proportions, correct thumb placement"
-9. Return ONLY the final English prompt, under 150 words. No explanations.`
+9. If showing hands, describe them as: "realistic human hands with exactly 5 fingers each, natural finger length proportions, correct thumb placement"
+10. Return ONLY the final English prompt, under 150 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
