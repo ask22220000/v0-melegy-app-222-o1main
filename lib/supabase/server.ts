@@ -6,15 +6,15 @@ import { cookies } from "next/headers"
 let serviceRoleClientInstance: ReturnType<typeof createSupabaseClient> | null = null
 
 export function getServiceRoleClient() {
+  // Use SUPABASE_URL for server-side (fallback to NEXT_PUBLIC for backwards compatibility)
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+  
   if (!serviceRoleClientInstance) {
-    // Use SUPABASE_URL for server-side (fallback to NEXT_PUBLIC for backwards compatibility)
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    
-    if (!supabaseUrl || !serviceRoleKey) {
-      throw new Error('Missing Supabase environment variables')
-    }
-    
     serviceRoleClientInstance = createSupabaseClient(
       supabaseUrl,
       serviceRoleKey,
