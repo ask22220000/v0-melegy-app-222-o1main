@@ -1,32 +1,21 @@
 "use client"
 
-import { Header } from "@/components/header"
-import { Hero } from "@/components/hero"
-import { Features } from "@/components/features"
-import { Footer } from "@/components/footer"
-import Link from "next/link"
-import { useApp } from "@/lib/contexts/AppContext"
+import dynamic from "next/dynamic"
+
+// Dynamic import with ssr: false to completely prevent server-side rendering
+// This fixes hydration mismatch caused by Arabic text encoding differences between server and client
+const HomeContent = dynamic(
+  () => import("@/components/home-content").then((mod) => mod.HomeContent),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="min-h-screen bg-background homepage-dark-bg flex items-center justify-center" dir="rtl">
+        <div className="animate-pulse text-white/50">جاري التحميل...</div>
+      </div>
+    )
+  }
+)
 
 export default function HomePage() {
-  const { translations, language, mounted } = useApp()
-
-  // Use consistent default during SSR to prevent hydration mismatch
-  const dir = mounted ? (language === "ar" ? "rtl" : "ltr") : "rtl"
-
-  return (
-    <div className="min-h-screen bg-background homepage-dark-bg" dir={dir}>
-      <Header />
-      <Hero />
-      <Features />
-      <div className="container mx-auto px-6 py-8 text-center">
-        <Link
-          href="/pricing"
-          className="inline-block bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-4 px-8 rounded-xl hover:from-cyan-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg"
-        >
-          {translations.pricingLink}
-        </Link>
-      </div>
-      <Footer />
-    </div>
-  )
+  return <HomeContent />
 }

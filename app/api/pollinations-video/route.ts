@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server"
 import Groq from "groq-sdk"
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+function getGroqClient() {
+  return new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
+}
 
 async function translateToEnglish(prompt: string): Promise<string> {
+  const groq = getGroqClient()
   const hasArabic = /[\u0600-\u06FF]/.test(prompt)
   if (!hasArabic) return prompt
   try {

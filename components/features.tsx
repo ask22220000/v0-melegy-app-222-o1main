@@ -6,9 +6,6 @@ import { useApp } from "@/lib/contexts/AppContext"
 export function Features() {
   const { translations, language, mounted } = useApp()
 
-  // Prevent hydration mismatch by using consistent default during SSR
-  const dir = mounted ? (language === "ar" ? "rtl" : "ltr") : "rtl"
-
   const features = [
     { icon: "🖼️", key: "imageAnalysis" as const },
     { icon: "🔍", key: "deepSearch" as const },
@@ -20,6 +17,13 @@ export function Features() {
     { icon: "📊", key: "spreadsheets" as const },
     { icon: "🤔", key: "deepThinking" as const },
   ]
+
+  // Don't render content until mounted to prevent hydration mismatch with Arabic text
+  if (!mounted) {
+    return null
+  }
+
+  const dir = language === "ar" ? "rtl" : "ltr"
 
   return (
     <section className="container mx-auto px-6 pb-20">
@@ -34,10 +38,10 @@ export function Features() {
               <div className="text-5xl mb-4">
                 {feature.icon === "🖼️" ? <ImageIcon className="h-12 w-12 text-blue-400" /> : feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-white mb-3" dir={dir}>
+              <h3 className="text-xl font-bold text-white mb-3" dir={dir} suppressHydrationWarning>
                 {featureText.title}
               </h3>
-              <p className="text-white/60 leading-relaxed" dir={dir}>
+              <p className="text-white/60 leading-relaxed" dir={dir} suppressHydrationWarning>
                 {featureText.description}
               </p>
             </div>

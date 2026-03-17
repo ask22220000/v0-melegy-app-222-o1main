@@ -1,9 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServiceRoleClient } from "@/lib/supabase/server"
 
-// Use shared singleton from supabase/server
-const supabase = getServiceRoleClient()
-
 // Plan limits
 const PLAN_LIMITS = {
   free: 3, // 3 times total (trial)
@@ -28,6 +25,7 @@ function getMonthStartDate(): string {
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const visitorId = searchParams.get("visitorId")
     const planType = searchParams.get("planType") || "free"
@@ -95,6 +93,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getServiceRoleClient()
     const body = await request.json()
     const { visitorId, planType = "free", action } = body
 

@@ -13,7 +13,7 @@ type HeaderProps = {
 }
 
 export function Header({ showChatHistory = false, onChatHistoryClick, showHomeButton = false }: HeaderProps) {
-  const { translations, language, setLanguage } = useApp()
+  const { translations, language, setLanguage, mounted } = useApp()
   // Default to "dark" — synced from localStorage after mount so no flash
   const [theme, setTheme] = useState<"light" | "dark">("dark")
 
@@ -22,6 +22,11 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
     setTheme(saved)
     document.documentElement.classList.toggle("dark", saved === "dark")
   }, [])
+
+  // Return null during SSR to prevent hydration mismatch
+  if (!mounted) {
+    return null
+  }
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark"
