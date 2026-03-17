@@ -67,19 +67,27 @@ const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
   "شهي": "delicious",
   "لذيذ": "tasty",
   // Objects and descriptive terms
-  "صندوق": "box, crate",
-  "صندوق خشبي": "wooden box, wooden crate",
-  "خشبي": "wooden, simple wood",
+  "صندوق": "rustic wooden box, wooden crate",
+  "صندوق خشبي": "simple wooden box, rustic wooden crate",
+  "خشبي": "wooden, simple wood, rustic",
   "رصوص": "neatly stacked, organized, neat rows",
   "مرصوص": "neatly stacked, organized, arranged in neat rows",
-  "ذهبي": "golden, golden-colored, shimmering gold",
-  "يخطف": "eye-catching, stunning, striking",
-  "تحت إضاءة": "under lighting, under bright lighting",
-  "إضاءة قوية": "strong lighting, bright lighting, professional lighting",
-  "شخص": "person, man, woman",
-  "بيفتح": "opening, is opening, opens",
+  "ذهبي": "golden, golden-colored, warm golden tone",
+  "يخطف": "eye-catching, stunning, striking, visually appealing",
+  "تحت إضاءة": "under warm lighting, golden hour light",
+  "إضاءة قوية": "strong natural lighting, golden hour lighting, professional studio lighting",
+  "شخص": "person, man, woman, hand visible",
+  "بيفتح": "opening, is opening, opens, hands opening",
   "بيرفع": "lifting, is lifting, raises",
   "بيشيل": "holding, is holding, picking up",
+  // Photography and style terms
+  "طبيعي": "natural, authentic, real-life",
+  "دعائي": "professional photography, commercial style, advertising photography",
+  "كاميرا": "shot with professional DSLR camera",
+  "تصوير": "professional food photography, macro photography",
+  "واقع": "real-life, authentic, documentary style",
+  "حقيقي": "realistic, authentic, genuine",
+  "مصري": "authentic Egyptian, Egyptian street food style",
 }
 
 const NO_CHANGE_PATTERNS = [
@@ -157,19 +165,25 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   // Detect if the prompt mentions hands or includes hand-related actions
   const mentionsHands = /hand|ايد|يد|ترش|رش|ممسك|امسك|امساك|قابض|اصابع|اصابع|وضع|يضع|يمسك|بيرش|برش/i.test(userPrompt)
 
-  const system = `You are a professional prompt engineer for AI image generation (Flux model).
+  const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for AUTHENTIC EGYPTIAN FOOD PHOTOGRAPHY — realistic, naturally lit, as if captured by a professional food photographer using a real camera.
+
 Your job:
 1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully and completely — do NOT omit any detail.
-2. If the text mentions Egyptian foods (like konafa, basboussa, koshari, molokheya, ringa in wooden boxes, etc.), describe them clearly with appetizing details: vibrant colors, textures, plating style, restaurant or home setting, storage condition.
-3. For specific items mentioned: if user says "wooden box", translate as "rustic wooden crate/box" (simple, not ornate). If user says "person opening/holding", describe the action explicitly: "person holding open the wooden box", "hands opening the lid", "person reaching into", etc.
-4. Enrich the translation with professional visual details: lighting (especially if mentioned), composition, color palette, mood, camera angle, photographic style.
-5. Do NOT change or remove any subject, person, object, or scene the user described.
-6. CRITICAL: If the user mentions "a person" or hand actions (opening, holding, reaching, sprinkling, etc.), INCLUDE a full person or visible hands in the prompt. Don't remove them.
-7. CRITICAL: If the prompt says "without people", "without hands", "no hands", "solo", "alone", "by itself" — STRICTLY ENFORCE this. Never add people or hands unless explicitly requested.
-8. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
-9. Do NOT add text overlays, watermarks, or typography.
-10. IMPORTANT: Specify wooden box/crate details accurately: simple vs ornate, size, condition. Use words like "rustic", "simple wooden crate", "sturdy wooden box" for regular boxes.
-11. Return ONLY the final English prompt, under 180 words. No explanations.`
+2. If the text mentions Egyptian foods, describe them with AUTHENTIC FOOD PHOTOGRAPHY DETAILS:
+   - Rich natural colors (golden-brown grilled fish, vibrant green herbs, warm wooden surfaces)
+   - Visible textures and moisture (water droplets, shiny surfaces, grilled marks)
+   - Authentic Egyptian home/street food setting (simple wooden surfaces, ceramic, traditional presentation)
+   - Professional but natural lighting (golden hour, soft directional light, shadows)
+   - NO plastic, no artificial, no overly styled/magazine look
+3. Photography STYLE specifics: "shot with professional DSLR, shallow depth of field (blurred background), warm golden lighting, macro food photography, documentary style, real-life Egyptian setting, authentic street food aesthetic"
+4. For objects: "wooden box" = simple rustic wooden crate, "kitchen setting" = authentic Egyptian home kitchen with warm lights
+5. Enrich the translation with photographic details: NATURAL lighting, SHALLOW DEPTH OF FIELD (bokeh), MACRO DETAILS, WARM COLOR PALETTE
+6. Do NOT change or remove any subject, person, object, or scene the user described.
+7. If the user mentions "a person" or hand actions → INCLUDE person/hands. If user says "no people/no hands" → STRICTLY EXCLUDE them.
+8. Do NOT add elements the user didn't mention.
+9. Do NOT add text overlays, watermarks, or artificial elements.
+10. AUTHENTICITY: Avoid "hyper-polished" or "studio product photography" look. Make it look like real food photography from real life.
+11. Return ONLY the final English prompt, under 220 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -220,10 +234,10 @@ export const NEGATIVE_PROMPT_CONSTANTS =
   "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, people, humans, persons, human hand, human body, human figure, hands visible, hands in frame, hand holding, person, man, woman, child, face, head, body parts, arm visible, fingers visible, extra bodies, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped"
 
 /**
- * Quality constants for image generation - STRONG EMPHASIS ON HAND QUALITY
+ * Quality constants for image generation - STRONG EMPHASIS ON REALISTIC PHOTOGRAPHY STYLE
  */
 export const IMAGE_GEN_QUALITY_CONSTANTS =
-  "masterpiece, best quality, highly detailed, sharp focus, 8K UHD, professional photography, cinematic lighting, photorealistic, anatomically correct human body, PERFECT HANDS with exactly 5 fingers each (one thumb and four fingers), natural finger anatomy, correct finger joints, proper thumb positioning, realistic hand proportions, natural hand positioning, accurate hand proportions, proper body proportions, professional lighting"
+  "masterpiece, best quality, professional food photography, shot with professional DSLR camera, sharp focus on subject, shallow depth of field (bokeh background), warm golden lighting, natural soft directional light, authentic Egyptian street food style, real life Egyptian setting, macro food photography, rich warm color palette, authentic rustic wooden surfaces, water droplets and moisture visible, fresh natural ingredients, no CGI artifacts, no overprocessing, documentary photography style, captured by professional photographer, fine art food photography, authentic Mediterranean/Egyptian aesthetic, shot with 50mm or 85mm lens, rich warm tones (golden hour lighting), cinematic color grading, film photography quality, realistic textures and details"
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.
