@@ -20,23 +20,7 @@ export function Features() {
 
   // Don't render content until mounted to prevent hydration mismatch with Arabic text
   if (!mounted) {
-    return (
-      <section className="container mx-auto px-6 pb-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          {features.map((_, index) => (
-            <div
-              key={index}
-              className="group relative bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-8"
-            >
-              <div className="h-12 w-12 bg-slate-800/50 rounded mb-4" />
-              <div className="h-6 bg-slate-800/50 rounded mb-3 w-3/4" />
-              <div className="h-4 bg-slate-800/50 rounded w-full" />
-              <div className="h-4 bg-slate-800/50 rounded w-2/3 mt-2" />
-            </div>
-          ))}
-        </div>
-      </section>
-    )
+    return null
   }
 
   const dir = language === "ar" ? "rtl" : "ltr"
