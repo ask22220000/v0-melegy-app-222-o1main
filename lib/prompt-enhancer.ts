@@ -23,8 +23,11 @@ const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
   "محشي": "mahshi (stuffed vegetables)",
   "ملوخية": "molokhia (traditional Egyptian stew)",
   "ملوخيه": "molokhia (traditional Egyptian stew)",
-  "عيش": "aish (Egyptian bread)",
-  "عيش بلاش": "simple Egyptian bread",
+  "عيش": "aish (Egyptian bread, staple bread)",
+  "عيش بلدي": "aish baladi (traditional Egyptian peasant bread - round, tan/brown, crusty exterior, soft interior, slightly irregular shape, baked in wood-fired ovens)",
+  "عيش بلاش": "aish baladi (traditional Egyptian peasant bread)",
+  "الخبز": "bread, Egyptian bread",
+  "الخبز البلدي": "traditional Egyptian peasant bread",
   "فاصوليا": "beans (Egyptian style)",
   "فول": "fava beans (Egyptian breakfast staple)",
   "فول مصري": "Egyptian fava beans",
@@ -165,25 +168,23 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   // Detect if the prompt mentions hands or includes hand-related actions
   const mentionsHands = /hand|ايد|يد|ترش|رش|ممسك|امسك|امساك|قابض|اصابع|اصابع|وضع|يضع|يمسك|بيرش|برش/i.test(userPrompt)
 
-  const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for AUTHENTIC EGYPTIAN FOOD PHOTOGRAPHY — realistic, naturally lit, as if captured by a professional food photographer using a real camera.
+  const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for PROFESSIONAL AUTHENTIC EGYPTIAN FOOD PHOTOGRAPHY — realistic, professionally lit, captured as if by a professional food photographer using a real DSLR camera, set in genuine Egyptian street food or home kitchen environment.
+
+CRITICAL DEFINITIONS:
+- "aish baladi": Traditional Egyptian peasant bread - ROUND LOAF, tan/brown color, CRUSTY EXTERIOR with slight surface irregularities from wood-fired oven, soft interior, authentic shape (not perfect circle)
+- "Egyptian environment": Real Egyptian street vendor setup or home kitchen with visible cultural context: wooden/woven surfaces, ceramic dishes, worn tables, baskets with bread, authentic lighting (warm, natural), visible signs of food preparation culture
 
 Your job:
-1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully and completely — do NOT omit any detail.
-2. If the text mentions Egyptian foods, describe them with AUTHENTIC FOOD PHOTOGRAPHY DETAILS:
-   - Rich natural colors (golden-brown grilled fish, vibrant green herbs, warm wooden surfaces)
-   - Visible textures and moisture (water droplets, shiny surfaces, grilled marks)
-   - Authentic Egyptian home/street food setting (simple wooden surfaces, ceramic, traditional presentation)
-   - Professional but natural lighting (golden hour, soft directional light, shadows)
-   - NO plastic, no artificial, no overly styled/magazine look
-3. Photography STYLE specifics: "shot with professional DSLR, shallow depth of field (blurred background), warm golden lighting, macro food photography, documentary style, real-life Egyptian setting, authentic street food aesthetic"
-4. For objects: "wooden box" = simple rustic wooden crate, "kitchen setting" = authentic Egyptian home kitchen with warm lights
-5. Enrich the translation with photographic details: NATURAL lighting, SHALLOW DEPTH OF FIELD (bokeh), MACRO DETAILS, WARM COLOR PALETTE
-6. Do NOT change or remove any subject, person, object, or scene the user described.
-7. If the user mentions "a person" or hand actions → INCLUDE person/hands. If user says "no people/no hands" → STRICTLY EXCLUDE them.
-8. Do NOT add elements the user didn't mention.
-9. Do NOT add text overlays, watermarks, or artificial elements.
-10. AUTHENTICITY: Avoid "hyper-polished" or "studio product photography" look. Make it look like real food photography from real life.
-11. Return ONLY the final English prompt, under 220 words. No explanations.`
+1. If the text is Arabic (including Egyptian dialect), translate it FAITHFULLY and COMPLETELY — preserve every detail the user mentioned.
+2. COMBINE professional photography quality with authentic Egyptian setting:
+   - Professional lighting: golden hour, natural soft directional light, no artificial studio look
+   - Real environment: visible wooden tables, woven baskets, aish baladi bread, ceramic dishes, authentic Egyptian kitchen/street food setting
+   - Food details: visible moisture, oil shine, spice texture, authentic food preparation evidence
+3. HAND/PERSON RULES: If user mentions a person doing an action (holding, lifting, sprinkling) → INCLUDE them. If user says "no people/no hands" → EXCLUDE entirely.
+4. Photography specifics: "professional DSLR camera, shallow depth of field (bokeh), macro details, documentary photojournalism style, golden hour lighting, warm tones, realistic texture, authentic Egyptian food culture moment"
+5. STRICT: Do NOT add elements user didn't mention. Do NOT add text/watermarks. Preserve exactly what user described.
+6. AUTHENTICITY CHECK: Image should look like it was ACTUALLY PHOTOGRAPHED in real Egyptian food setting by professional photographer, NOT like studio product photography or AI-generated artifact.
+7. Return ONLY the final English prompt, under 250 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -234,10 +235,11 @@ export const NEGATIVE_PROMPT_CONSTANTS =
   "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, people, humans, persons, human hand, human body, human figure, hands visible, hands in frame, hand holding, person, man, woman, child, face, head, body parts, arm visible, fingers visible, extra bodies, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped"
 
 /**
- * Quality constants for image generation - STRONG EMPHASIS ON REALISTIC PHOTOGRAPHY STYLE
+ * Quality constants for image generation - AUTHENTIC EGYPTIAN FOOD PHOTOGRAPHY
+ * Combines professional photojournalism quality with real-life Egyptian street food authenticity
  */
 export const IMAGE_GEN_QUALITY_CONSTANTS =
-  "masterpiece, best quality, professional food photography, shot with professional DSLR camera, sharp focus on subject, shallow depth of field (bokeh background), warm golden lighting, natural soft directional light, authentic Egyptian street food style, real life Egyptian setting, macro food photography, rich warm color palette, authentic rustic wooden surfaces, water droplets and moisture visible, fresh natural ingredients, no CGI artifacts, no overprocessing, documentary photography style, captured by professional photographer, fine art food photography, authentic Mediterranean/Egyptian aesthetic, shot with 50mm or 85mm lens, rich warm tones (golden hour lighting), cinematic color grading, film photography quality, realistic textures and details"
+  "masterpiece, best quality, professional food photography, shot with professional DSLR camera (canon or nikon), sharp focus on main subject with shallow depth of field (bokeh background), warm golden natural lighting, authentic Egyptian street food environment, real-life Egyptian setting with visible context (wooden tables, woven baskets, traditional ceramics, aish baladi bread), macro food photography with fine details visible, rich warm color palette (golden browns, amber tones), authentic rustic surfaces (aged wood, worn ceramic, weathered baskets), visible moisture and food details (oil shine, spice texture, fresh herbs), fresh natural ingredients look, no CGI, no artificial smoothing, documentary photojournalism style, candid real-life moment, professional photographer capturing authentic Egyptian food culture, cinematic warm color grading, golden hour lighting quality, fine art food photography, realistic textures showing actual food preparation environment, visible signs of authentic Egyptian home or street vendor setting"
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.
