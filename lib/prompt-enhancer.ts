@@ -7,132 +7,42 @@
  */
 
 /**
- * Egyptian Arabic food terms dictionary for better translations
+ * Egyptian Arabic terms dictionary for accurate translations
+ * Basic translations without prescriptive constraints
  */
 const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
-  // CRITICAL Egyptian foods - very specific descriptions for AI accuracy
+  // Religious/Biblical figures and themes
+  "السيد المسيح": "Jesus Christ",
+  "المسيح": "Jesus Christ",
+  "الآلام": "passion, suffering",
+  "القيامة": "resurrection",
+  "العدرا": "Virgin Mary",
+  "العذراء": "Virgin Mary",
+  "مريم": "Mary",
+  "القديس": "saint",
+  "القديسة": "female saint",
+  "الأيقونة": "religious icon",
+  "فن قبطي": "Coptic art",
+  "الفن القبطي": "Coptic art",
   
-  // BOTTARGA / FISH ROE - VERY IMPORTANT - NOT whole fish, NOT jelly, NOT smooth texture!
-  "بطارخ": "bottarga (cured pressed fish roe sac - when CUT/SLICED it shows GRAINY TEXTURE of thousands of tiny compressed fish eggs visible inside, NOT smooth jelly texture, the cross-section reveals densely packed granular fish eggs, amber-orange-brown color, firm but grainy interior)",
-  "البطارخ": "bottarga (cured pressed fish roe sac with VISIBLE GRANULAR TEXTURE of compressed fish eggs inside when sliced)",
-  "قطعة بطارخ": "a piece of bottarga (cured fish roe sac - when cut open shows GRAINY TEXTURE of densely packed tiny fish eggs, NOT smooth, the interior has visible granular compressed roe texture, amber-golden-brown color)",
-  "بطارخ مقطوعة": "sliced bottarga showing GRAINY CROSS-SECTION with visible compressed fish egg granules inside, NOT smooth or jelly-like",
-  "بطارخ الخرز": "loose fish roe caviar beads (individual tiny glistening orange-amber fish eggs/caviar pearls, NOT whole fish - these are small spherical shiny roe beads like salmon roe or tobiko, each bead is round and translucent orange, packed together in a container)",
-  "بطارخ خرز": "loose fish roe caviar beads (individual tiny glistening orange-amber fish eggs/caviar pearls, small spherical shiny roe beads, each bead is round and translucent orange)",
-  "الخرز": "roe beads/pearls (small round glistening fish egg spheres, caviar-like orange beads)",
-  "خرز": "beads/pearls (small round spherical items)",
-  "علبة البطارخ": "container of fish roe caviar (glass jar or container filled with glistening orange-amber fish egg beads/pearls)",
+  // Egyptian foods - basic translations
+  "بطارخ": "bottarga (fish roe)",
+  "السردين": "sardines",
+  "سردين": "sardines",
+  "فسيخ": "fesikh",
+  "مشنة": "meshna (woven basket)",
+  "عيش بلدي": "Egyptian baladi bread",
+  "عيش": "bread",
   
-  // SARDINES and SMALL FISH - CORRECT ANATOMY
-  "سردين": "sardines (small silver fish with HEAD ON ONE END and TAIL ON THE OTHER END - correct fish anatomy: one head, elongated silver body, one tail fin at opposite end. NOT two heads. Each fish has: 1 head with eye, silver scaled body, dorsal fin on top, 1 forked tail at back)",
-  "السردين": "sardines (small silver fish - CORRECT ANATOMY: head on front, tail on back, NOT two-headed)",
-  "سردين صغير": "small sardines (tiny silver fish with proper anatomy: single head at front, tail fin at back, silver shiny body)",
-  
-  // MESHNA - Traditional Egyptian woven basket
-  "مشنة": "meshna (traditional Egyptian shallow woven basket made of palm fronds or wicker, round or oval shape, rustic handwoven texture, used for displaying fish and food in Egyptian markets)",
-  "المشنة": "meshna (traditional Egyptian woven palm basket for food display)",
-  "مشنة خشبية": "wooden meshna basket (traditional Egyptian shallow wooden basket or tray with woven/slatted construction)",
-  
-  // FESIKH - salted fermented fish
-  "فسيخ": "fesikh (traditional Egyptian salted fermented fish, grey-silver boneless fish fillets preserved in salt brine, similar to sardines or mullet)",
-  "الفسيخ": "fesikh (traditional Egyptian salted fermented fish, grey-silver boneless fish fillets preserved in salt brine)",
-  "فسيخ مخلي": "boneless fesikh fillets (grey-silver fish fillets without bones, Egyptian salted fish)",
-  "فسيخ مخلية": "boneless fesikh fillets (grey-silver fish fillets without bones, Egyptian salted fish)",
-  "مخلي": "boneless, filleted",
-  "مخلية": "boneless, filleted",
-  
-  // General fish anatomy rule
-  "سمك": "fish (CORRECT FISH ANATOMY: head with eye on ONE end, elongated body with scales, tail fin on OPPOSITE end - never two heads)",
-  "سمكة": "a fish (single fish with correct anatomy: one head, one body, one tail)",
-  
-  // Egyptian breads - VERY IMPORTANT
-  "عيش بلدي": "authentic Egyptian baladi bread (traditional round flatbread, puffy with air pocket inside, light brown color with dark brown charred spots, rustic texture, made from whole wheat flour, served in traditional woven baskets)",
-  "العيش البلدي": "authentic Egyptian baladi bread (traditional round flatbread, puffy with air pocket inside, light brown color with dark brown charred spots, rustic texture)",
-  "عيش شمسي": "Egyptian sun-dried bread (shamsi bread, traditional flatbread)",
-  "عيش فينو": "Egyptian fino bread (soft elongated white bread rolls)",
-  "عيش": "Egyptian bread (aish baladi - round puffy flatbread with brown spots)",
-  
-  // Egyptian environment/setting
-  "بيئة مصرية": "authentic Egyptian setting (traditional Egyptian market street, rustic wooden tables, woven baskets, warm sunlight, terracotta pots, old Cairo architecture in background)",
-  "مصري": "authentic Egyptian style, traditional Egyptian setting",
-  "شعبي": "Egyptian street food style, traditional popular Egyptian, rustic market setting",
-  
-  // Common Egyptian foods
-  "كنافة": "konafa (Egyptian pastry dessert with cheese and syrup)",
-  "كنافه": "konafa (Egyptian pastry dessert with cheese and syrup)",
-  "بسبوسة": "basboussa (semolina coconut cake)",
-  "بسبوسه": "basboussa (semolina coconut cake)",
-  "الكنافة": "konafa (Egyptian pastry dessert)",
-  "الكنافه": "konafa (Egyptian pastry dessert)",
-  "حلويات": "traditional Egyptian sweets and desserts",
-  "فتة": "fetta (bread salad with meat and yogurt)",
-  "فتة اللحم": "fetta with meat (traditional Egyptian dish)",
-  "محشي": "mahshi (stuffed vegetables)",
-  "ملوخية": "molokhia (traditional Egyptian stew)",
-  "ملوخيه": "molokhia (traditional Egyptian stew)",
-  "فاصوليا": "beans (Egyptian style)",
-  "فول": "fava beans (Egyptian breakfast staple)",
-  "فول مصري": "Egyptian fava beans",
-  "فول الشامي": "Syrian beans Egyptian style",
-  "حمص": "hummus (Egyptian style)",
-  "بابا غنوج": "baba ganoush",
-  "تعميّة": "tameya (Egyptian falafel)",
-  "تميه": "tameya (Egyptian falafel)",
-  "شاورما": "shawarma",
-  "كباب": "kebab",
-  "كفتة": "kofta (meatballs)",
-  "شيش طاووق": "shish taouk (chicken kebab)",
-  "الشيش": "kebab skewers",
-  "كشك": "kishk (traditional soup)",
-  "كشري": "koshari (mixed pasta rice lentils)",
-  "الكشري": "koshari (Egyptian mixed dish)",
-  "فرن": "oven baked dishes",
-  "سمك": "fish",
-  "رنجة": "ringa (salted dried fish, Egyptian staple)",
-  "رنجه": "ringa (salted dried fish, Egyptian staple)",
-  "جمبري": "shrimp",
-  "روبيان": "shrimp",
-  "دجاج": "chicken",
-  "لحم": "meat",
-  "لحمة": "meat",
-  "كبده": "liver",
-  "نقانق": "sausages",
-  "أرز": "rice",
-  "جرجير": "arugula salad",
-  "خس": "lettuce",
-  "خضار": "vegetables",
-  "طماطم": "tomatoes",
-  "خيار": "cucumber",
-  "بصل": "onion",
-  "ثوم": "garlic",
-  "حار": "spicy",
+  // Common terms
+  "طبيعي": "natural",
+  "واقعي": "realistic",
+  "حقيقي": "realistic",
   "مصري": "Egyptian",
-  "شعبي": "street food, popular Egyptian",
   "تقليدي": "traditional",
-  "شهي": "delicious",
-  "لذيذ": "tasty",
-  // Objects and descriptive terms
-  "صندوق": "rustic wooden box, wooden crate",
-  "صندوق خشبي": "simple wooden box, rustic wooden crate",
-  "خشبي": "wooden, simple wood, rustic",
-  "رصوص": "neatly stacked, organized, neat rows",
-  "مرصوص": "neatly stacked, organized, arranged in neat rows",
-  "ذهبي": "golden, golden-colored, warm golden tone",
-  "يخطف": "eye-catching, stunning, striking, visually appealing",
-  "تحت إضاءة": "under warm lighting, golden hour light",
-  "إضاءة قوية": "strong natural lighting, golden hour lighting, professional studio lighting",
-  "شخص": "person, man, woman, hand visible",
-  "بيفتح": "opening, is opening, opens, hands opening",
-  "بيرفع": "lifting, is lifting, raises",
-  "بيشيل": "holding, is holding, picking up",
-  // Photography and style terms
-  "طبيعي": "natural, authentic, real-life",
-  "دعائي": "professional photography, commercial style, advertising photography",
-  "كاميرا": "shot with professional DSLR camera",
-  "تصوير": "professional food photography, macro photography",
-  "واقع": "real-life, authentic, documentary style",
-  "حقيقي": "realistic, authentic, genuine",
-  "مصري": "authentic Egyptian, Egyptian street food style",
+  "جميل": "beautiful",
+  "لذيذ": "delicious",
+  "ذهبي": "golden",
 }
 
 const NO_CHANGE_PATTERNS = [
@@ -210,32 +120,31 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   // Detect if the prompt mentions hands or includes hand-related actions
   const mentionsHands = /hand|ايد|يد|ترش|رش|ممسك|امسك|امساك|قابض|اصابع|اصابع|وضع|يضع|يمسك|بيرش|برش/i.test(userPrompt)
 
-  const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for HYPER-REALISTIC EGYPTIAN FOOD PHOTOGRAPHY — as if captured by a professional food photographer with a real DSLR camera.
+  const system = `You are a professional prompt engineer for AI image generation (Flux model).
 
-CRITICAL EGYPTIAN FOOD KNOWLEDGE - EXACT VISUAL SPECIFICATIONS:
-- FISH ANATOMY IS CRITICAL: Every fish MUST have HEAD on ONE end and TAIL on the OPPOSITE end. Correct anatomy = 1 head with eye -> silver scaled body -> 1 tail fin at back. Never two heads!
-  * "سردين" (sardines) = Small silver fish with correct anatomy: head at front, silver scales, tail at back. Stack neatly with heads/tails visible.
-  * "فسيخ" (fesikh) = Grey-silver boneless fish fillets, preserved texture, metallic sheen, NOT orange vegetables.
-  * "سمك" (fish) = Any fish MUST show: single head with eye, scales on body, tail fin at opposite end.
+YOUR CORE JOB:
+1. Translate Arabic (Egyptian dialect) to English faithfully - translate EVERY detail, do NOT omit anything.
+2. Apply user's EXACT request word-for-word - generate ONLY what they asked for, NOTHING else.
+3. Do NOT add elements, objects, figures, decorations, or food NOT mentioned by user.
+4. Do NOT modify or interpret the request - engineer it exactly as stated.
 
-- BOTTARGA (بطارخ) - CRITICAL DETAILS:
-  * "بطارخ" (pressed roe) = Cured fish roe sac. When CUT, shows GRAINY texture with tiny compressed fish eggs inside (NOT smooth, NOT jelly). Amber-orange-brown color. Granular interior appearance is essential.
-  * "بطارخ الخرز" (roe caviar) = Individual small ROUND SHINY FISH EGGS like caviar. Orange-amber spherical beads, translucent and glistening. NOT whole fish - loose roe pearls in container.
+QUALITY & TECHNICAL STANDARDS (always maintain):
+- Hyper-realistic, 8K professional quality, photo-realistic rendering
+- Anatomically correct humans: exactly 5 fingers per hand, correct proportions, natural poses
+- Natural lighting appropriate to subject/scene
+- Sharp professional focus with appropriate depth of field
+- No CGI look, no stylization, no plastic appearance unless user specifically requests artistic style
 
-- EGYPTIAN ITEMS:
-  * "مشنة" (meshna) = Traditional shallow WOVEN BASKET (palm fronds/wicker), round/oval, rustic handwoven, used for market food display.
-  * "عيش بلدي" (baladi bread) = Round puffy flatbread, light brown with dark brown charred spots, rough rustic texture, in woven baskets.
-  * "بيئة مصرية" (Egyptian setting) = Market/street with rustic wooden tables, woven baskets, terracotta pots, warm sunlight.
+SPECIAL REQUESTS:
+- Split images/diptychs: create EXACTLY the structure user requested with specified content on each side
+- Religious or historical themes: depict respectfully with professional realism
+- Portraits, landscapes, abstracts: render with photorealistic quality matching user's description
+- Compositions: follow user's layout/arrangement exactly
 
-YOUR ROLE:
-1. Translate Arabic faithfully to English - do NOT omit details.
-2. Apply user's EXACT request - if they ask for changes, modifications, color adjustments, composition changes, these are what you engineer INTO the prompt.
-3. Maintain photorealistic Egyptian food photography style with professional DSLR aesthetics.
-4. Describe food with correct anatomy and visual characteristics.
-5. Use specific photography terms: "Canon 5D Mark IV, 50mm f/1.4", "shallow DOF", "golden hour lighting", "visible moisture/textures".
-6. Include ONLY what user mentioned - do NOT add elements.
-7. If user says "no people/no hands" → EXCLUDE. If user shows hand actions → INCLUDE realistic hands.
-8. Return ONLY final prompt under 250 words. No explanations.`
+CRITICAL RULES:
+1. Translate ALL Arabic accurately - cultural terms, religious references, descriptive language
+2. Apply request word-for-word - user's exact content goes into the image, nothing else
+3. Return ONLY the final English prompt under 250 words. No explanations or extra text.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -243,54 +152,36 @@ YOUR ROLE:
 
   try {
     const result = await callGroq(system, userMsg)
-    let enhancedResult = result 
+    const enhancedResult = result 
       ? `${result}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
       : `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
-    
-    // If user says "no people" or "no hands", add explicit instruction to negative prompt
-    if (noPeople) {
-      enhancedResult = `${enhancedResult} STRICTLY: no people, no humans, no hands visible, no body parts, isolated subject only`
-    }
-    // Otherwise, if hands are mentioned and user didn't say "no people", add hand anatomy specification
-    else if (mentionsHands) {
-      enhancedResult = enhancedResult.replace(
-        IMAGE_GEN_QUALITY_CONSTANTS,
-        `${IMAGE_GEN_QUALITY_CONSTANTS}, ${HAND_ANATOMY_SPEC}`
-      )
-    }
     
     return enhancedResult
   } catch (error) {
     console.error("[prompt-enhancer] Groq generation error:", error)
-    let fallback = `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
-    if (noPeople) {
-      fallback = `${fallback} STRICTLY: no people, no humans, no hands visible, no body parts, isolated subject only`
-    } else if (mentionsHands) {
-      fallback = `${fallback}, ${HAND_ANATOMY_SPEC}`
-    }
-    return fallback
+    return `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
   }
 }
 
 /**
  * Constant quality/anatomy suffixes appended to every image-editing prompt.
  * Kept in one place so all routes stay in sync.
- * Note: These maintain QUALITY STANDARDS while allowing user-requested modifications.
+ * Note: Core quality standards only - apply user's modifications fully.
  */
 export const IMAGE_EDIT_QUALITY_CONSTANTS =
-  "HIGH QUALITY STANDARDS: 8K resolution, sharp professional focus, cinematic lighting, photorealistic food photography textures and details, professional Canon DSLR aesthetic. ANATOMY: If hands present: exactly 5 fingers per hand (thumb + 4 fingers), correct finger proportions, natural hand poses. FOOD IDENTITY: Maintain dish/food species identity and overall composition unless specifically modified as requested. EGYPTIAN FOOD AUTHENTICITY: Preserve traditional Egyptian aesthetic, market-style presentation, warm golden lighting, authentic ingredient textures."
+  "HIGH QUALITY STANDARDS: 8K resolution, sharp professional focus, photorealistic details, natural lighting. ANATOMY: If hands present: exactly 5 fingers per hand, correct finger proportions, natural hand poses. Apply user's requested modifications fully while maintaining photorealistic quality."
 
 /**
- * Negative prompt to avoid common AI generation issues - HEAVY EMPHASIS ON HANDS AND NO PEOPLE
+ * Negative prompt to avoid common AI generation issues - FOCUS ON ANATOMY/QUALITY ONLY
  */
 export const NEGATIVE_PROMPT_CONSTANTS =
-  "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, people, humans, persons, human hand, human body, human figure, hands visible, hands in frame, hand holding, person, man, woman, child, face, head, body parts, arm visible, fingers visible, extra bodies, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped"
+  "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, eight fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped, CGI, plastic appearance, artificial, overly stylized"
 
 /**
- * Quality constants for image generation - STRONG EMPHASIS ON REALISTIC PHOTOGRAPHY STYLE
+ * Quality constants for image generation - FOCUSED ON CORE QUALITY AND REALISM ONLY
  */
 export const IMAGE_GEN_QUALITY_CONSTANTS =
-  "PHOTOREALISTIC, masterpiece, best quality, professional food photography, shot with Canon 5D Mark IV DSLR camera with 50mm f/1.4 lens, ultra sharp focus on subject, shallow depth of field with creamy bokeh background, warm golden hour natural lighting, soft directional sunlight with natural shadows, authentic Egyptian street food style, real life Egyptian market setting, macro food photography showing realistic textures, rich warm Mediterranean color palette, authentic rustic weathered wooden surfaces, visible oil droplets and moisture on food, fresh natural ingredients, NO CGI NO artificial look NO plastic appearance, documentary photography style like National Geographic, captured by professional food photographer, authentic Egyptian/Middle Eastern aesthetic, rich warm golden tones, film photography quality, hyper-realistic textures and fine details visible, natural imperfections that make it look real"
+  "hyper-realistic, 8K quality, professional cinematography, sharp focus, natural lighting, authentic textures, photorealistic details, NO CGI appearance, NO plastic look, NO artificial styling, documentary-style realism, high-definition clarity, professional composition"
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.
@@ -304,31 +195,23 @@ export async function processPromptForImageEditing(userPrompt: string): Promise<
 
   const hasArabic = /[\u0600-\u06FF]/.test(userPrompt)
 
-  const system = `You are a professional prompt engineer for AI image editing (Flux model) specializing in EGYPTIAN FOOD PHOTOGRAPHY.
+  const system = `You are a professional prompt engineer for AI image editing (Flux model).
 
-YOUR CRITICAL JOB:
-1. Translate Arabic (including Egyptian dialect) to English faithfully - do NOT omit details.
-2. Write a PRECISE editing instruction that applies EXACTLY what the user asked for - no limitations, no restrictions.
-3. Apply user's request fully: if they ask to modify colors, textures, composition, lighting, details - ENGINEER that into the prompt.
-4. Maintain PHOTOREALISTIC quality and professional food photography aesthetics.
-5. Preserve the food/dish identity, overall composition, and background UNLESS user explicitly asks to change them.
-
-EGYPTIAN FOOD IDENTITY RULES:
-- FISH: Must maintain correct anatomy (head at one end, tail at opposite), species identity, and distinctive characteristics.
-- BOTTARGA: Must keep grainy texture appearance if mentioned, or apply exactly what user requested.
-- BREAD (عيش): Keep puffy, rustic appearance unless user asks for different.
-- COLORS/TEXTURES: Apply user's exact color or texture requests while maintaining photorealism.
-- SETTING: Preserve Egyptian/market aesthetic unless user asks for changes.
+YOUR JOB:
+1. Translate Arabic (including Egyptian dialect) to English faithfully - translate EVERYTHING accurately.
+2. Write a PRECISE editing instruction that applies EXACTLY what the user asked for.
+3. Apply user's request fully: if they ask to modify colors, textures, composition, lighting, specific elements - ENGINEER that into the prompt.
+4. Maintain PHOTOREALISTIC quality and professional standards.
+5. Preserve what should be preserved ONLY if user doesn't ask to change it.
 
 ANATOMY & QUALITY STANDARDS:
 - If hands visible: exactly 5 fingers per hand, natural anatomy.
-- Correct food proportions and presentation.
-- Professional food photography: macro details, textures, lighting.
+- Maintain photorealistic appearance: sharp focus, natural lighting, authentic textures.
 - No CGI look, plastic appearance, or artificial styling.
 
 FINAL OUTPUT:
-Describe EXACTLY what the user requested to be changed/modified/adjusted, maintaining quality constants.
-Return ONLY the editing instruction in English, under 150 words.`
+Write ONLY an editing instruction describing EXACTLY what the user requested to be changed/modified/adjusted.
+Return ONLY the instruction in English, under 150 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and write an image editing instruction for: "${userPrompt}"`
@@ -337,11 +220,11 @@ Return ONLY the editing instruction in English, under 150 words.`
   try {
     const result = await callGroq(system, userMsg)
     return result
-      ? `${result} ${IMAGE_EDIT_QUALITY_CONSTANTS} AVOID: ${NEGATIVE_PROMPT_CONSTANTS}`
-      : `Preserve all facial features, skin tone, and original background. ${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS} AVOID: ${NEGATIVE_PROMPT_CONSTANTS}`
+      ? `${result} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
+      : `${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
   } catch (error) {
     console.error("[prompt-enhancer] Groq editing error:", error)
-    return `Preserve all facial features, skin tone, and original background. ${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS} AVOID: ${NEGATIVE_PROMPT_CONSTANTS}`
+    return `${userPrompt} ${IMAGE_EDIT_QUALITY_CONSTANTS}`
   }
 }
 

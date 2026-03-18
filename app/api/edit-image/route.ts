@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     const translatedPrompt = await translateWithPerplexity(prompt)
     console.log("[v0] 2. Translated edit prompt:", translatedPrompt)
 
-    const enhancedPrompt = `${translatedPrompt}. Apply this editing instruction while maintaining food photography quality and professional standards. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
+    const enhancedPrompt = `${translatedPrompt}. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
     console.log("[v0] 3. Enhanced edit prompt:", enhancedPrompt)
 
     let editedImageUrl: string | undefined
