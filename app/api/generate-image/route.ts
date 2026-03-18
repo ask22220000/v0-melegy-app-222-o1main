@@ -1,4 +1,4 @@
-import { processPromptForImageGeneration, IMAGE_GEN_QUALITY_CONSTANTS } from "@/lib/prompt-enhancer"
+import { processPromptForImageGeneration, IMAGE_GEN_QUALITY_CONSTANTS, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
 import * as fal from "@fal-ai/serverless-client"
 
 export async function POST(req: Request) {
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     const result = await fal.subscribe("fal-ai/flux-2-flex", {
       input: {
         prompt: engineeredPrompt,
+        negative_prompt: NEGATIVE_PROMPT_CONSTANTS,
         num_inference_steps: 50,
         guidance_scale: 8.5,
         num_images: 1,

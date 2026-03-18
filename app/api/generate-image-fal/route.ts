@@ -25,7 +25,16 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Original prompt:", prompt)
 
     // Process prompt: translate + enhance
-    const finalPrompt = await processPromptForImageGeneration(prompt)
+    let finalPrompt = await processPromptForImageGeneration(prompt)
+
+    // If prompt mentions animals, add extra anatomy specifications to ensure correct limb generation
+    const mentionsAnimals = /كلب|قط|حيوان|جرو|كتكوت|طائر|حصان|بقرة|غنم|lion|tiger|dog|cat|puppy|kitten|bird|horse|cow|sheep|animal|pet|wolf|fox|deer|elephant|bear|monkey|rabbit|mouse|rat|fish|whale|dolphin|penguin|eagle|owl|parrot/i.test(prompt)
+    if (mentionsAnimals) {
+      finalPrompt = finalPrompt.replace(
+        "| AVOID:",
+        "with correct anatomically accurate limbs and body structure, all four legs visible and properly proportioned, NO extra limbs, NO missing limbs, proper paw structure | AVOID:"
+      )
+    }
 
     console.log("[v0] Generating image with enhanced prompt:", finalPrompt)
 
@@ -38,8 +47,8 @@ export async function POST(request: NextRequest) {
           width: 1080,
           height: 1350
         },
-        num_inference_steps: 28,
-        guidance_scale: 3.5,
+        num_inference_steps: 40,
+        guidance_scale: 7.5,
         num_images: 1,
         safety_tolerance: "2",
       },

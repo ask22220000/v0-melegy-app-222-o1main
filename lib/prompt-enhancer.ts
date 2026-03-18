@@ -122,6 +122,9 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   
   // Detect if user explicitly asks for realistic/photographic quality
   const wantsPhotorealistic = /واقعي|حقيقي|متصور|كاميرا|صورة حقيقية|صورة واقعية|realistic|photorealistic|like a photograph|like a photo|real|realistic|photograph/i.test(userPrompt)
+  
+  // Detect if prompt mentions animals (dogs, cats, birds, etc.)
+  const mentionsAnimals = /كلب|قط|حيوان|جرو|كتكوت|طائر|حصان|بقرة|غنم|lion|tiger|dog|cat|puppy|kitten|bird|horse|cow|sheep|animal|pet|wolf|fox|deer|elephant|bear|monkey|rabbit|mouse|rat|fish|whale|dolphin|penguin|eagle|owl|parrot/i.test(userPrompt)
 
   const system = `You are a professional prompt engineer for AI image generation (Flux model).
 
@@ -134,6 +137,7 @@ YOUR CORE JOB:
 QUALITY & TECHNICAL STANDARDS (always maintain):
 - Hyper-realistic, 8K professional quality, photo-realistic rendering
 - Anatomically correct humans: exactly 5 fingers per hand, correct proportions, natural poses
+- Anatomically correct animals: correct number of limbs (4 legs for quadrupeds, 2 for birds), proper body structure, realistic paw pads, correct ear placement, natural tail position
 - Natural lighting appropriate to subject/scene
 - Sharp professional focus with appropriate depth of field
 - No CGI look, no stylization, no plastic appearance unless user specifically requests artistic style
@@ -165,7 +169,10 @@ CRITICAL RULES:
       ? `${result}, ${qualityConstants}`
       : `${userPrompt}, ${qualityConstants}`
     
-    return enhancedResult
+    // Return with enhanced animal anatomy handling if animals are mentioned
+    return mentionsAnimals 
+      ? `${enhancedResult} | AVOID: ${ANIMAL_ANATOMY_NEGATIVE}`
+      : enhancedResult
   } catch (error) {
     console.error("[prompt-enhancer] Groq generation error:", error)
     
@@ -173,7 +180,10 @@ CRITICAL RULES:
       ? `${IMAGE_GEN_QUALITY_CONSTANTS}, ${PHOTOREALISTIC_ENHANCEMENT}`
       : IMAGE_GEN_QUALITY_CONSTANTS
     
-    return `${userPrompt}, ${qualityConstants}`
+    const fallback = `${userPrompt}, ${qualityConstants}`
+    return mentionsAnimals 
+      ? `${fallback} | AVOID: ${ANIMAL_ANATOMY_NEGATIVE}`
+      : fallback
   }
 }
 
@@ -190,6 +200,12 @@ export const IMAGE_EDIT_QUALITY_CONSTANTS =
  */
 export const NEGATIVE_PROMPT_CONSTANTS =
   "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, eight fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped, CGI, plastic appearance, artificial, overly stylized"
+
+/**
+ * Additional negative prompt for animal anatomy - prevents extra/missing legs and body parts
+ */
+export const ANIMAL_ANATOMY_NEGATIVE =
+  "extra legs, missing legs, deformed legs, warped legs, twisted legs, backwards legs, extra limbs, missing limbs, extra paws, mutated paws, extra heads, missing tail, deformed tail, extra ears, misplaced ears, grotesque animal, malformed animal body, wrong number of legs, extra body parts, floating limbs"
 
 /**
  * Quality constants for image generation - FOCUSED ON CORE QUALITY AND REALISM ONLY
