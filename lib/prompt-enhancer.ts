@@ -119,6 +119,9 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   
   // Detect if the prompt mentions hands or includes hand-related actions
   const mentionsHands = /hand|ايد|يد|ترش|رش|ممسك|امسك|امساك|قابض|اصابع|اصابع|وضع|يضع|يمسك|بيرش|برش/i.test(userPrompt)
+  
+  // Detect if user explicitly asks for realistic/photographic quality
+  const wantsPhotorealistic = /واقعي|حقيقي|متصور|كاميرا|صورة حقيقية|صورة واقعية|realistic|photorealistic|like a photograph|like a photo|real|realistic|photograph/i.test(userPrompt)
 
   const system = `You are a professional prompt engineer for AI image generation (Flux model).
 
@@ -152,14 +155,25 @@ CRITICAL RULES:
 
   try {
     const result = await callGroq(system, userMsg)
+    
+    // Use enhanced photography quality if user explicitly asked for realistic/photographic images
+    const qualityConstants = wantsPhotorealistic 
+      ? `${IMAGE_GEN_QUALITY_CONSTANTS}, ${PHOTOREALISTIC_ENHANCEMENT}`
+      : IMAGE_GEN_QUALITY_CONSTANTS
+    
     const enhancedResult = result 
-      ? `${result}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
-      : `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
+      ? `${result}, ${qualityConstants}`
+      : `${userPrompt}, ${qualityConstants}`
     
     return enhancedResult
   } catch (error) {
     console.error("[prompt-enhancer] Groq generation error:", error)
-    return `${userPrompt}, ${IMAGE_GEN_QUALITY_CONSTANTS}`
+    
+    const qualityConstants = wantsPhotorealistic 
+      ? `${IMAGE_GEN_QUALITY_CONSTANTS}, ${PHOTOREALISTIC_ENHANCEMENT}`
+      : IMAGE_GEN_QUALITY_CONSTANTS
+    
+    return `${userPrompt}, ${qualityConstants}`
   }
 }
 
@@ -182,6 +196,13 @@ export const NEGATIVE_PROMPT_CONSTANTS =
  */
 export const IMAGE_GEN_QUALITY_CONSTANTS =
   "hyper-realistic, 8K quality, professional cinematography, sharp focus, natural lighting, authentic textures, photorealistic details, NO CGI appearance, NO plastic look, NO artificial styling, documentary-style realism, high-definition clarity, professional composition"
+
+/**
+ * Advanced photography quality for when user explicitly asks for photorealistic/realistic images
+ * Enhances with professional photography techniques similar to high-end digital cameras
+ */
+export const PHOTOREALISTIC_ENHANCEMENT =
+  "shot with professional DSLR camera (Canon EOS R5 equivalent), 50mm f/1.8 lens, natural light or golden hour, shallow depth of field with creamy background blur, macro details visible in foreground, texture details preserved in shadows and highlights, professional color grading, accurate white balance, dynamic range optimized, film-quality rendering, captured by professional photographer, zero AI artifacts, indistinguishable from real photograph"
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.
