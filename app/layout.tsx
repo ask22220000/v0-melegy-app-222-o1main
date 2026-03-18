@@ -13,6 +13,7 @@ const cairo = Cairo({
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://melegy.app"),
   title: "Melegy - Egyptian AI Assistant",
   description: "مساعد ذكاء اصطناعي متطور يوفر لك إجابات دقيقة، بحث متقدم، وتوليد محتوى إبداعي",
   generator: "v0.app",
