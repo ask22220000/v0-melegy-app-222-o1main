@@ -50,11 +50,6 @@ function enhanceArabicPrompt(prompt: string): string {
     "بأسلوب",
     "لـ",
     "ل",
-    "في",
-    "من",
-    "على",
-    "خلي",
-    "خليه",
   ]
   fillerWords.forEach((word) => {
     const regex = new RegExp(`\\b${word}\\b`, "gi")
@@ -62,8 +57,8 @@ function enhanceArabicPrompt(prompt: string): string {
   })
 
   enhancedPrompt = enhancedPrompt.replace(/\s+/g, " ").trim()
-  // CRITICAL: never add people/faces unless user explicitly asked for them
-  return `Apply only the following changes to the image: ${enhancedPrompt}. Do NOT add any people, faces, or figures not present in the original. Preserve the original subject and background. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
+  // Apply user's exact request while maintaining quality standards
+  return `Apply the following changes to the image: ${enhancedPrompt}. Maintain food/dish identity and professional food photography quality. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
 }
 
 export async function POST(req: Request) {
@@ -92,9 +87,9 @@ export async function POST(req: Request) {
       input: {
         image_url: imageUrl,
         prompt: finalPrompt,
-        strength: 0.35,
-        num_inference_steps: 40,
-        guidance_scale: 7.5,
+        strength: 0.55,
+        num_inference_steps: 45,
+        guidance_scale: 8.5,
         num_images: 1,
         enable_safety_checker: false,
       },

@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     const translatedPrompt = await translateWithPerplexity(prompt)
     console.log("[v0] 2. Translated edit prompt:", translatedPrompt)
 
-    const enhancedPrompt = `${translatedPrompt}, high quality, detailed, professional. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
+    const enhancedPrompt = `${translatedPrompt}. Apply this editing instruction while maintaining food photography quality and professional standards. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
     console.log("[v0] 3. Enhanced edit prompt:", enhancedPrompt)
 
     let editedImageUrl: string | undefined
@@ -121,8 +121,8 @@ export async function POST(request: NextRequest) {
         input: {
           prompt: enhancedPrompt,
           image_urls: [imageUrl],
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
+          num_inference_steps: 45,
+          guidance_scale: 8.5,
           num_images: 1,
         },
       })) as { images?: { url: string }[] }

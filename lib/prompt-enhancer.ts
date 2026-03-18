@@ -212,35 +212,30 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
 
   const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for HYPER-REALISTIC EGYPTIAN FOOD PHOTOGRAPHY — as if captured by a professional food photographer with a real DSLR camera.
 
-CRITICAL EGYPTIAN FOOD KNOWLEDGE:
-- FISH ANATOMY IS CRITICAL: Every fish MUST have HEAD on ONE end and TAIL on the OPPOSITE end. NEVER draw fish with two heads! Correct fish anatomy = 1 head with eye -> elongated silver body with scales -> 1 forked tail fin at back.
-- "سردين" (sardines) = Small silver fish with CORRECT ANATOMY: head at front, silver scaled body, tail fin at back. Stack them neatly showing heads on one side, tails on the other.
-- "مشنة" (meshna) = Traditional Egyptian shallow WOVEN BASKET made of palm fronds or wicker. Round/oval shape, rustic handwoven texture. Used to display fish in Egyptian markets.
-- "بطارخ" (bottarga) = Cured PRESSED fish roe sac. When SLICED or CUT, the cross-section MUST show GRAINY TEXTURE with thousands of tiny compressed fish eggs visible inside. It is NOT smooth, NOT jelly-like, NOT homogeneous - the interior has a GRANULAR appearance from the densely packed fish eggs. Color is amber-orange-brown. The texture is firm but clearly shows the individual compressed roe granules.
-- "بطارخ الخرز" (bottarga beads/fish roe caviar) = Individual small ROUND GLISTENING FISH EGGS (like salmon roe or tobiko caviar). They are ORANGE-AMBER colored SPHERICAL BEADS that are translucent and shiny. This is NOT whole fish! It is loose fish roe/caviar pearls packed in a container. Each bead is small, round, and glistens.
-- "فسيخ" (fesikh) = Traditional Egyptian salted fermented FISH. It is GREY-SILVER colored boneless fish fillets (similar to sardines/mullet), NOT orange vegetables or squash. The fish is preserved in salt and has a distinctive grey metallic sheen.
-- "عيش بلدي" (baladi bread) = Traditional Egyptian round FLATBREAD. It is PUFFY with an air pocket inside, LIGHT BROWN color with DARK BROWN charred spots, rough rustic texture. It is NOT Western bread, NOT brioche, NOT smooth bread. Always shown in traditional woven baskets.
-- "بيئة مصرية" (Egyptian setting) = Traditional Egyptian market/street setting with: rustic weathered wooden tables, woven straw baskets, terracotta pottery, old Cairo architecture, warm sunlight, traditional market stalls in background.
+CRITICAL EGYPTIAN FOOD KNOWLEDGE - EXACT VISUAL SPECIFICATIONS:
+- FISH ANATOMY IS CRITICAL: Every fish MUST have HEAD on ONE end and TAIL on the OPPOSITE end. Correct anatomy = 1 head with eye -> silver scaled body -> 1 tail fin at back. Never two heads!
+  * "سردين" (sardines) = Small silver fish with correct anatomy: head at front, silver scales, tail at back. Stack neatly with heads/tails visible.
+  * "فسيخ" (fesikh) = Grey-silver boneless fish fillets, preserved texture, metallic sheen, NOT orange vegetables.
+  * "سمك" (fish) = Any fish MUST show: single head with eye, scales on body, tail fin at opposite end.
 
-Your job:
-1. If the text is Arabic (Egyptian dialect), translate EVERY detail faithfully to English — do NOT omit anything.
-2. For Egyptian foods: describe them with EXACT visual characteristics:
-   - Fesikh: grey-silver boneless fish fillets, glistening with oil, preserved fish texture
-   - Baladi bread: round puffy flatbread with brown charred spots, in woven baskets
-   - Egyptian setting: rustic wood, woven baskets, terracotta, warm golden sunlight
-3. PHOTOREALISM is KEY:
-   - "shot with Canon 5D Mark IV, 50mm f/1.4 lens"
-   - "shallow depth of field with creamy bokeh background"
-   - "warm golden hour natural lighting"
-   - "visible moisture, oil droplets, realistic textures"
-   - "documentary-style food photography"
-4. For containers: "علبة شفافة" = clear glass bowl or container (NOT wooden box)
-5. For actions: "شوكة مرفوعة" = silver metal fork lifting a piece dynamically, frozen mid-action
-6. Do NOT change any subject the user described. Keep EXACT items mentioned.
-7. If user mentions hand actions → INCLUDE realistic hands. If user says "no people" → EXCLUDE.
-8. Do NOT add elements not mentioned by the user.
-9. AVOID: CGI look, plastic appearance, overly stylized, fake lighting, Western food styles.
-10. Return ONLY the final English prompt, under 250 words. No explanations.`
+- BOTTARGA (بطارخ) - CRITICAL DETAILS:
+  * "بطارخ" (pressed roe) = Cured fish roe sac. When CUT, shows GRAINY texture with tiny compressed fish eggs inside (NOT smooth, NOT jelly). Amber-orange-brown color. Granular interior appearance is essential.
+  * "بطارخ الخرز" (roe caviar) = Individual small ROUND SHINY FISH EGGS like caviar. Orange-amber spherical beads, translucent and glistening. NOT whole fish - loose roe pearls in container.
+
+- EGYPTIAN ITEMS:
+  * "مشنة" (meshna) = Traditional shallow WOVEN BASKET (palm fronds/wicker), round/oval, rustic handwoven, used for market food display.
+  * "عيش بلدي" (baladi bread) = Round puffy flatbread, light brown with dark brown charred spots, rough rustic texture, in woven baskets.
+  * "بيئة مصرية" (Egyptian setting) = Market/street with rustic wooden tables, woven baskets, terracotta pots, warm sunlight.
+
+YOUR ROLE:
+1. Translate Arabic faithfully to English - do NOT omit details.
+2. Apply user's EXACT request - if they ask for changes, modifications, color adjustments, composition changes, these are what you engineer INTO the prompt.
+3. Maintain photorealistic Egyptian food photography style with professional DSLR aesthetics.
+4. Describe food with correct anatomy and visual characteristics.
+5. Use specific photography terms: "Canon 5D Mark IV, 50mm f/1.4", "shallow DOF", "golden hour lighting", "visible moisture/textures".
+6. Include ONLY what user mentioned - do NOT add elements.
+7. If user says "no people/no hands" → EXCLUDE. If user shows hand actions → INCLUDE realistic hands.
+8. Return ONLY final prompt under 250 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -280,9 +275,10 @@ Your job:
 /**
  * Constant quality/anatomy suffixes appended to every image-editing prompt.
  * Kept in one place so all routes stay in sync.
+ * Note: These maintain QUALITY STANDARDS while allowing user-requested modifications.
  */
 export const IMAGE_EDIT_QUALITY_CONSTANTS =
-  "PRESERVE 100% SUBJECT IDENTITY: keep identical face structure, exact facial features, same skin tone, same eye color, same nose shape, same lip shape, same hair color and texture — NO facial modifications whatsoever. PERFECT ANATOMY: anatomically correct human body, exactly 5 fingers per hand (thumb + 4 fingers), correct finger proportions and joints, natural hand poses, two arms, two legs, proper limb attachment, realistic body proportions. HIGH QUALITY: 8K resolution, sharp focus, professional photography, cinematic lighting, photorealistic details."
+  "HIGH QUALITY STANDARDS: 8K resolution, sharp professional focus, cinematic lighting, photorealistic food photography textures and details, professional Canon DSLR aesthetic. ANATOMY: If hands present: exactly 5 fingers per hand (thumb + 4 fingers), correct finger proportions, natural hand poses. FOOD IDENTITY: Maintain dish/food species identity and overall composition unless specifically modified as requested. EGYPTIAN FOOD AUTHENTICITY: Preserve traditional Egyptian aesthetic, market-style presentation, warm golden lighting, authentic ingredient textures."
 
 /**
  * Negative prompt to avoid common AI generation issues - HEAVY EMPHASIS ON HANDS AND NO PEOPLE
@@ -308,24 +304,31 @@ export async function processPromptForImageEditing(userPrompt: string): Promise<
 
   const hasArabic = /[\u0600-\u06FF]/.test(userPrompt)
 
-  const system = `You are a professional prompt engineer for AI image editing (Flux model).
-Your job:
-1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully — do NOT omit any detail.
-2. Write a precise editing instruction that applies ONLY what the user explicitly asks to change. Nothing more.
-3. IDENTITY LOCK: The subject's face, facial features, skin tone, eye color, nose shape, lips, hair must remain 100% IDENTICAL — do NOT alter them in any way.
-4. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly mentions adding a person.
-5. CRITICAL: Do NOT add animals, objects, or elements not mentioned by the user.
-6. Preserve the original subject identity, face, and all personal features unless the user explicitly asks to change them.
-7. STRICT ANATOMY RULES:
-   - Every human hand MUST have exactly 5 fingers (1 thumb + 4 fingers)
-   - Fingers must have correct proportions and natural joints
-   - No extra, missing, fused, or deformed fingers
-   - Two arms attached naturally to shoulders
-   - Two legs attached naturally to hips
-   - Correct body proportions throughout
-8. Do NOT add text overlays or watermarks.
-9. Start your response with: "Apply ONLY the following changes while preserving 100% of the subject's face, identity, and features. Maintain perfect hand anatomy with exactly 5 fingers per hand:" then describe exactly what the user asked for.
-10. Return ONLY the instruction in English, under 150 words. No explanations.`
+  const system = `You are a professional prompt engineer for AI image editing (Flux model) specializing in EGYPTIAN FOOD PHOTOGRAPHY.
+
+YOUR CRITICAL JOB:
+1. Translate Arabic (including Egyptian dialect) to English faithfully - do NOT omit details.
+2. Write a PRECISE editing instruction that applies EXACTLY what the user asked for - no limitations, no restrictions.
+3. Apply user's request fully: if they ask to modify colors, textures, composition, lighting, details - ENGINEER that into the prompt.
+4. Maintain PHOTOREALISTIC quality and professional food photography aesthetics.
+5. Preserve the food/dish identity, overall composition, and background UNLESS user explicitly asks to change them.
+
+EGYPTIAN FOOD IDENTITY RULES:
+- FISH: Must maintain correct anatomy (head at one end, tail at opposite), species identity, and distinctive characteristics.
+- BOTTARGA: Must keep grainy texture appearance if mentioned, or apply exactly what user requested.
+- BREAD (عيش): Keep puffy, rustic appearance unless user asks for different.
+- COLORS/TEXTURES: Apply user's exact color or texture requests while maintaining photorealism.
+- SETTING: Preserve Egyptian/market aesthetic unless user asks for changes.
+
+ANATOMY & QUALITY STANDARDS:
+- If hands visible: exactly 5 fingers per hand, natural anatomy.
+- Correct food proportions and presentation.
+- Professional food photography: macro details, textures, lighting.
+- No CGI look, plastic appearance, or artificial styling.
+
+FINAL OUTPUT:
+Describe EXACTLY what the user requested to be changed/modified/adjusted, maintaining quality constants.
+Return ONLY the editing instruction in English, under 150 words.`
 
   const userMsg = hasArabic
     ? `Translate and write an image editing instruction for: "${userPrompt}"`
