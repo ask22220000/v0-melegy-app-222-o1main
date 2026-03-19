@@ -66,7 +66,7 @@ export function UsageIndicator() {
           <span className="text-sm font-bold text-foreground">خطة {stats.planName}</span>
         </div>
         {stats.plan === "free" && (
-          <Link href="/pricing" className="text-xs text-cyan-500 hover:underline">
+          <Link href="/pricing" className="text-xs font-semibold underline" style={{ color: "#fde047" }}>
             ترقية
           </Link>
         )}

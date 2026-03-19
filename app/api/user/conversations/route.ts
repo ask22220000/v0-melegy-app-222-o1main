@@ -38,7 +38,42 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/user/conversations — not needed anymore (save-chat handles this)
+// POST /api/user/conversations
+// Legacy pages (chat-starter, chat-pro, chat-advanced) call this with mlg_user_id
+// We redirect the save to melegy_history via auth_user_id
 export async function POST(request: NextRequest) {
-  return NextResponse.json({ conversation: { id: null } })
+  try {
+    const body = await request.json()
+    const userId = body.user_id || body.mlg_user_id
+    const title = body.title ?? "محادثة"
+
+    if (!userId) {
+      return NextResponse.json({ conversation: { id: String(Date.now()) } })
+    }
+
+    const supabase = getServiceRoleClient()
+    const now = new Date().toISOString()
+
+    const { data, error } = await supabase
+      .from("melegy_history")
+      .insert({
+        auth_user_id: userId,
+        chat_title: title,
+        chat_date: new Date().toLocaleDateString("ar-EG"),
+        messages: [],
+        created_at: now,
+        updated_at: now,
+      })
+      .select("id")
+      .single()
+
+    if (error) {
+      console.error("[v0] conversations POST schema error:", error.message)
+      return NextResponse.json({ conversation: { id: String(Date.now()) } })
+    }
+
+    return NextResponse.json({ conversation: { id: data.id } })
+  } catch (err: any) {
+    return NextResponse.json({ conversation: { id: String(Date.now()) } })
+  }
 }
