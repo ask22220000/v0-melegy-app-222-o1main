@@ -83,11 +83,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Update conversation updated_at
+    // Update melegy_history updated_at if conversation_id matches
     await supabase
-      .from("conversations")
+      .from("melegy_history")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversation_id)
+      .catch(() => {})
 
     // Increment messages_used for user (only count user messages)
     if (role === "user") {
