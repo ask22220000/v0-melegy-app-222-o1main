@@ -1,170 +1,145 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Mail, Lock, LogIn, UserPlus } from "lucide-react"
-
-type View = "login" | "signup"
+import { Loader2, Mail, Lock, LogIn } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get("redirectedFrom") || "/chat"
+  const redirectedFrom = searchParams.get("redirectedFrom") || "/chat"
 
-  const [view, setView] = useState<View>("login")
-  const [loginEmail, setLoginEmail] = useState("")
-  const [loginPassword, setLoginPassword] = useState("")
-  const [signupName, setSignupName] = useState("")
-  const [signupEmail, setSignupEmail] = useState("")
-  const [signupPassword, setSignupPassword] = useState("")
-  const [signupConfirm, setSignupConfirm] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [signupDone, setSignupDone] = useState(false)
-
-  useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => {
-      if (data.user) router.replace(redirectTo)
-    })
-  }, [router, redirectTo])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setError("")
     setLoading(true)
-    try {
-      const { data, error: authError } = await createClient().auth.signInWithPassword({
-        email: loginEmail.trim(),
-        password: loginPassword,
-      })
-      if (authError) {
-        setError(
-          authError.message.includes("Invalid login credentials")
-            ? "الإيميل أو كلمة السر غلط"
-            : authError.message.includes("Email not confirmed")
-            ? "لازم تأكد إيميلك الأول — فحص صندوق الإيميل"
-            : authError.message
-        )
-        return
-      }
-      if (data.user) router.replace(redirectTo)
-    } catch {
-      setError("حدث خطأ في الاتصال")
-    } finally {
-      setLoading(false)
-    }
-  }
 
-  async function handleSignup(e: React.FormEvent) {
-    e.preventDefault()
-    setError("")
-    if (signupPassword !== signupConfirm) { setError("كلمتا السر مش متطابقتين"); return }
-    if (signupPassword.length < 6) { setError("كلمة السر لازم تكون 6 أحرف على الأقل"); return }
-    setLoading(true)
     try {
-      const { data, error: authError } = await createClient().auth.signUp({
-        email: signupEmail.trim(),
-        password: signupPassword,
-        options: {
-          data: { full_name: signupName.trim() },
-          emailRedirectTo: `${typeof window !== "undefined" ? window.location.origin : "https://melegy.app"}/auth/callback`,
-        },
+      const supabase = createClient()
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
       })
+
       if (authError) {
-        setError(authError.message.includes("already registered") ? "الإيميل ده مسجل قبل كده" : authError.message)
+        if (authError.message.includes("Invalid login credentials")) {
+          setError("الإيميل أو كلمة السر غلط، حاول تاني")
+        } else if (authError.message.includes("Email not confirmed")) {
+          setError("لازم تأكد إيميلك الأول. فحص صندوق الإيميل بتاعك.")
+        } else {
+          setError(authError.message)
+        }
         return
       }
-      if (data.session && data.user) {
-        router.replace(redirectTo)
-      } else {
-        setSignupDone(true)
-      }
+
+      router.push(redirectedFrom)
+      router.refresh()
     } catch {
-      setError("حدث خطأ في الاتصال")
+      setError("حدث خطأ في الاتصال، حاول تاني")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-[#0d1117] border border-blue-900/40 rounded-2xl p-8 w-full max-w-md shadow-2xl">
-        <div className="flex justify-center mb-6">
-          <img src="/images/logo.jpg" alt="Melegy" className="w-16 h-16 rounded-full object-cover border-2 border-blue-600 shadow-lg shadow-blue-600/30" />
+    <div
+      className="min-h-screen flex items-center justify-center bg-[#0a0b1a] px-4"
+      dir="rtl"
+    >
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <img
+            src="/images/logo.jpg"
+            alt="Melegy"
+            className="w-20 h-20 rounded-full object-cover border-2 border-blue-600 shadow-lg shadow-blue-600/30"
+          />
         </div>
 
-        {signupDone ? (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="bg-blue-600/20 border border-blue-600/40 rounded-full p-4">
-              <Mail className="w-8 h-8 text-blue-400" />
-            </div>
-            <h2 className="text-xl font-bold text-white">تم إنشاء الحساب!</h2>
-            <p className="text-gray-400 text-sm leading-relaxed">بعتنالك إيميل تأكيد. افتحه واضغط على رابط التأكيد عشان تقدر تدخل.</p>
-            <div className="bg-amber-900/20 border border-amber-800/40 rounded-xl p-3 w-full">
-              <p className="text-amber-400 text-sm">لو ماوصلكش — فحص مجلد الـ Spam</p>
-            </div>
-            <Button onClick={() => { setSignupDone(false); setView("login") }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 font-bold rounded-xl">
-              الذهاب لتسجيل الدخول
-            </Button>
+        <div className="bg-[#0d1117] border border-blue-900/40 rounded-2xl p-8 shadow-2xl">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-white">تسجيل الدخول</h1>
+            <p className="text-gray-400 text-sm mt-1">ادخل بحسابك على ميليجي</p>
           </div>
-        ) : (
-          <>
-            <div className="flex bg-gray-900 rounded-xl p-1 mb-6 gap-1">
-              <button onClick={() => { setView("login"); setError("") }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === "login" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"}`}>
-                تسجيل الدخول
-              </button>
-              <button onClick={() => { setView("signup"); setError("") }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === "signup" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"}`}>
-                حساب جديد
-              </button>
+
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            {/* Email */}
+            <div className="relative">
+              <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+              <Input
+                type="email"
+                placeholder="الإيميل"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError("") }}
+                required
+                dir="ltr"
+                className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500 focus:ring-blue-500"
+              />
             </div>
 
-            {view === "login" && (
-              <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                <div className="relative">
-                  <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                  <Input type="email" placeholder="الإيميل" value={loginEmail} onChange={(e) => { setLoginEmail(e.target.value); setError("") }} required dir="ltr" className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500" />
-                </div>
-                <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                  <Input type="password" placeholder="كلمة السر" value={loginPassword} onChange={(e) => { setLoginPassword(e.target.value); setError("") }} required dir="ltr" className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500" />
-                </div>
-                {error && <p className="text-red-400 text-sm text-center bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>}
-                <Button type="submit" disabled={loading || !loginEmail || !loginPassword} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 text-base font-bold rounded-xl flex items-center justify-center gap-2">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
-                  دخول
-                </Button>
-              </form>
+            {/* Password */}
+            <div className="relative">
+              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+              <Input
+                type="password"
+                placeholder="كلمة السر"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError("") }}
+                required
+                dir="ltr"
+                className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500 focus:ring-blue-500"
+                onKeyDown={(e) => e.key === "Enter" && handleLogin(e as any)}
+              />
+            </div>
+
+            {error && (
+              <p className="text-red-400 text-sm text-center bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
+                {error}
+              </p>
             )}
 
-            {view === "signup" && (
-              <form onSubmit={handleSignup} className="flex flex-col gap-3">
-                <Input type="text" placeholder="الاسم (اختياري)" value={signupName} onChange={(e) => setSignupName(e.target.value)} dir="rtl" className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 py-5 rounded-xl focus:border-blue-500" />
-                <div className="relative">
-                  <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                  <Input type="email" placeholder="الإيميل" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setError("") }} required dir="ltr" className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500" />
-                </div>
-                <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                  <Input type="password" placeholder="كلمة السر (6 أحرف على الأقل)" value={signupPassword} onChange={(e) => { setSignupPassword(e.target.value); setError("") }} required dir="ltr" className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500" />
-                </div>
-                <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                  <Input type="password" placeholder="تأكيد كلمة السر" value={signupConfirm} onChange={(e) => { setSignupConfirm(e.target.value); setError("") }} required dir="ltr" className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500" />
-                </div>
-                {error && <p className="text-red-400 text-sm text-center bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>}
-                <Button type="submit" disabled={loading || !signupEmail || !signupPassword || !signupConfirm} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 text-base font-bold rounded-xl flex items-center justify-center gap-2 mt-1">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
-                  إنشاء الحساب
-                </Button>
-              </form>
-            )}
-          </>
-        )}
-        <p className="text-center text-gray-600 text-xs mt-6">Melegy AI — صنع في مصر</p>
+            <Button
+              type="submit"
+              disabled={loading || !email || !password}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 text-base font-bold rounded-xl flex items-center justify-center gap-2 mt-1"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <LogIn className="w-5 h-5" />
+              )}
+              دخول
+            </Button>
+          </form>
+
+          <div className="relative flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-gray-800" />
+            <span className="text-gray-500 text-xs">أو</span>
+            <div className="flex-1 h-px bg-gray-800" />
+          </div>
+
+          <div className="text-center">
+            <p className="text-gray-400 text-sm">
+              مش عندك حساب؟{" "}
+              <Link href="/auth/sign-up" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                سجّل دلوقتي
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        <p className="text-center text-gray-600 text-xs mt-6">
+          Melegy AI — صنع في مصر
+        </p>
       </div>
     </div>
   )
