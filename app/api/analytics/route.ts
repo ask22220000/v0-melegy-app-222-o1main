@@ -1,3 +1,4 @@
+// Analytics API v2 - Clean rebuild
 import { getServiceRoleClient } from "@/lib/supabase/server"
 
 export async function GET() {

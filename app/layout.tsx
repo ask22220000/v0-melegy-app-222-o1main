@@ -1,3 +1,4 @@
+// Root Layout - Melegy App
 import type React from "react"
 import type { Metadata } from "next"
 import { Cairo, Geist_Mono } from "next/font/google"
