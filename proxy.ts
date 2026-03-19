@@ -1,58 +1,14 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
-async function proxyHandler(request: NextRequest) {
-  let response = NextResponse.next({ request })
-
-  // ── Supabase session refresh ──────────────────────────────────────────────
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          response = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Protected routes — redirect to login if not authenticated
-  const protectedPaths = ['/chat', '/chat-pro', '/chat-starter', '/chat-advanced', '/voice-chat', '/data']
-  const isProtected = protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p))
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    url.searchParams.set('redirectedFrom', request.nextUrl.pathname)
-    return NextResponse.redirect(url)
-  }
-
-  // If logged in and trying to access auth pages, redirect to chat
-  const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
-  if (isAuthPage && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/chat'
-    return NextResponse.redirect(url)
-  }
+export async function proxy(request: NextRequest) {
+  const response = NextResponse.next()
 
   // ── Security Headers ──────────────────────────────────────────────────────
   response.headers.set('X-Frame-Options', 'SAMEORIGIN')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('X-XSS-Protection', '1; mode=block')
-
   response.headers.set(
     'Permissions-Policy',
     'camera=(), microphone=(self), geolocation=(), interest-cohort=()'
@@ -79,8 +35,7 @@ async function proxyHandler(request: NextRequest) {
   return response
 }
 
-export { proxyHandler as proxy }
-export default proxyHandler
+export default proxy
 
 export const config = {
   matcher: [

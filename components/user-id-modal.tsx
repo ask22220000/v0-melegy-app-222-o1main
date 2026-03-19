@@ -78,13 +78,10 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
     setLoading(true)
     try {
       const supabase = createClient()
-      const { error: authError } = await supabase.auth.signUp({
+      const { data: signUpData, error: authError } = await supabase.auth.signUp({
         email: signupEmail.trim(),
         password: signupPassword,
         options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/auth/login`,
           data: { full_name: signupName.trim() },
         },
       })
@@ -96,7 +93,13 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
         }
         return
       }
-      setSignupDone(true)
+      // If session exists immediately (email confirmation disabled), login directly
+      if (signUpData.session && signUpData.user) {
+        onUserReady(signUpData.user.id, "free", true)
+        router.refresh()
+      } else {
+        setSignupDone(true)
+      }
     } catch {
       setError("حدث خطأ في الاتصال")
     } finally {

@@ -34,13 +34,10 @@ export default function SignUpPage() {
     setLoading(true)
     try {
       const supabase = createClient()
-      const { error: authError } = await supabase.auth.signUp({
+      const { data: signUpData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/auth/login`,
           data: { full_name: name.trim() },
         },
       })
@@ -54,7 +51,13 @@ export default function SignUpPage() {
         return
       }
 
-      router.push("/auth/sign-up-success")
+      // If session exists immediately (email confirmation disabled in Supabase), go to chat
+      if (signUpData.session) {
+        router.push("/chat")
+      } else {
+        // Email confirmation required
+        router.push("/auth/sign-up-success")
+      }
     } catch {
       setError("حدث خطأ في الاتصال، حاول تاني")
     } finally {
