@@ -28,22 +28,30 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const pathname = request.nextUrl.pathname
+
+  // If logged in and on root or auth pages, redirect to chat
+  if (user && (pathname === "/" || pathname.startsWith("/auth"))) {
+    const url = request.nextUrl.clone()
+    url.pathname = "/chat"
+    return NextResponse.redirect(url)
+  }
+
+  // Root "/" always redirects unauthenticated users to login
+  if (!user && pathname === "/") {
+    const url = request.nextUrl.clone()
+    url.pathname = "/auth/login"
+    return NextResponse.redirect(url)
+  }
+
   // Protected routes — redirect to login if not authenticated
   const protectedPaths = ["/chat", "/chat-pro", "/chat-starter", "/chat-advanced", "/voice-chat", "/data"]
-  const isProtected = protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p))
+  const isProtected = protectedPaths.some((p) => pathname.startsWith(p))
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone()
     url.pathname = "/auth/login"
-    url.searchParams.set("redirectedFrom", request.nextUrl.pathname)
-    return NextResponse.redirect(url)
-  }
-
-  // If logged in and trying to access auth pages, redirect to chat
-  const isAuthPage = request.nextUrl.pathname.startsWith("/auth")
-  if (isAuthPage && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/chat"
+    url.searchParams.set("redirectedFrom", pathname)
     return NextResponse.redirect(url)
   }
 
