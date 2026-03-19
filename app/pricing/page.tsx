@@ -45,7 +45,7 @@ export default function PricingPage() {
       name: "خطة Start UP",
       nameEn: "Start UP",
       description: "للمبتدئين والطلاب",
-      price: "39",
+      price: "49",
       period: "شهرياً",
       features: [
         "توليد 10 صور يومياً",
@@ -69,7 +69,7 @@ export default function PricingPage() {
       name: "الخطة الاحترافية",
       nameEn: "Pro",
       description: "للمحترفين وأصحاب المشاريع",
-      price: "99",
+      price: "129",
       period: "شهرياً",
       features: [
         "توليد 100 صورة يومياً",
@@ -93,7 +93,7 @@ export default function PricingPage() {
       name: "الخطة VIP",
       nameEn: "VIP",
       description: "كل شيء بلا حدود مع دعم فوري",
-      price: "250",
+      price: "299",
       period: "شهرياً",
       features: [
         "توليد صور غير محدود",

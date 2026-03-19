@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useApp } from "@/lib/contexts/AppContext"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
@@ -194,15 +195,14 @@ export default function ChatPage() {
   // Load conversations from Supabase when user ID is set
   const loadConversationsFromServer = async (userId: string) => {
     try {
-      const res = await fetch(`/api/user/conversations?user_id=${userId}`)
+      const res = await fetch(`/api/save-chat?user_id=${userId}`)
       const data = await res.json()
-      if (data.conversations && data.conversations.length > 0) {
-        const histories: ChatHistory[] = data.conversations.map((c: any) => ({
-          id: c.id,
-          title: c.title,
-          date: new Date(c.created_at).toLocaleDateString("ar-EG"),
-          messages: [], // lazy-load messages when user clicks
-          conversationId: c.id,
+      if (data.histories && data.histories.length > 0) {
+        const histories: ChatHistory[] = data.histories.map((h: any) => ({
+          id: h.id,
+          title: h.title,
+          date: h.date,
+          messages: h.messages ?? [],
         }))
         setChatHistories(histories)
       }
@@ -211,35 +211,19 @@ export default function ChatPage() {
     }
   }
 
-  // Initialize user: check localStorage for existing ID
+  // Initialize user: check Supabase Auth session
   useEffect(() => {
-    const storedId = localStorage.getItem("mlg_user_id")
-    const storedPlan = localStorage.getItem("mlg_plan") || "free"
-    if (storedId) {
-      // Verify it still exists on server
-      fetch(`/api/user?id=${storedId}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.user) {
-            setMlgUserId(data.user.mlg_user_id)
-            setMlgPlan(data.user.plan)
-            loadConversationsFromServer(data.user.mlg_user_id)
-          } else {
-            // ID invalid, show modal
-            localStorage.removeItem("mlg_user_id")
-            localStorage.removeItem("mlg_plan")
-            setShowUserModal(true)
-          }
-        })
-        .catch(() => {
-          // On error keep stored values
-          setMlgUserId(storedId)
-          setMlgPlan(storedPlan)
-          loadConversationsFromServer(storedId)
-        })
-    } else {
-      setShowUserModal(true)
-    }
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (error || !data.user) {
+        // Not logged in, middleware will redirect to /auth/login
+        return
+      }
+      const user = data.user
+      setMlgUserId(user.id)
+      setMlgPlan("free") // Default to free, check subscriptions from DB
+      loadConversationsFromServer(user.id)
+    })
   }, [])
 
   useEffect(() => {
@@ -880,39 +864,26 @@ export default function ChatPage() {
         .join(" | ") || "محادثة بدون عنوان"
 
     try {
-      // 1. Create conversation in Supabase
-      const convRes = await fetch("/api/user/conversations", {
+      const chatDate = new Date().toLocaleDateString("ar-EG")
+
+      const res = await fetch("/api/save-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mlg_user_id: mlgUserId, title: title.substring(0, 80) }),
+        body: JSON.stringify({
+          user_id: mlgUserId,
+          chat_title: title.substring(0, 80),
+          chat_date: chatDate,
+          messages: messages.filter((m) => m.id !== "welcome"),
+        }),
       })
-      const convData = await convRes.json()
-      if (!convRes.ok) throw new Error(convData.error || "فشل إنشاء المحادثة")
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "فشل الحفظ")
 
-      const conversationId = convData.conversation.id
-
-      // 2. Save all messages — pass imageUrl/videoUrl as dedicated fields
-      for (const msg of messages) {
-        if (msg.id === "welcome") continue
-        await fetch("/api/user/messages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            conversation_id: conversationId,
-            mlg_user_id: mlgUserId,
-            role: msg.role,
-            content: msg.content || "",
-            imageUrl: msg.imageUrl || null,
-            videoUrl: msg.videoUrl || null,
-          }),
-        })
-      }
-
-      // 3. Update local state
+      // Update local state
       const newChat: ChatHistory = {
-        id: conversationId,
+        id: data.id ?? String(Date.now()),
         title: title.substring(0, 50),
-        date: new Date().toLocaleDateString("ar-EG"),
+        date: chatDate,
         messages: messages,
       }
       setChatHistories((prev) => [newChat, ...prev])
@@ -1088,6 +1059,20 @@ export default function ChatPage() {
             >
               <Languages className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="hidden xs:inline">{translations.languageToggle}</span>
+            </button>
+            <button
+              onClick={async () => {
+                const supabase = createClient()
+                await supabase.auth.signOut()
+                router.push("/auth/login")
+              }}
+              className="bg-card border-2 border-border text-foreground px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-lg transition-all duration-300 hover:bg-red-900/40 hover:border-red-700 hover:scale-105 flex items-center cursor-pointer"
+              aria-label="تسجيل الخروج"
+              title="تسجيل الخروج"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 sm:h-4 sm:w-4">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
             </button>
             <button
               onClick={() => setShowUsageCard(!showUsageCard)}

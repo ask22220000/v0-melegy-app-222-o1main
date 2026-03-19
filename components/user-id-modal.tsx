@@ -1,84 +1,110 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Copy, Check, UserPlus, LogIn, Loader2 } from "lucide-react"
+import { Loader2, Mail, Lock, LogIn, UserPlus } from "lucide-react"
 
 interface UserIdModalProps {
   onUserReady: (userId: string, plan: string, isNew: boolean) => void
 }
 
-type View = "choice" | "new-id" | "enter-id"
+type View = "login" | "signup"
 
 export function UserIdModal({ onUserReady }: UserIdModalProps) {
-  const [view, setView] = useState<View>("choice")
-  const [inputId, setInputId] = useState("")
-  const [newId, setNewId] = useState("")
-  const [plan, setPlan] = useState("free")
+  const router = useRouter()
+  const [view, setView] = useState<View>("login")
+
+  // Login state
+  const [loginEmail, setLoginEmail] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+
+  // Signup state
+  const [signupName, setSignupName] = useState("")
+  const [signupEmail, setSignupEmail] = useState("")
+  const [signupPassword, setSignupPassword] = useState("")
+  const [signupConfirm, setSignupConfirm] = useState("")
+
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [signupDone, setSignupDone] = useState(false)
 
-  async function handleCreateNew() {
-    setLoading(true)
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
     setError("")
+    setLoading(true)
     try {
-      const res = await fetch("/api/user", { method: "POST" })
-      const data = await res.json()
-      if (!res.ok || data.error) {
-        setError(data.error || "حدث خطأ، حاول تاني")
+      const supabase = createClient()
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginEmail.trim(),
+        password: loginPassword,
+      })
+      if (authError) {
+        if (authError.message.includes("Invalid login credentials")) {
+          setError("الإيميل أو كلمة السر غلط")
+        } else if (authError.message.includes("Email not confirmed")) {
+          setError("لازم تأكد إيميلك الأول — فحص صندوق الإيميل")
+        } else {
+          setError(authError.message)
+        }
         return
       }
-      setNewId(data.user.mlg_user_id)
-      setPlan(data.user.plan)
-      setView("new-id")
+      const user = data.user
+      if (user) {
+        onUserReady(user.id, "free", false)
+        router.refresh()
+      }
     } catch {
-      setError("حدث خطأ في الاتصال بالسيرفر")
+      setError("حدث خطأ في الاتصال")
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleEnterExisting() {
-    if (!inputId.trim()) {
-      setError("ادخل الـ ID بتاعك")
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    if (signupPassword !== signupConfirm) {
+      setError("كلمتا السر مش متطابقتين")
+      return
+    }
+    if (signupPassword.length < 6) {
+      setError("كلمة السر لازم تكون 6 أحرف على الأقل")
       return
     }
     setLoading(true)
-    setError("")
     try {
-      const res = await fetch(`/api/user?id=${inputId.trim()}`)
-      const data = await res.json()
-      if (res.status === 404) {
-        setError("ID مش موجود، تأكد منه وحاول تاني")
+      const supabase = createClient()
+      const { data: signUpData, error: authError } = await supabase.auth.signUp({
+        email: signupEmail.trim(),
+        password: signupPassword,
+        options: {
+          data: { full_name: signupName.trim() },
+        },
+      })
+      if (authError) {
+        if (authError.message.includes("already registered")) {
+          setError("الإيميل ده مسجل قبل كده")
+        } else {
+          setError(authError.message)
+        }
         return
       }
-      if (!res.ok || data.error) {
-        setError(data.error || "حدث خطأ، حاول تاني")
-        return
+      // If session exists immediately (email confirmation disabled), login directly
+      if (signUpData.session && signUpData.user) {
+        onUserReady(signUpData.user.id, "free", true)
+        router.refresh()
+      } else {
+        setSignupDone(true)
       }
-      // Save to localStorage
-      localStorage.setItem("mlg_user_id", data.user.mlg_user_id)
-      localStorage.setItem("mlg_plan", data.user.plan)
-      onUserReady(data.user.mlg_user_id, data.user.plan, false)
     } catch {
-      setError("حدث خطأ في الاتصال بالسيرفر")
+      setError("حدث خطأ في الاتصال")
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleCopyAndContinue() {
-    navigator.clipboard.writeText(newId).then(() => {
-      setCopied(true)
-      setTimeout(() => {
-        // Save to localStorage then proceed
-        localStorage.setItem("mlg_user_id", newId)
-        localStorage.setItem("mlg_plan", plan)
-        onUserReady(newId, plan, true)
-      }, 800)
-    })
   }
 
   return (
@@ -89,118 +115,159 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
       <div className="bg-[#0d1117] border border-blue-900/40 rounded-2xl p-8 w-full max-w-md mx-4 shadow-2xl">
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <img src="/images/logo.jpg" alt="Melegy" className="w-16 h-16 rounded-full object-cover border-2 border-blue-600" />
+          <img
+            src="/images/logo.jpg"
+            alt="Melegy"
+            className="w-16 h-16 rounded-full object-cover border-2 border-blue-600 shadow-lg shadow-blue-600/30"
+          />
         </div>
 
-        {/* CHOICE VIEW */}
-        {view === "choice" && (
-          <div className="flex flex-col gap-4">
-            <div className="text-center mb-2">
-              <h2 className="text-xl font-bold text-white">ابدأ المحادثة</h2>
-              <p className="text-sm text-gray-400 mt-1">كل محادثاتك بتتحفظ تلقائياً بالـ ID بتاعك</p>
+        {/* ── Signup success ── */}
+        {signupDone ? (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="bg-blue-600/20 border border-blue-600/40 rounded-full p-4">
+              <Mail className="w-8 h-8 text-blue-400" />
             </div>
-
-            <Button
-              onClick={handleCreateNew}
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-bold rounded-xl flex items-center justify-center gap-3"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
-              ابدأ جديد — هيتولد لك ID
-            </Button>
-
-            <div className="relative flex items-center gap-3">
-              <div className="flex-1 h-px bg-gray-800" />
-              <span className="text-gray-500 text-xs">أو</span>
-              <div className="flex-1 h-px bg-gray-800" />
-            </div>
-
-            <Button
-              onClick={() => setView("enter-id")}
-              variant="outline"
-              className="w-full border-gray-700 text-gray-300 hover:bg-gray-800 py-6 text-base font-bold rounded-xl flex items-center justify-center gap-3"
-            >
-              <LogIn className="w-5 h-5" />
-              عندي ID — هدخل بيه
-            </Button>
-
-            {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-          </div>
-        )}
-
-        {/* NEW ID VIEW */}
-        {view === "new-id" && (
-          <div className="flex flex-col gap-5">
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-white">معرفك الشخصي</h2>
-              <p className="text-sm text-red-400 mt-1 font-medium">احفظ الـ ID دا — محتاجه عشان ترجع لمحادثاتك</p>
-            </div>
-
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-center gap-3">
-              <span className="text-blue-400 font-mono text-lg font-bold flex-1 text-center tracking-widest">
-                {newId}
-              </span>
-            </div>
-
-            <p className="text-xs text-gray-500 text-center">
-              لو نسيته، مش هتقدر ترجع لمحادثاتك القديمة. احتفظ بيه في مكان آمن.
+            <h2 className="text-xl font-bold text-white">تم إنشاء الحساب!</h2>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              بعتنالك إيميل تأكيد. افتحه واضغط على رابط التأكيد عشان تقدر تدخل.
             </p>
-
+            <div className="bg-amber-900/20 border border-amber-800/40 rounded-xl p-3 w-full">
+              <p className="text-amber-400 text-sm">لو ماوصلكش — فحص مجلد الـ Spam</p>
+            </div>
             <Button
-              onClick={handleCopyAndContinue}
-              disabled={copied}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 text-base font-bold rounded-xl flex items-center justify-center gap-3"
+              onClick={() => { setSignupDone(false); setView("login") }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 font-bold rounded-xl"
             >
-              {copied ? (
-                <>
-                  <Check className="w-5 h-5 text-green-400" />
-                  تم النسخ — جاري الدخول...
-                </>
-              ) : (
-                <>
-                  <Copy className="w-5 h-5" />
-                  انسخ الـ ID وابدأ
-                </>
-              )}
+              الذهاب لتسجيل الدخول
             </Button>
           </div>
-        )}
-
-        {/* ENTER EXISTING ID VIEW */}
-        {view === "enter-id" && (
-          <div className="flex flex-col gap-4">
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-white">ادخل الـ ID بتاعك</h2>
-              <p className="text-sm text-gray-400 mt-1">هتلاقي كل محادثاتك القديمة</p>
+        ) : (
+          <>
+            {/* ── Tabs ── */}
+            <div className="flex bg-gray-900 rounded-xl p-1 mb-6 gap-1">
+              <button
+                onClick={() => { setView("login"); setError("") }}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === "login" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"}`}
+              >
+                تسجيل الدخول
+              </button>
+              <button
+                onClick={() => { setView("signup"); setError("") }}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${view === "signup" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"}`}
+              >
+                حساب جديد
+              </button>
             </div>
 
-            <Input
-              value={inputId}
-              onChange={(e) => { setInputId(e.target.value); setError("") }}
-              placeholder="mlg-xxxxxxxxxxxx"
-              className="bg-gray-900 border-gray-700 text-white text-center font-mono text-base py-6 rounded-xl"
-              dir="ltr"
-              onKeyDown={(e) => e.key === "Enter" && handleEnterExisting()}
-            />
+            {/* ── Login form ── */}
+            {view === "login" && (
+              <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                <div className="relative">
+                  <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  <Input
+                    type="email"
+                    placeholder="الإيميل"
+                    value={loginEmail}
+                    onChange={(e) => { setLoginEmail(e.target.value); setError("") }}
+                    required
+                    dir="ltr"
+                    className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500"
+                  />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  <Input
+                    type="password"
+                    placeholder="كلمة السر"
+                    value={loginPassword}
+                    onChange={(e) => { setLoginPassword(e.target.value); setError("") }}
+                    required
+                    dir="ltr"
+                    className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500"
+                  />
+                </div>
+                {error && (
+                  <p className="text-red-400 text-sm text-center bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
+                    {error}
+                  </p>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loading || !loginEmail || !loginPassword}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 text-base font-bold rounded-xl flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
+                  دخول
+                </Button>
+              </form>
+            )}
 
-            {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-
-            <Button
-              onClick={handleEnterExisting}
-              disabled={loading || !inputId.trim()}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 text-base font-bold rounded-xl flex items-center justify-center gap-3"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
-              دخول
-            </Button>
-
-            <button
-              onClick={() => { setView("choice"); setError(""); setInputId("") }}
-              className="text-gray-500 text-sm text-center hover:text-gray-300 transition-colors"
-            >
-              رجوع
-            </button>
-          </div>
+            {/* ── Signup form ── */}
+            {view === "signup" && (
+              <form onSubmit={handleSignup} className="flex flex-col gap-3">
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="الاسم (اختياري)"
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    dir="rtl"
+                    className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 py-5 rounded-xl focus:border-blue-500"
+                  />
+                </div>
+                <div className="relative">
+                  <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  <Input
+                    type="email"
+                    placeholder="الإيميل"
+                    value={signupEmail}
+                    onChange={(e) => { setSignupEmail(e.target.value); setError("") }}
+                    required
+                    dir="ltr"
+                    className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500"
+                  />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  <Input
+                    type="password"
+                    placeholder="كلمة السر (6 أحرف على الأقل)"
+                    value={signupPassword}
+                    onChange={(e) => { setSignupPassword(e.target.value); setError("") }}
+                    required
+                    dir="ltr"
+                    className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500"
+                  />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  <Input
+                    type="password"
+                    placeholder="تأكيد كلمة السر"
+                    value={signupConfirm}
+                    onChange={(e) => { setSignupConfirm(e.target.value); setError("") }}
+                    required
+                    dir="ltr"
+                    className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 pr-10 py-5 rounded-xl focus:border-blue-500"
+                  />
+                </div>
+                {error && (
+                  <p className="text-red-400 text-sm text-center bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
+                    {error}
+                  </p>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loading || !signupEmail || !signupPassword || !signupConfirm}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 text-base font-bold rounded-xl flex items-center justify-center gap-2 mt-1"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
+                  إنشاء الحساب
+                </Button>
+              </form>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -189,14 +189,17 @@ export default function ChatProPage() {
     }
   }
 
-  // Initialize user from localStorage
+  // Initialize user from Supabase Auth
   useEffect(() => {
-    const storedId = localStorage.getItem("mlg_user_id")
-    if (storedId) {
-      setMlgUserId(storedId)
-    } else {
-      setShowUserModal(true)
-    }
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      createClient().auth.getUser().then(({ data }) => {
+        if (data.user) {
+          setMlgUserId(data.user.id)
+        } else {
+          window.location.href = "/auth/login"
+        }
+      })
+    })
   }, [])
 
   // Set plan and check subscription access on mount
@@ -247,9 +250,10 @@ export default function ChatProPage() {
         document.documentElement.classList.add("dark")
       }
       try {
-        const storedId = localStorage.getItem("mlg_user_id")
-        if (storedId) {
-          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(storedId)}`)
+        const { createClient } = await import("@/lib/supabase/client")
+        const { data: authData } = await createClient().auth.getUser()
+        if (authData.user) {
+          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(authData.user.id)}`)
           if (res.ok) {
             const data = await res.json()
             if (data.histories?.length > 0) setChatHistories(data.histories)
@@ -833,7 +837,7 @@ export default function ChatProPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mlg_user_id: mlgUserId,
+          user_id: mlgUserId,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,

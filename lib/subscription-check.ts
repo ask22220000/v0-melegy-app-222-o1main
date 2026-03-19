@@ -6,26 +6,27 @@ export interface SubscriptionStatus {
   needsRenewal: boolean
 }
 
-// Client-side subscription check using localStorage
+// Client-side subscription check using Supabase Auth
 export async function checkSubscriptionAccess(planType: 'startup' | 'pro' | 'vip'): Promise<{
   hasAccess: boolean
   message: string
   daysRemaining?: number
 }> {
   try {
-    const userId = localStorage.getItem('mlg_user_id')
-    if (!userId) {
+    const { createClient } = await import("@/lib/supabase/client")
+    const { data } = await createClient().auth.getUser()
+
+    if (!data.user) {
       return {
         hasAccess: false,
         message: 'يرجى تسجيل الدخول أولاً',
       }
     }
 
-    // Check subscription from API
     const response = await fetch('/api/check-subscription', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, planType }),
+      body: JSON.stringify({ userId: data.user.id, planType }),
     })
 
     if (!response.ok) {
@@ -35,16 +36,12 @@ export async function checkSubscriptionAccess(planType: 'startup' | 'pro' | 'vip
       }
     }
 
-    const data = await response.json()
-    return data
+    const result = await response.json()
+    return result
   } catch (error) {
-    console.error('[v0] Error checking subscription access:', error)
     return {
       hasAccess: false,
       message: 'حدث خطأ في التحقق من الاشتراك',
     }
   }
 }
-
-// Note: checkSubscription is now only available in server-side code (API routes)
-// Client components should use checkSubscriptionAccess instead
