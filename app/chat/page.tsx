@@ -216,7 +216,7 @@ export default function ChatPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data, error }) => {
       if (error || !data.user) {
-        // Not logged in, middleware will redirect to /auth/login
+        window.location.href = "/auth/login"
         return
       }
       const user = data.user
