@@ -10,7 +10,6 @@ export async function GET() {
   let topQueries: { query: string; count: number }[] = []
   let dailyActivity: { date: string; conversations: number }[] = []
 
-  // Total conversations
   try {
     const { count: convCount } = await supabase
       .from("melegy_history")
@@ -18,7 +17,6 @@ export async function GET() {
     totalConversations = convCount || 0
   } catch {}
 
-  // Unique users (by auth_user_id)
   try {
     const { data: userRows } = await supabase
       .from("melegy_history")
@@ -28,7 +26,6 @@ export async function GET() {
     uniqueUsers = uniqueIds.size
   } catch {}
 
-  // Active in last 24h
   try {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { data: recentRows } = await supabase
@@ -40,7 +37,6 @@ export async function GET() {
     recentUsers24h = recent24Set.size
   } catch {}
 
-  // Hourly activity
   try {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { data: hourRows } = await supabase
@@ -56,7 +52,6 @@ export async function GET() {
     })
   } catch {}
 
-  // Top queries
   try {
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: titleRows } = await supabase
@@ -78,7 +73,6 @@ export async function GET() {
       .slice(0, 10)
   } catch {}
 
-  // Daily activity (14 days)
   try {
     const { data: dailyRows } = await supabase
       .from("melegy_history")
@@ -97,7 +91,6 @@ export async function GET() {
     dailyActivity = Object.entries(dayMap).map(([date, conversations]) => ({ date, conversations }))
   } catch {}
 
-  // User usage stats
   let totalImages = 0
   let totalVideos = 0
   let totalVoiceMinutes = 0
@@ -128,7 +121,6 @@ export async function GET() {
     monthlyImages = monthlyRows.reduce((s, r) => s + (Number(r.images) || 0), 0)
   } catch {}
 
-  // Subscriptions
   let subscriptionsByPlan = { free: 0, starter: 0, pro: 0, advanced: 0 }
   let totalSubscribers = 0
 
