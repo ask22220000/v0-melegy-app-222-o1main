@@ -51,13 +51,15 @@ export async function POST(request: NextRequest) {
     // Required: prompt + image_urls (array)
     let result: any
     try {
-      result = await fal.subscribe("fal-ai/flux-pro/kontext", {
+      result = await fal.subscribe("fal-ai/stable-diffusion-v3-medium/image-to-image", {
         input: {
           prompt: enhancedPrompt,
           image_url: finalImageUrls[0],
           num_images: 1,
-          output_format: "jpeg",
-          safety_tolerance: "6",
+          num_inference_steps: 28,
+          guidance_scale: 5,
+          strength: 0.85,
+          enable_safety_checker: false,
         },
       })
     } catch (falError: any) {
