@@ -1,6 +1,5 @@
 import { generateText } from "ai"
 
-export const runtime = "nodejs"
 export const maxDuration = 30
 
 // Convert Western digits to Egyptian Arabic words for natural TTS pronunciation

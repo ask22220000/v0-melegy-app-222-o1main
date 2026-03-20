@@ -10,7 +10,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
-import { UserIdModal } from "@/components/user-id-modal"
 import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -106,7 +105,6 @@ export default function ChatAdvancedPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -460,7 +458,10 @@ export default function ChatAdvancedPage() {
           }),
         })
 
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
+        if (!editResponse.ok) {
+          const errData = await editResponse.json().catch(() => ({}))
+          throw new Error(errData.error || "فشل تعديل الصورة")
+        }
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -683,7 +684,7 @@ export default function ChatAdvancedPage() {
       console.error("[v0] Image generation error:", error)
       setIsGeneratingImage(false)
       toast({
-        title: "خطأ",
+        title: "خط��",
         description: "فشل في إنشاء الصورة",
         variant: "destructive",
       })
@@ -1487,14 +1488,6 @@ export default function ChatAdvancedPage() {
         </div>
       )}
 
-      {showUserModal && (
-        <UserIdModal
-          onUserReady={(userId, plan, isNew) => {
-            setMlgUserId(userId)
-            setShowUserModal(false)
-          }}
-        />
-      )}
     </div>
   )
 }

@@ -12,7 +12,6 @@ import { UsageIndicator } from "@/components/usage-indicator"
 import Link from "next/link"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
-import { UserIdModal } from "@/components/user-id-modal"
 import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -107,7 +106,6 @@ export default function ChatProPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -577,7 +575,10 @@ export default function ChatProPage() {
           }),
         })
 
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
+        if (!editResponse.ok) {
+          const errData = await editResponse.json().catch(() => ({}))
+          throw new Error(errData.error || "فشل تعديل الصورة")
+        }
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -1361,7 +1362,7 @@ export default function ChatProPage() {
               </div>
               <h3 className="text-xl font-bold text-white mb-2">استنفدت حد التعديلات الشهري!</h3>
               <p className="text-gray-300 mb-6">
-                لقد استخدمت 20 تعديلاً هذا الشهر في باقة Pro. ننصحك بالترقية لباقة الأساطير للحصول على 50 تعديلاً شهرياً!
+                لق�� استخدمت 20 تعديلاً هذا الشهر في باقة Pro. ننصحك بالترقية لباقة الأساطير للحصول على 50 تعديلاً شهرياً!
               </p>
               <div className="flex flex-col gap-3">
                 <a
@@ -1388,14 +1389,6 @@ export default function ChatProPage() {
             </div>
           </div>
         </div>
-      )}
-      {showUserModal && (
-        <UserIdModal
-          onUserReady={(userId, plan, isNew) => {
-            setMlgUserId(userId)
-            setShowUserModal(false)
-          }}
-        />
       )}
     </div>
   )

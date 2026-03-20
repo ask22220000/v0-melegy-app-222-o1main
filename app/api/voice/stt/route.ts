@@ -1,5 +1,3 @@
-export const runtime = "nodejs"
-
 // Map MIME type to the correct file extension Whisper expects
 function getExtension(mimeType: string): string {
   if (mimeType.includes("mp4"))  return "mp4"

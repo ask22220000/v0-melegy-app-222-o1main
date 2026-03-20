@@ -4,6 +4,7 @@ import { Tajawal } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { AppProvider } from "@/lib/contexts/AppContext"
+import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar"
 
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
@@ -31,6 +32,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className={tajawal.variable}>
       <body className={`${tajawal.className} antialiased`}>
         <AppProvider>
+          <ServiceWorkerRegistrar />
           {children}
           <Toaster />
         </AppProvider>

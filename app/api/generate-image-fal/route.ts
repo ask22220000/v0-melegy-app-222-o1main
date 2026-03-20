@@ -3,7 +3,6 @@ import * as fal from "@fal-ai/serverless-client"
 import { processPromptForImageGeneration, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
 
 export const maxDuration = 60
-export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {

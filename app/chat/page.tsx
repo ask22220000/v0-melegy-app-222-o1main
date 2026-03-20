@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { DesignViewer } from "@/components/design-viewer"
-import { UserIdModal } from "@/components/user-id-modal"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { UsageIndicator } from "@/components/usage-indicator"
@@ -95,7 +94,6 @@ export default function ChatPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   const [mlgPlan, setMlgPlan] = useState<string>("free")
-  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -211,7 +209,7 @@ export default function ChatPage() {
     }
   }
 
-  // Initialize user: check Supabase Auth session
+  // Initialize user via Supabase Auth
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data, error }) => {
@@ -610,7 +608,10 @@ export default function ChatPage() {
           }),
         })
 
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
+        if (!editResponse.ok) {
+          const errData = await editResponse.json().catch(() => ({}))
+          throw new Error(errData.error || "فشل تعديل الصورة")
+        }
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -641,10 +642,10 @@ export default function ChatPage() {
         }
 
         await incrementImageUsage()
-      } catch (error) {
+      } catch (error: any) {
         toast({
           title: "خطأ في تعديل الصورة",
-          description: "حاول مرة تانية",
+          description: error?.message || "حاول مرة تانية",
           variant: "destructive",
         })
       }
@@ -1006,16 +1007,9 @@ export default function ChatPage() {
     }
   }
 
-  const handleUserReady = (userId: string, plan: string, isNew: boolean) => {
-    setMlgUserId(userId)
-    setMlgPlan(plan)
-    setShowUserModal(false)
-  }
-
   return (
     <div className="min-h-screen bg-background flex flex-col" dir={language === "ar" ? "rtl" : "ltr"} style={{ backgroundColor: 'hsl(var(--background))' }}>
       <Toaster />
-      {showUserModal && <UserIdModal onUserReady={handleUserReady} />}
       
       <div className="fixed top-0 left-0 right-0 z-[100] bg-background border-b border-border py-2 md:py-4" style={{ backgroundColor: 'hsl(var(--background))' }}>
         <div className="flex items-center justify-between px-2 sm:px-4 md:px-6">

@@ -1,5 +1,3 @@
-export const runtime = "edge"
-
 const REMOVE_BG_API_KEY = process.env.REMOVE_BG_API_KEY
 
 export async function POST(request: Request) {
