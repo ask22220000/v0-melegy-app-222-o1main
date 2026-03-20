@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import { fal } from "@fal-ai/client"
 import { processPromptForImageEditing, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
 
 // Increase body size limit for base64 images (50MB)
@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "FAL_KEY is not configured in environment" }, { status: 500 })
     }
 
-    // Configure FAL client with current FAL_KEY (ensures fresh config per request)
+    // Configure FAL client
     fal.config({
-      credentials: process.env.FAL_KEY,
+      credentials: process.env.FAL_KEY!,
     })
 
     const { imageUrl, imageUrls, prompt } = await request.json()
@@ -51,14 +51,13 @@ export async function POST(request: NextRequest) {
     // Required: prompt + image_urls (array)
     let result: any
     try {
-      result = await fal.subscribe("fal-ai/flux-2/turbo/edit", {
+      result = await fal.subscribe("fal-ai/flux-general/image-to-image", {
         input: {
           prompt: enhancedPrompt,
-          negative_prompt: NEGATIVE_PROMPT_CONSTANTS,
-          image_urls: finalImageUrls,
-          image_size: "portrait_4_3",
-          guidance_scale: 4.0,
+          image_url: finalImageUrls[0],
+          strength: 0.85,
           num_inference_steps: 28,
+          guidance_scale: 3.5,
           num_images: 1,
           enable_safety_checker: false,
           output_format: "jpeg",
@@ -85,9 +84,9 @@ export async function POST(request: NextRequest) {
       throw new Error(`فشل تعديل الصورة: ${errorMsg}`)
     }
 
-    // fal JS client wraps response in result.data — images are at result.data.images
+    // fal JS client: images at result.images or result.data.images
     const editedImageUrl: string | undefined =
-      result?.data?.images?.[0]?.url ?? result?.images?.[0]?.url
+      result?.images?.[0]?.url ?? result?.data?.images?.[0]?.url
 
     if (!editedImageUrl) {
       throw new Error("FAL API did not return an edited image")
