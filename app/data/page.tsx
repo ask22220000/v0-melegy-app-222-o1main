@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useAuth } from "@/hooks/use-auth"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import {
@@ -140,13 +141,63 @@ export default function DataPage() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
   const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/analytics")
-      if (res.ok) {
-        setData(await res.json())
-        setLastRefresh(new Date())
-      }
-    } catch { /* silent */ } finally {
+  try {
+    const token = localStorage.getItem("authToken")
+    if (!token) {
+      console.error("[v0] No auth token found")
+      return
+    }
+    
+    const res = await fetch("/api/user-analytics", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    
+    if (res.ok) {
+      const result = await res.json()
+      // Transform user analytics to match the expected format
+      setData({
+        activeUsersNow: 1, // Current user
+        totalUsers: 1,
+        subscriptionsByPlan: { free: 1, starter: 0, pro: 0, advanced: 0 },
+        totalConversations: result.stats.totalConversations,
+        totalMessages: result.stats.totalConversations, // Approximate
+        messagesPerMinute: 0,
+        averageResponseTime: 0,
+        activeUsers: 1,
+        pageviewsToday: 0,
+        visitorsToday: 1,
+        featureUsage: {
+          textGeneration: result.stats.totalConversations,
+          imageGeneration: result.stats.totalImages,
+          videoGeneration: result.stats.totalVideos,
+          deepSearch: 0,
+          ideaToPrompt: 0,
+          voiceCloning: 0,
+        },
+        responseTypes: { text: 0, search: 0, creative: 0, technical: 0 },
+        userSatisfaction: { positive: 0, neutral: 0, negative: 0 },
+        systemHealth: { apiResponseTime: 0, uptime: 99.9, errorRate: 0 },
+        topQueries: [],
+        hourlyActivity: result.hourlyActivity,
+        dailyActivity: result.dailyActivity,
+        totalImages: result.stats.totalImages,
+        totalVideos: result.stats.totalVideos,
+        totalVoiceMinutes: result.stats.totalVoiceMinutes,
+        messagesToday: result.stats.messagesToday,
+        conversationsToday: result.stats.totalConversations,
+        monthlyMessages: 0,
+        monthlyImages: 0,
+        totalSubscribers: 1,
+        lastUpdated: result.lastUpdated,
+      })
+      setLastRefresh(new Date())
+    } else if (res.status === 401) {
+      // Redirect to login if unauthorized
+      window.location.href = "/login"
+    }
+  } catch (err) {
+    console.error("[v0] Error fetching user analytics:", err)
+  } finally {
       setLoading(false)
     }
   }, [])

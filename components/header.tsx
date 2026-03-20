@@ -1,8 +1,9 @@
 "use client"
 
-import { MessageSquare, Home, Moon, Sun, Languages } from "lucide-react"
+import { MessageSquare, Home, Moon, Sun, Languages, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useApp } from "@/lib/contexts/AppContext"
+import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 
@@ -14,6 +15,7 @@ type HeaderProps = {
 
 export function Header({ showChatHistory = false, onChatHistoryClick, showHomeButton = false }: HeaderProps) {
   const { translations, language, setLanguage, mounted } = useApp()
+  const { isAuthenticated, logout } = useAuth()
   // Default to "dark" — synced from localStorage after mount so no flash
   const [theme, setTheme] = useState<"light" | "dark">("dark")
 
@@ -92,6 +94,19 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
           >
             <MessageSquare className="h-4 w-4" />
             <span className="hidden sm:inline">{translations.history}</span>
+          </Button>
+        )}
+
+        {isAuthenticated && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={logout}
+            className="bg-red-600/20 backdrop-blur-md border-red-500/30 flex items-center gap-2 text-red-400 hover:text-red-300 hover:bg-red-600/30"
+            title="تسجيل الخروج"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline text-xs">تسجيل خروج</span>
           </Button>
         )}
       </div>

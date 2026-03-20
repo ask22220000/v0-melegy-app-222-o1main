@@ -8,9 +8,9 @@ import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { DesignViewer } from "@/components/design-viewer"
-import { UserIdModal } from "@/components/user-id-modal"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -92,9 +92,7 @@ export default function ChatPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [showUsageCard, setShowUsageCard] = useState(true)
   const [theme, setTheme] = useState<"light" | "dark">("dark")
-  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [mlgPlan, setMlgPlan] = useState<string>("free")
-  const [showUserModal, setShowUserModal] = useState(false)
+  const { user, isAuthenticated, logout } = useAuth()
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
