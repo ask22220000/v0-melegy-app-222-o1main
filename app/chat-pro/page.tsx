@@ -12,7 +12,6 @@ import { UsageIndicator } from "@/components/usage-indicator"
 import Link from "next/link"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
-import { UserIdModal } from "@/components/user-id-modal"
 import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -106,8 +105,6 @@ export default function ChatProPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
-  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -833,7 +830,7 @@ export default function ChatProPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mlg_user_id: mlgUserId,
+          mlg_user_id: null,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,
@@ -1385,14 +1382,6 @@ export default function ChatProPage() {
             </div>
           </div>
         </div>
-      )}
-      {showUserModal && (
-        <UserIdModal
-          onUserReady={(userId, plan, isNew) => {
-            setMlgUserId(userId)
-            setShowUserModal(false)
-          }}
-        />
       )}
     </div>
   )

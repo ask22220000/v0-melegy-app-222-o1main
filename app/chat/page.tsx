@@ -329,7 +329,7 @@ export default function ChatPage() {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({
         title: "غير مدعوم",
-        description: "المتصفح ده مش بيدعم التعرف على الصو��",
+        description: "المتصفح ده مش بيدعم التع��ف على الصو��",
         variant: "destructive",
       })
       return
@@ -866,7 +866,7 @@ export default function ChatPage() {
       return
     }
 
-    if (!mlgUserId) {
+    if (!user?.id) {
       toast({ title: "خطأ", description: "لازم تسجل الأول", variant: "destructive" })
       return
     }
@@ -882,7 +882,7 @@ export default function ChatPage() {
       const convRes = await fetch("/api/user/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mlg_user_id: mlgUserId, title: title.substring(0, 80) }),
+        body: JSON.stringify({ mlg_user_id: user.id, title: title.substring(0, 80) }),
       })
       const convData = await convRes.json()
       if (!convRes.ok) throw new Error(convData.error || "فشل إنشاء المحادثة")
@@ -897,7 +897,7 @@ export default function ChatPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             conversation_id: conversationId,
-            mlg_user_id: mlgUserId,
+            mlg_user_id: user?.id,
             role: msg.role,
             content: msg.content || "",
             imageUrl: msg.imageUrl || null,
@@ -1033,16 +1033,10 @@ export default function ChatPage() {
     }
   }
 
-  const handleUserReady = (userId: string, plan: string, isNew: boolean) => {
-    setMlgUserId(userId)
-    setMlgPlan(plan)
-    setShowUserModal(false)
-  }
-
   return (
     <div className="min-h-screen bg-background flex flex-col" dir={language === "ar" ? "rtl" : "ltr"} style={{ backgroundColor: 'hsl(var(--background))' }}>
       <Toaster />
-      {showUserModal && <UserIdModal onUserReady={handleUserReady} />}
+      {/* UserIdModal removed - using auth system */}
       
       <div className="fixed top-0 left-0 right-0 z-[100] bg-background border-b border-border py-2 md:py-4" style={{ backgroundColor: 'hsl(var(--background))' }}>
         <div className="flex items-center justify-between px-2 sm:px-4 md:px-6">

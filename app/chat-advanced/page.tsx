@@ -10,7 +10,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
-import { UserIdModal } from "@/components/user-id-modal"
 import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -105,8 +104,6 @@ export default function ChatAdvancedPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
-  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -312,7 +309,7 @@ export default function ChatAdvancedPage() {
     fetch("/api/save-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mlg_user_id: mlgUserId, chat_title: title, chat_date: chatDate, messages }),
+      body: JSON.stringify({ mlg_user_id: null, chat_title: title, chat_date: chatDate, messages }),
     }).then(() => {
       setChatHistories((prev) => {
         const idx = prev.findIndex((c) => c.title === title && c.date === chatDate)
@@ -1484,14 +1481,6 @@ export default function ChatAdvancedPage() {
         </div>
       )}
 
-      {showUserModal && (
-        <UserIdModal
-          onUserReady={(userId, plan, isNew) => {
-            setMlgUserId(userId)
-            setShowUserModal(false)
-          }}
-        />
-      )}
     </div>
   )
 }
