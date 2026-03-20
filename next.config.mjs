@@ -14,6 +14,14 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Service worker must never be cached — browser must always fetch latest version
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
         source: "/(.*)",
         headers: [
           {
