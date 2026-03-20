@@ -766,7 +766,7 @@ export default function ChatAdvancedPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mlg_user_id: mlgUserId,
+          mlg_user_id: null,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,

@@ -4,15 +4,11 @@ import type { NextRequest } from 'next/server'
 export default function proxy(request: NextRequest) {
   const response = NextResponse.next()
 
-  // Security Headers
   response.headers.set('X-Frame-Options', 'SAMEORIGIN')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('X-XSS-Protection', '1; mode=block')
-  response.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(self), geolocation=(), interest-cohort=()'
-  )
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), interest-cohort=()')
 
   const csp = [
     "default-src 'self'",
@@ -36,7 +32,5 @@ export default function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|images|icons|manifest.json|register-sw.js|sw.js).*)',
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|images|icons|manifest.json|register-sw.js|sw.js).*)'],
 }
