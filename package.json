@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build --no-lint",
+    "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start"
@@ -88,8 +88,6 @@
     "@types/react-dom": "^19",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
-    "typescript": "^5",
-    "webpack": "^5.92.0",
-    "webpack-cli": "^5.1.4"
+    "typescript": "^5"
   }
 }
