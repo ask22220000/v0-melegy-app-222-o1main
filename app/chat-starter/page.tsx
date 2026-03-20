@@ -320,7 +320,7 @@ export default function ChatStarterPage() {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({
         title: "غير مدعوم",
-        description: "المتصفح ده مش بيدعم التعرف على الصوت",
+        description: "المتصفح ده مش بيدعم التع��ف على الصوت",
         variant: "destructive",
       })
       return
@@ -542,7 +542,10 @@ export default function ChatStarterPage() {
           }),
         })
 
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
+        if (!editResponse.ok) {
+          const errData = await editResponse.json().catch(() => ({}))
+          throw new Error(errData.error || "فشل تعديل الصورة")
+        }
 
         const { editedImageUrl } = await editResponse.json()
 

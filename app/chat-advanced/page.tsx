@@ -458,7 +458,10 @@ export default function ChatAdvancedPage() {
           }),
         })
 
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
+        if (!editResponse.ok) {
+          const errData = await editResponse.json().catch(() => ({}))
+          throw new Error(errData.error || "فشل تعديل الصورة")
+        }
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -681,7 +684,7 @@ export default function ChatAdvancedPage() {
       console.error("[v0] Image generation error:", error)
       setIsGeneratingImage(false)
       toast({
-        title: "خطأ",
+        title: "خط��",
         description: "فشل في إنشاء الصورة",
         variant: "destructive",
       })

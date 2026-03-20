@@ -575,7 +575,10 @@ export default function ChatProPage() {
           }),
         })
 
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
+        if (!editResponse.ok) {
+          const errData = await editResponse.json().catch(() => ({}))
+          throw new Error(errData.error || "فشل تعديل الصورة")
+        }
 
         const { editedImageUrl } = await editResponse.json()
 
