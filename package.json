@@ -88,8 +88,6 @@
     "@types/react-dom": "^19",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
-    "typescript": "^5",
-    "webpack": "^5.105.4",
-    "webpack-cli": "^5.1.4"
+    "typescript": "^5"
   }
 }
