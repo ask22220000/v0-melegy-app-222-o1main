@@ -1,9 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as fal from "@fal-ai/serverless-client"
-import { processPromptForImageGeneration } from "@/lib/prompt-enhancer"
+import { processPromptForImageGeneration, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
 
 export const maxDuration = 60
-export const runtime = "nodejs"
 
 // Detect desired orientation from the user's raw prompt
 function detectImageSize(prompt: string): { width: number; height: number } {
@@ -48,15 +47,41 @@ export async function POST(request: NextRequest) {
     const imageSize = detectImageSize(prompt)
 
     // Process prompt: translate + enhance
-    const finalPrompt = await processPromptForImageGeneration(prompt)
+    let finalPrompt = await processPromptForImageGeneration(prompt)
 
+    // If prompt mentions animals, add extra anatomy specifications to ensure correct limb generation
+    const mentionsAnimals = /كلب|قط|حيوان|جرو|كتكوت|طائر|حصان|بقرة|غنم|lion|tiger|dog|cat|puppy|kitten|bird|horse|cow|sheep|animal|pet|wolf|fox|deer|elephant|bear|monkey|rabbit|mouse|rat|fish|whale|dolphin|penguin|eagle|owl|parrot/i.test(prompt)
+    if (mentionsAnimals) {
+      finalPrompt = finalPrompt.replace(
+        "| AVOID:",
+        "with correct anatomically accurate limbs and body structure, all four legs visible and properly proportioned, NO extra limbs, NO missing limbs, proper paw structure | AVOID:"
+      )
+    }
+
+ v0/ask22220000-6eeef137
     // Generate image using flux/schnell with detected dimensions
     const result = await fal.subscribe("fal-ai/flux/schnell", {
       input: {
         prompt: finalPrompt,
         image_size: imageSize,
         num_inference_steps: 4,
+
+    console.log("[v0] Generating image with enhanced prompt:", finalPrompt)
+
+    // Generate image using fal-ai/flux-pro/v1.1 for better quality and anatomy
+    const result = await fal.subscribe("fal-ai/flux-pro/v1.1", {
+      input: {
+        prompt: finalPrompt,
+        negative_prompt: NEGATIVE_PROMPT_CONSTANTS,
+        image_size: {
+          width: 1080,
+          height: 1350
+        },
+        num_inference_steps: 40,
+        guidance_scale: 7.5,
+ main
         num_images: 1,
+        safety_tolerance: "2",
       },
     })
 

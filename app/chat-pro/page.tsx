@@ -12,7 +12,6 @@ import { UsageIndicator } from "@/components/usage-indicator"
 import Link from "next/link"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
-import { UserIdModal } from "@/components/user-id-modal"
 import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -107,7 +106,6 @@ export default function ChatProPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -189,14 +187,17 @@ export default function ChatProPage() {
     }
   }
 
-  // Initialize user from localStorage
+  // Initialize user from Supabase Auth
   useEffect(() => {
-    const storedId = localStorage.getItem("mlg_user_id")
-    if (storedId) {
-      setMlgUserId(storedId)
-    } else {
-      setShowUserModal(true)
-    }
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      createClient().auth.getUser().then(({ data }) => {
+        if (data.user) {
+          setMlgUserId(data.user.id)
+        } else {
+          window.location.href = "/auth/login"
+        }
+      })
+    })
   }, [])
 
   // Set plan and check subscription access on mount
@@ -247,9 +248,10 @@ export default function ChatProPage() {
         document.documentElement.classList.add("dark")
       }
       try {
-        const storedId = localStorage.getItem("mlg_user_id")
-        if (storedId) {
-          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(storedId)}`)
+        const { createClient } = await import("@/lib/supabase/client")
+        const { data: authData } = await createClient().auth.getUser()
+        if (authData.user) {
+          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(authData.user.id)}`)
           if (res.ok) {
             const data = await res.json()
             if (data.histories?.length > 0) setChatHistories(data.histories)
@@ -465,22 +467,21 @@ export default function ChatProPage() {
   // Helper function to track analytics
   const trackAnalytics = async (action: string, data?: any) => {
     try {
-      await fetch("/api/analytics", {
+      await fetch("/api/stats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, data }),
       })
-    } catch (error) {
-      // Silent fail - analytics are non-critical
+    } catch {
+      // Silent fail
     }
   }
 
   // Create conversation in database on first message
   const ensureConversationExists = async () => {
     if (conversationCreated) return
-    
     try {
-      await fetch("/api/analytics", {
+      await fetch("/api/stats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -574,7 +575,10 @@ export default function ChatProPage() {
           }),
         })
 
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
+        if (!editResponse.ok) {
+          const errData = await editResponse.json().catch(() => ({}))
+          throw new Error(errData.error || "فشل تعديل الصورة")
+        }
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -833,7 +837,7 @@ export default function ChatProPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mlg_user_id: mlgUserId,
+          user_id: mlgUserId,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,
@@ -1358,7 +1362,7 @@ export default function ChatProPage() {
               </div>
               <h3 className="text-xl font-bold text-white mb-2">استنفدت حد التعديلات الشهري!</h3>
               <p className="text-gray-300 mb-6">
-                لقد استخدمت 20 تعديلاً هذا الشهر في باقة Pro. ننصحك بالترقية لباقة الأساطير للحصول على 50 تعديلاً شهرياً!
+                لق�� استخدمت 20 تعديلاً هذا الشهر في باقة Pro. ننصحك بالترقية لباقة الأساطير للحصول على 50 تعديلاً شهرياً!
               </p>
               <div className="flex flex-col gap-3">
                 <a
@@ -1385,14 +1389,6 @@ export default function ChatProPage() {
             </div>
           </div>
         </div>
-      )}
-      {showUserModal && (
-        <UserIdModal
-          onUserReady={(userId, plan, isNew) => {
-            setMlgUserId(userId)
-            setShowUserModal(false)
-          }}
-        />
       )}
     </div>
   )

@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
-import { processPromptForImageEditing } from "@/lib/prompt-enhancer"
+import { fal } from "@fal-ai/client"
+import { processPromptForImageEditing, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
 
 // Increase body size limit for base64 images (50MB)
 export const maxDuration = 60 // Maximum allowed by Vercel
-export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,9 +12,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "FAL_KEY is not configured in environment" }, { status: 500 })
     }
 
-    // Configure FAL client with current FAL_KEY (ensures fresh config per request)
+    // Configure FAL client
     fal.config({
-      credentials: process.env.FAL_KEY,
+      credentials: process.env.FAL_KEY!,
     })
 
     const { imageUrl, imageUrls, prompt } = await request.json()
@@ -47,6 +46,7 @@ export async function POST(request: NextRequest) {
     // Step 2: Use Gemini 3 Flash as Prompt Engineer — translate + preserve subject features
     const enhancedPrompt = await processPromptForImageEditing(prompt)
 
+ v0/ask22220000-6eeef137
     // Step 3: Edit image via fal-ai/nano-banana/image/edit (much better for food/fish images)
     let result: any
     try {
@@ -57,15 +57,26 @@ export async function POST(request: NextRequest) {
           guidance_scale: 7.5,
           strength: 0.85,
           num_inference_steps: 30,
+
+    // Step 3: Edit image via fal-ai/nano-banana/edit for fast, efficient editing
+    // Using Nano Banana with optimized settings
+    let result: any
+    try {
+      result = await fal.subscribe("fal-ai/nano-banana/edit", {
+        input: {
+          prompt: enhancedPrompt,
+          image_urls: finalImageUrls,
+ main
           num_images: 1,
-          enable_safety_checker: false,
           output_format: "jpeg",
+          safety_tolerance: "4",
+          aspect_ratio: "auto",
         },
       })
     } catch (falError: any) {
       console.error("[edit] FAL API error:", falError)
 
-      if (falError.status === 403 && falError.body?.detail?.includes("Exhausted balance")) {
+      if (falError.status === 403) {
         throw new Error("رصيد FAL انتهى. يرجى شحن الرصيد من fal.ai/dashboard/billing")
       }
       if (falError.status === 413 || falError.message?.includes("payload too large")) {
@@ -83,9 +94,9 @@ export async function POST(request: NextRequest) {
       throw new Error(`فشل تعديل الصورة: ${errorMsg}`)
     }
 
-    // fal JS client wraps response in result.data — images are at result.data.images
+    // fal JS client: images at result.images or result.data.images
     const editedImageUrl: string | undefined =
-      result?.data?.images?.[0]?.url ?? result?.images?.[0]?.url
+      result?.images?.[0]?.url ?? result?.data?.images?.[0]?.url
 
     if (!editedImageUrl) {
       throw new Error("FAL API did not return an edited image")

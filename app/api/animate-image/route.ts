@@ -8,9 +8,12 @@ export const maxDuration = 300
 // Configure fal at module level — prevents AI Gateway override
 fal.config({ credentials: process.env.FAL_KEY })
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+function getGroqClient() {
+  return new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
+}
 
 async function translateToEnglish(prompt: string): Promise<string> {
+  const groq = getGroqClient()
   const hasArabic = /[\u0600-\u06FF]/.test(prompt)
   if (!hasArabic) return prompt
   try {
@@ -34,6 +37,7 @@ async function translateToEnglish(prompt: string): Promise<string> {
 
 async function describeSubjectFromImage(imageUrl: string): Promise<string> {
   // Uses Groq vision to extract precise details of the person or product in the image
+  const groq = getGroqClient()
   try {
     const res = await groq.chat.completions.create({
       model: "meta-llama/llama-4-scout-17b-16e-instruct",

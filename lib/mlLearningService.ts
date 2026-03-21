@@ -1,7 +1,9 @@
 import { getServiceRoleClient } from "./supabase/server"
 
-// Use shared singleton from supabase/server
-const supabase = getServiceRoleClient()
+// Lazy getter for getSupabase() client to prevent build-time errors
+function getSupabase() {
+  return getServiceRoleClient()
+}
 
 export interface CorrectionData {
   sessionId: string
@@ -32,7 +34,7 @@ export class MLLearningService {
   // Record a correction from user
   static async recordCorrection(data: CorrectionData): Promise<boolean> {
     try {
-      const { error } = await supabase.from("learning_corrections").insert({
+      const { error } = await getSupabase().from("learning_corrections").insert({
         session_id: data.sessionId,
         original_question: data.originalQuestion,
         original_answer: data.originalAnswer,
@@ -66,7 +68,7 @@ export class MLLearningService {
       const patternKey = this.generatePatternKey(triggerPhrases)
 
       // Check if pattern already exists
-      const { data: existing } = await supabase
+      const { data: existing } = await getSupabase()
         .from("learned_patterns")
         .select("*")
         .eq("pattern_key", patternKey)
@@ -74,7 +76,7 @@ export class MLLearningService {
 
       if (existing) {
         // Update existing pattern
-        await supabase
+        await getSupabase()
           .from("learned_patterns")
           .update({
             correct_response: data.correctedAnswer,
@@ -84,7 +86,7 @@ export class MLLearningService {
           .eq("pattern_key", patternKey)
       } else {
         // Create new pattern
-        await supabase.from("learned_patterns").insert({
+        await getSupabase().from("learned_patterns").insert({
           pattern_key: patternKey,
           trigger_phrases: triggerPhrases,
           correct_response: data.correctedAnswer,
@@ -94,7 +96,7 @@ export class MLLearningService {
       }
 
       // Mark correction as learned
-      await supabase
+      await getSupabase()
         .from("learning_corrections")
         .update({ learned: true })
         .eq("original_question", data.originalQuestion)
@@ -109,7 +111,7 @@ export class MLLearningService {
     try {
       const keywords = this.extractTriggerPhrases(question)
 
-      const { data: patterns } = await supabase
+      const { data: patterns } = await getSupabase()
         .from("learned_patterns")
         .select("*")
         .eq("is_active", true)
@@ -143,7 +145,7 @@ export class MLLearningService {
   // Record quality rating
   static async recordQualityRating(data: QualityRating): Promise<boolean> {
     try {
-      const { error } = await supabase.from("response_quality").insert({
+      const { error } = await getSupabase().from("response_quality").insert({
         question: data.question,
         answer: data.answer,
         rating: data.rating,
@@ -161,19 +163,19 @@ export class MLLearningService {
   // Record a common mistake
   static async recordMistake(mistakePattern: string, correctPattern: string, category: string): Promise<void> {
     try {
-      const { data: existing } = await supabase
+      const { data: existing } = await getSupabase()
         .from("common_mistakes")
         .select("*")
         .eq("mistake_pattern", mistakePattern)
         .single()
 
       if (existing) {
-        await supabase
+        await getSupabase()
           .from("common_mistakes")
           .update({ frequency: existing.frequency + 1 })
           .eq("mistake_pattern", mistakePattern)
       } else {
-        await supabase.from("common_mistakes").insert({
+        await getSupabase().from("common_mistakes").insert({
           mistake_pattern: mistakePattern,
           correct_pattern: correctPattern,
           category,
@@ -187,7 +189,7 @@ export class MLLearningService {
   // Get common mistakes to avoid
   static async getCommonMistakes(): Promise<Array<{ mistake: string; correct: string }>> {
     try {
-      const { data } = await supabase
+      const { data } = await getSupabase()
         .from("common_mistakes")
         .select("mistake_pattern, correct_pattern")
         .order("frequency", { ascending: false })
@@ -292,10 +294,10 @@ export class MLLearningService {
   }> {
     try {
       const [corrections, patterns, ratings, mistakes] = await Promise.all([
-        supabase.from("learning_corrections").select("id", { count: "exact" }),
-        supabase.from("learned_patterns").select("id", { count: "exact" }).eq("is_active", true),
-        supabase.from("response_quality").select("rating"),
-        supabase.from("common_mistakes").select("id", { count: "exact" }),
+        getSupabase().from("learning_corrections").select("id", { count: "exact" }),
+        getSupabase().from("learned_patterns").select("id", { count: "exact" }).eq("is_active", true),
+        getSupabase().from("response_quality").select("rating"),
+        getSupabase().from("common_mistakes").select("id", { count: "exact" }),
       ])
 
       const avgRating =

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { getServiceRoleClient } from "@/lib/supabase/server"
 
+ v0/ask22220000-6eeef137
 function getClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -107,6 +108,28 @@ export async function GET(request: NextRequest) {
       .eq("mlg_user_id", mlgUserId)
       .then(() => {})
 
+// GET /api/user — get current auth user info + plan
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("user_id") || searchParams.get("id")
+    if (!userId) return NextResponse.json({ error: "Missing user_id" }, { status: 400 })
+
+    const supabase = getServiceRoleClient()
+
+    // Try to get subscription/plan info
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("plan_name, status, expires_at")
+      .eq("auth_user_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const plan = sub?.plan_name ?? "free"
+ main
+
     // Get user's conversations
     const { data: conversations } = await db
       .from("melegy_conversations")
@@ -116,6 +139,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       user: {
+ v0/ask22220000-6eeef137
         mlg_user_id: user.mlg_user_id,
         plan: currentPlan,
         plan_expires_at: user.plan_expires_at,
@@ -131,6 +155,12 @@ export async function GET(request: NextRequest) {
         videos_used: user.videos_used,
         daily_videos_limit: planLimit?.daily_videos ?? 3,
         conversations: conversations || [],
+
+        id: userId,
+        plan,
+        plan_label: plan,
+        daily_limit: plan === "free" ? 10 : plan === "starter" ? 50 : plan === "pro" ? 150 : 500,
+ main
       },
     })
   } catch (err: any) {

@@ -10,7 +10,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
-import { UserIdModal } from "@/components/user-id-modal"
 import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -106,7 +105,6 @@ export default function ChatAdvancedPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -188,14 +186,17 @@ export default function ChatAdvancedPage() {
     }
   }
 
-  // Initialize user from localStorage
+  // Initialize user from Supabase Auth
   useEffect(() => {
-    const storedId = localStorage.getItem("mlg_user_id")
-    if (storedId) {
-      setMlgUserId(storedId)
-    } else {
-      setShowUserModal(true)
-    }
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      createClient().auth.getUser().then(({ data }) => {
+        if (data.user) {
+          setMlgUserId(data.user.id)
+        } else {
+          window.location.href = "/auth/login"
+        }
+      })
+    })
   }, [])
 
   // Set plan and check subscription access on mount
@@ -274,9 +275,10 @@ export default function ChatAdvancedPage() {
   useEffect(() => {
     const loadHistories = async () => {
       try {
-        const storedId = localStorage.getItem("mlg_user_id")
-        if (storedId) {
-          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(storedId)}`)
+        const { createClient } = await import("@/lib/supabase/client")
+        const { data: authData } = await createClient().auth.getUser()
+        if (authData.user) {
+          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(authData.user.id)}`)
           if (res.ok) {
             const data = await res.json()
             if (data.histories?.length > 0) setChatHistories(data.histories)
@@ -312,7 +314,7 @@ export default function ChatAdvancedPage() {
     fetch("/api/save-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mlg_user_id: mlgUserId, chat_title: title, chat_date: chatDate, messages }),
+      body: JSON.stringify({ user_id: mlgUserId, chat_title: title, chat_date: chatDate, messages }),
     }).then(() => {
       setChatHistories((prev) => {
         const idx = prev.findIndex((c) => c.title === title && c.date === chatDate)
@@ -381,22 +383,21 @@ export default function ChatAdvancedPage() {
   // Helper function to track analytics
   const trackAnalytics = async (action: string, data?: any) => {
     try {
-      await fetch("/api/analytics", {
+      await fetch("/api/stats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, data }),
       })
-    } catch (error) {
-      // Silent fail - analytics are non-critical
+    } catch {
+      // Silent fail
     }
   }
 
   // Create conversation in database on first message
   const ensureConversationExists = async () => {
     if (conversationCreated) return
-    
     try {
-      await fetch("/api/analytics", {
+      await fetch("/api/stats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -457,7 +458,10 @@ export default function ChatAdvancedPage() {
           }),
         })
 
-        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
+        if (!editResponse.ok) {
+          const errData = await editResponse.json().catch(() => ({}))
+          throw new Error(errData.error || "فشل تعديل الصورة")
+        }
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -680,7 +684,7 @@ export default function ChatAdvancedPage() {
       console.error("[v0] Image generation error:", error)
       setIsGeneratingImage(false)
       toast({
-        title: "خطأ",
+        title: "خط��",
         description: "فشل في إنشاء الصورة",
         variant: "destructive",
       })
@@ -769,7 +773,7 @@ export default function ChatAdvancedPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mlg_user_id: mlgUserId,
+          user_id: mlgUserId,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,
@@ -1484,14 +1488,6 @@ export default function ChatAdvancedPage() {
         </div>
       )}
 
-      {showUserModal && (
-        <UserIdModal
-          onUserReady={(userId, plan, isNew) => {
-            setMlgUserId(userId)
-            setShowUserModal(false)
-          }}
-        />
-      )}
     </div>
   )
 }
