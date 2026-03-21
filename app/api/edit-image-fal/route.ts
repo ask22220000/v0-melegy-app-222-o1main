@@ -2,24 +2,18 @@ import { type NextRequest, NextResponse } from "next/server"
 import { fal } from "@fal-ai/client"
 import { processPromptForImageEditing, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
 
-// Increase body size limit for base64 images (50MB)
-export const maxDuration = 60 // Maximum allowed by Vercel
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   try {
-    // Validate environment variables at runtime
     if (!process.env.FAL_KEY) {
       return NextResponse.json({ error: "FAL_KEY is not configured in environment" }, { status: 500 })
     }
 
-    // Configure FAL client
-    fal.config({
-      credentials: process.env.FAL_KEY!,
-    })
+    fal.config({ credentials: process.env.FAL_KEY! })
 
     const { imageUrl, imageUrls, prompt } = await request.json()
 
-    // Support both single imageUrl and multiple imageUrls
     const finalImageUrls = imageUrls || (imageUrl ? [imageUrl] : [])
 
     if (!finalImageUrls || finalImageUrls.length === 0 || !prompt) {
@@ -30,43 +24,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Maximum 3 images allowed" }, { status: 400 })
     }
 
-    // Step 1: Validate and process image URLs
     for (let i = 0; i < finalImageUrls.length; i++) {
       const imgUrl = finalImageUrls[i]
       if (imgUrl.startsWith("data:")) {
-        // Check base64 size (rough estimate: base64 is ~33% larger than binary)
-        const base64Size = imgUrl.length * 0.75 / 1024 / 1024 // MB
-        
+        const base64Size = imgUrl.length * 0.75 / 1024 / 1024
         if (base64Size > 15) {
           throw new Error(`الصورة ${i + 1} كبيرة جداً (أكثر من 15 ميجا). قلل جودة الصورة أو استخدم صورة أصغر.`)
         }
       }
     }
 
-    // Step 2: Use Gemini 3 Flash as Prompt Engineer — translate + preserve subject features
     const enhancedPrompt = await processPromptForImageEditing(prompt)
 
- v0/ask22220000-6eeef137
-    // Step 3: Edit image via fal-ai/nano-banana/image/edit (much better for food/fish images)
-    let result: any
-    try {
-      result = await fal.subscribe("fal-ai/nano-banana/image/edit", {
-        input: {
-          prompt: enhancedPrompt,
-          image_url: finalImageUrls[0], // nano-banana takes single image_url (not array)
-          guidance_scale: 7.5,
-          strength: 0.85,
-          num_inference_steps: 30,
-
-    // Step 3: Edit image via fal-ai/nano-banana/edit for fast, efficient editing
-    // Using Nano Banana with optimized settings
     let result: any
     try {
       result = await fal.subscribe("fal-ai/nano-banana/edit", {
         input: {
           prompt: enhancedPrompt,
           image_urls: finalImageUrls,
- main
           num_images: 1,
           output_format: "jpeg",
           safety_tolerance: "4",
@@ -94,7 +69,6 @@ export async function POST(request: NextRequest) {
       throw new Error(`فشل تعديل الصورة: ${errorMsg}`)
     }
 
-    // fal JS client: images at result.images or result.data.images
     const editedImageUrl: string | undefined =
       result?.images?.[0]?.url ?? result?.data?.images?.[0]?.url
 
@@ -105,7 +79,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ editedImageUrl, success: true })
   } catch (error: any) {
     console.error("[v0] Image editing error:", error.message)
-    
     return NextResponse.json(
       {
         success: false,
