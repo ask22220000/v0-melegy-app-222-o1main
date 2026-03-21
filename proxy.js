@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
