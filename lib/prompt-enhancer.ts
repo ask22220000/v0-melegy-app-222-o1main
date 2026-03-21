@@ -38,15 +38,18 @@ function substituteEgyptianFoods(text: string): string {
 }
 
 async function callGroq(systemPrompt: string, userMessage: string): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return userMessage;
+  const apiKey = (globalThis as any).env.GROQ_API_KEY;
+
+  if (!apiKey) {
+    return userMessage;
+  }
 
   try {
     const substitutedMessage = substituteEgyptianFoods(userMessage);
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
