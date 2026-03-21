@@ -9,7 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.0",
+    "@ai-sdk/react": "1.2.12",
     "@fal-ai/client": "1.7.2",
     "@fal-ai/serverless-client": "latest",
     "@google/generative-ai": "0.24.1",
@@ -46,7 +46,7 @@
     "@vercel/analytics": "latest",
     "@vercel/blob": "^2.3.1",
     "abort-controller": "3.0.0",
-    "ai": "^6.0.0",
+    "ai": "4.3.16",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -89,8 +89,6 @@
     "postcss": "^8.4.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.0.0",
-    "webpack": "^5.90.0",
-    "webpack-cli": "^5.1.0",
     "eslint": "^8.0.0"
   }
 }
