@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { DesignViewer } from "@/components/design-viewer"
-import { AuthModal } from "@/components/auth-modal"
+import { UserIdModal } from "@/components/user-id-modal"
 import { useAuth } from "@/lib/contexts/auth-context"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -1348,6 +1348,27 @@ export default function ChatPage() {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {showUserModal && (
+        <UserIdModal
+          onUserReady={(userId, plan, isNew, conversations) => {
+            setMlgUserId(userId)
+            setMlgPlan(plan)
+            setShowUserModal(false)
+            // Load conversations if user is returning
+            if (!isNew && conversations.length > 0) {
+              const histories: ChatHistory[] = conversations.map((c: any) => ({
+                id: c.id,
+                title: c.title,
+                date: new Date(c.created_at).toLocaleDateString("ar-EG"),
+                messages: [],
+                conversationId: c.id,
+              }))
+              setChatHistories(histories)
+            }
+          }}
+        />
+      )}
 
       {attachedImage && (
         <div className="px-4 py-2 border-t border-border bg-card">
