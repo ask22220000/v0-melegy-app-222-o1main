@@ -8,12 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
-import { DesignViewer } from "@/components/design-viewer"
- v0/ask22220000-6eeef137
-import { UserIdModal } from "@/components/user-id-modal"
-import { useAuth } from "@/lib/contexts/auth-context"
-
- main
+  import { DesignViewer } from "@/components/design-viewer"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { UsageIndicator } from "@/components/usage-indicator"

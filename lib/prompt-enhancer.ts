@@ -137,8 +137,8 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
     : "The image is PORTRAIT (4:5 format)."
 
   const system = `You are a professional prompt engineer for AI image generation (Flux model).
- v0/ask22220000-6eeef137
-Your job:
+
+YOUR CORE JOB:
 1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully and completely — do NOT omit any detail.
 2. Enrich the translation with professional visual details: lighting, composition, color palette, mood, camera angle, photographic style.
 3. ${orientationHint} Include this orientation in the composition description.
@@ -197,19 +197,13 @@ CRITICAL RULES:
       : enhancedResult
   } catch (error) {
     console.error("[prompt-enhancer] Groq generation error:", error)
- v0/ask22220000-6eeef137
-    return userPrompt
-
-    
-    const qualityConstants = wantsPhotorealistic 
+    const qualityConstants = wantsPhotorealistic
       ? `${IMAGE_GEN_QUALITY_CONSTANTS}, ${PHOTOREALISTIC_ENHANCEMENT}`
       : IMAGE_GEN_QUALITY_CONSTANTS
-    
     const fallback = `${userPrompt}, ${qualityConstants}`
-    return mentionsAnimals 
+    return mentionsAnimals
       ? `${fallback} | AVOID: ${ANIMAL_ANATOMY_NEGATIVE}`
       : fallback
- main
   }
 }
 
