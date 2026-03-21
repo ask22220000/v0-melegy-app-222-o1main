@@ -6,6 +6,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    serverExternalPackages: ['sharp'],
+  },
   skipTrailingSlashRedirect: true,
   productionBrowserSourceMaps: false,
   compress: true,
@@ -34,8 +37,8 @@ const nextConfig = {
           },
         ],
       },
-    ]
+    ];
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
