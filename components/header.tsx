@@ -65,10 +65,9 @@ export function Header({ showChatHistory = false, onChatHistoryClick, showHomeBu
           onClick={toggleLanguage}
           className="bg-card backdrop-blur-md border-2 border-cyan-500/70 text-cyan-400 hover:text-cyan-300 hover:border-cyan-400 flex items-center gap-1.5 font-bold min-w-[52px]"
           aria-label={language === "ar" ? "Switch to English" : "Switch to Arabic"}
-          suppressHydrationWarning
         >
           <Languages className="h-4 w-4 shrink-0" />
-          <span className="text-xs" suppressHydrationWarning>{translations.languageToggle}</span>
+          <span className="text-xs">{translations.languageToggle}</span>
         </Button>
 
         {showHomeButton && (

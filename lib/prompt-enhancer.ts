@@ -11,62 +11,6 @@
  * Basic translations without prescriptive constraints
  */
 const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
- v0/arabportalweb-3873-2e563f2f
-  // Common Egyptian foods
-  "كنافة": "konafa (Egyptian pastry dessert with cheese and syrup)",
-  "كنافه": "konafa (Egyptian pastry dessert with cheese and syrup)",
-  "بسبوسة": "basboussa (semolina coconut cake)",
-  "بسبوسه": "basboussa (semolina coconut cake)",
-  "الكنافة": "konafa (Egyptian pastry dessert)",
-  "الكنافه": "konafa (Egyptian pastry dessert)",
-  "حلويات": "traditional Egyptian sweets and desserts",
-  "فتة": "fetta (bread salad with meat and yogurt)",
-  "فتة اللحم": "fetta with meat (traditional Egyptian dish)",
-  "محشي": "mahshi (stuffed vegetables)",
-  "ملوخية": "molokhia (traditional Egyptian stew)",
-  "ملوخيه": "molokhia (traditional Egyptian stew)",
-  "عيش": "aish (Egyptian bread, staple bread)",
-  "عيش بلدي": "aish baladi (traditional Egyptian peasant bread - round, tan/brown, crusty exterior, soft interior, slightly irregular shape, baked in wood-fired ovens)",
-  "عيش بلاش": "aish baladi (traditional Egyptian peasant bread)",
-  "الخبز": "bread, Egyptian bread",
-  "الخبز البلدي": "traditional Egyptian peasant bread",
-  "فاصوليا": "beans (Egyptian style)",
-  "فول": "fava beans (Egyptian breakfast staple)",
-  "فول مصري": "Egyptian fava beans",
-  "فول الشامي": "Syrian beans Egyptian style",
-  "حمص": "hummus (Egyptian style)",
-  "بابا غنوج": "baba ganoush",
-  "تعميّة": "tameya (Egyptian falafel)",
-  "تميه": "tameya (Egyptian falafel)",
-  "شاورما": "shawarma",
-  "كباب": "kebab",
-  "كفتة": "kofta (meatballs)",
-  "شيش طاووق": "shish taouk (chicken kebab)",
-  "الشيش": "kebab skewers",
-  "كشك": "kishk (traditional soup)",
-  "كشري": "koshari (mixed pasta rice lentils)",
-  "الكشري": "koshari (Egyptian mixed dish)",
-  "فرن": "oven baked dishes",
-  "سمك": "fish",
-  "رنجة": "ringa (salted dried fish, Egyptian staple)",
-  "رنجه": "ringa (salted dried fish, Egyptian staple)",
-  "جمبري": "shrimp",
-  "روبيان": "shrimp",
-  "دجاج": "chicken",
-  "لحم": "meat",
-  "لحمة": "meat",
-  "كبده": "liver",
-  "نقانق": "sausages",
-  "أرز": "rice",
-  "جرجير": "arugula salad",
-  "خس": "lettuce",
-  "خضار": "vegetables",
-  "طماطم": "tomatoes",
-  "خيار": "cucumber",
-  "بصل": "onion",
-  "ثوم": "garlic",
-  "حار": "spicy",
-
   // Religious/Biblical figures and themes
   "السيد المسيح": "Jesus Christ",
   "المسيح": "Jesus Christ",
@@ -94,7 +38,6 @@ const EGYPTIAN_FOOD_DICTIONARY: Record<string, string> = {
   "طبيعي": "natural",
   "واقعي": "realistic",
   "حقيقي": "realistic",
- main
   "مصري": "Egyptian",
   "تقليدي": "traditional",
   "جميل": "beautiful",
@@ -185,25 +128,6 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
 
   const system = `You are a professional prompt engineer for AI image generation (Flux model).
 
- v0/arabportalweb-3873-2e563f2f
-  const system = `You are a professional prompt engineer for AI image generation (Flux model). Your goal: create prompts for PROFESSIONAL AUTHENTIC EGYPTIAN FOOD PHOTOGRAPHY — realistic, professionally lit, captured as if by a professional food photographer using a real DSLR camera, set in genuine Egyptian street food or home kitchen environment.
-
-CRITICAL DEFINITIONS:
-- "aish baladi": Traditional Egyptian peasant bread - ROUND LOAF, tan/brown color, CRUSTY EXTERIOR with slight surface irregularities from wood-fired oven, soft interior, authentic shape (not perfect circle)
-- "Egyptian environment": Real Egyptian street vendor setup or home kitchen with visible cultural context: wooden/woven surfaces, ceramic dishes, worn tables, baskets with bread, authentic lighting (warm, natural), visible signs of food preparation culture
-
-Your job:
-1. If the text is Arabic (including Egyptian dialect), translate it FAITHFULLY and COMPLETELY — preserve every detail the user mentioned.
-2. COMBINE professional photography quality with authentic Egyptian setting:
-   - Professional lighting: golden hour, natural soft directional light, no artificial studio look
-   - Real environment: visible wooden tables, woven baskets, aish baladi bread, ceramic dishes, authentic Egyptian kitchen/street food setting
-   - Food details: visible moisture, oil shine, spice texture, authentic food preparation evidence
-3. HAND/PERSON RULES: If user mentions a person doing an action (holding, lifting, sprinkling) → INCLUDE them. If user says "no people/no hands" → EXCLUDE entirely.
-4. Photography specifics: "professional DSLR camera, shallow depth of field (bokeh), macro details, documentary photojournalism style, golden hour lighting, warm tones, realistic texture, authentic Egyptian food culture moment"
-5. STRICT: Do NOT add elements user didn't mention. Do NOT add text/watermarks. Preserve exactly what user described.
-6. AUTHENTICITY CHECK: Image should look like it was ACTUALLY PHOTOGRAPHED in real Egyptian food setting by professional photographer, NOT like studio product photography or AI-generated artifact.
-7. Return ONLY the final English prompt, under 250 words. No explanations.`
-
 YOUR CORE JOB:
 1. Translate Arabic (Egyptian dialect) to English faithfully - translate EVERY detail, do NOT omit anything.
 2. Apply user's EXACT request word-for-word - generate ONLY what they asked for, NOTHING else.
@@ -228,7 +152,6 @@ CRITICAL RULES:
 1. Translate ALL Arabic accurately - cultural terms, religious references, descriptive language
 2. Apply request word-for-word - user's exact content goes into the image, nothing else
 3. Return ONLY the final English prompt under 250 words. No explanations or extra text.`
- main
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -279,13 +202,6 @@ export const NEGATIVE_PROMPT_CONSTANTS =
   "bad anatomy, wrong anatomy, deformed hands, bad hands, mutated hands, poorly drawn hands, malformed hands, extra fingers, too many fingers, missing fingers, fewer fingers, fused fingers, six fingers, seven fingers, eight fingers, extra limbs, missing limbs, disconnected limbs, floating limbs, extra legs, missing legs, extra arms, missing arms, long neck, twisted fingers, backwards fingers, unnatural hand position, hand artifacts, hand glitch, broken hands, distorted hands, poorly drawn face, mutation, blurry, bad proportions, gross proportions, cloned face, disfigured, deformed body, duplicate, morbid, mutilated, out of frame, dehydrated, bad quality, low quality, jpeg artifacts, watermark, text, signature, cropped, CGI, plastic appearance, artificial, overly stylized"
 
 /**
- v0/arabportalweb-3873-2e563f2f
- * Quality constants for image generation - AUTHENTIC EGYPTIAN FOOD PHOTOGRAPHY
- * Combines professional photojournalism quality with real-life Egyptian street food authenticity
- */
-export const IMAGE_GEN_QUALITY_CONSTANTS =
-  "masterpiece, best quality, professional food photography, shot with professional DSLR camera (canon or nikon), sharp focus on main subject with shallow depth of field (bokeh background), warm golden natural lighting, authentic Egyptian street food environment, real-life Egyptian setting with visible context (wooden tables, woven baskets, traditional ceramics, aish baladi bread), macro food photography with fine details visible, rich warm color palette (golden browns, amber tones), authentic rustic surfaces (aged wood, worn ceramic, weathered baskets), visible moisture and food details (oil shine, spice texture, fresh herbs), fresh natural ingredients look, no CGI, no artificial smoothing, documentary photojournalism style, candid real-life moment, professional photographer capturing authentic Egyptian food culture, cinematic warm color grading, golden hour lighting quality, fine art food photography, realistic textures showing actual food preparation environment, visible signs of authentic Egyptian home or street vendor setting"
-
  * Additional negative prompt for animal anatomy - prevents extra/missing legs and body parts
  */
 export const ANIMAL_ANATOMY_NEGATIVE =
@@ -303,7 +219,6 @@ export const IMAGE_GEN_QUALITY_CONSTANTS =
  */
 export const PHOTOREALISTIC_ENHANCEMENT =
   "shot with professional DSLR camera (Canon EOS R5 equivalent), 50mm f/1.8 lens, natural light or golden hour, shallow depth of field with creamy background blur, macro details visible in foreground, texture details preserved in shadows and highlights, professional color grading, accurate white balance, dynamic range optimized, film-quality rendering, captured by professional photographer, zero AI artifacts, indistinguishable from real photograph"
- main
 
 /**
  * For image EDITING via fal-ai/flux-2/turbo/edit.

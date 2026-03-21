@@ -26,7 +26,7 @@ export function Features() {
   const dir = language === "ar" ? "rtl" : "ltr"
 
   return (
-    <section className="container mx-auto px-6 pb-20" suppressHydrationWarning>
+    <section className="container mx-auto px-6 pb-20">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
         {features.map((feature, index) => {
           const featureText = translations.features[feature.key]
@@ -38,17 +38,10 @@ export function Features() {
               <div className="text-5xl mb-4">
                 {feature.icon === "🖼️" ? <ImageIcon className="h-12 w-12 text-blue-400" /> : feature.icon}
               </div>
- v0/arabportalweb-3873-2e563f2f
-              <h3 className="text-xl font-bold text-white mb-3" dir={language === "ar" ? "rtl" : "ltr"} suppressHydrationWarning>
-                {featureText.title}
-              </h3>
-              <p className="text-white/60 leading-relaxed" dir={language === "ar" ? "rtl" : "ltr"} suppressHydrationWarning>
-
               <h3 className="text-xl font-bold text-white mb-3" dir={dir} suppressHydrationWarning>
                 {featureText.title}
               </h3>
               <p className="text-white/60 leading-relaxed" dir={dir} suppressHydrationWarning>
- main
                 {featureText.description}
               </p>
             </div>

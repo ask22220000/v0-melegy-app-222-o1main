@@ -73,7 +73,7 @@ export function Hero() {
   const dir = language === "ar" ? "rtl" : "ltr"
 
   return (
-    <section className="container mx-auto px-6 pt-32 pb-20 text-center" suppressHydrationWarning>
+    <section className="container mx-auto px-6 pt-32 pb-20 text-center">
       {/* PWA Install Banner (Android) */}
       {showBanner && !isInstalled && (
         <div className="fixed bottom-4 left-4 right-4 z-50 bg-[#1a1f2e] border border-blue-500/40 rounded-2xl p-4 flex items-center gap-3 shadow-2xl shadow-blue-900/40 max-w-sm mx-auto">
@@ -195,11 +195,7 @@ export function Hero() {
 
       <p
         className="text-2xl md:text-3xl text-white mb-4 font-semibold text-center"
- v0/arabportalweb-3873-2e563f2f
-        dir={language === "ar" ? "rtl" : "ltr"}
-
         dir={dir}
- main
         suppressHydrationWarning
       >
         {translations.heroSubtitle}
@@ -207,11 +203,7 @@ export function Hero() {
 
       <p className="text-base text-blue-400/80 mb-8" suppressHydrationWarning>{translations.heroVersion}</p>
 
- v0/arabportalweb-3873-2e563f2f
-      <p className="text-lg text-white/70 mb-12 max-w-3xl mx-auto text-center" dir={language === "ar" ? "rtl" : "ltr"} suppressHydrationWarning>
-
       <p className="text-lg text-white/70 mb-12 max-w-3xl mx-auto text-center" dir={dir} suppressHydrationWarning>
- main
         {translations.heroDescription}
       </p>
 
@@ -281,17 +273,10 @@ export function Hero() {
       )}
 
       <div className="mt-8 flex flex-col items-center gap-3">
- v0/arabportalweb-3873-2e563f2f
-        <p className="text-lg text-white/80 font-medium text-center max-w-3xl" dir={language === "ar" ? "rtl" : "ltr"} suppressHydrationWarning>
-          {translations.heroCta}
-        </p>
-        <p className="text-base text-white/70 text-center" dir={language === "ar" ? "rtl" : "ltr"} suppressHydrationWarning>
-
         <p className="text-lg text-white/80 font-medium text-center max-w-3xl" dir={dir} suppressHydrationWarning>
           {translations.heroCta}
         </p>
         <p className="text-base text-white/70 text-center" dir={dir} suppressHydrationWarning>
- main
           {translations.heroCtaSub}
         </p>
         <ArrowDown className="h-8 w-8 text-cyan-400 animate-bounce drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
