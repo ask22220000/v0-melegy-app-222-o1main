@@ -81,6 +81,12 @@
     "xlsx": "latest",
     "zod": "3.23.8"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "core-js"
+    ]
+  }
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.0.0",
