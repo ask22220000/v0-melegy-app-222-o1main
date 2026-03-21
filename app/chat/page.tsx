@@ -223,10 +223,8 @@ export default function ChatPage() {
             setMlgPlan(data.user.plan)
             loadConversationsFromServer(data.user.mlg_user_id)
           } else {
-            // ID invalid, show modal
-            localStorage.removeItem("mlg_user_id")
-            localStorage.removeItem("mlg_plan")
-            setShowUserModal(true)
+            // User ID invalid - redirect to login
+            window.location.href = '/login'
           }
         })
         .catch(() => {
@@ -236,7 +234,8 @@ export default function ChatPage() {
           loadConversationsFromServer(storedId)
         })
     } else {
-      setShowUserModal(true)
+      // No user ID stored - redirect to login
+      window.location.href = '/login'
     }
   }, [])
 
@@ -329,7 +328,7 @@ export default function ChatPage() {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({
         title: "غير مدعوم",
-        description: "المتصفح ده مش بيدعم التع��ف على الصو��",
+        description: "المتصفح ده مش بيدعم التع����ف على الصو��",
         variant: "destructive",
       })
       return
