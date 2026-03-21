@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Loader2, Mail, Lock, LogIn, UserPlus } from "lucide-react"
 
 interface UserIdModalProps {
-  onUserReady: (userId: string, plan: string, isNew: boolean) => void
+  onUserReady: (userId: string, plan: string, isNew: boolean, conversations: any[]) => void
 }
 
 type View = "login" | "signup"
@@ -100,6 +100,14 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
       } else {
         setSignupDone(true)
       }
+ v0/ask22220000-6eeef137
+      // Save to localStorage
+      localStorage.setItem("mlg_user_id", data.user.mlg_user_id)
+      localStorage.setItem("mlg_plan", data.user.plan)
+      // Pass conversations array to chat component
+      onUserReady(data.user.mlg_user_id, data.user.plan, false, data.user.conversations || [])
+
+ main
     } catch {
       setError("حدث خطأ في الاتصال")
     } finally {
@@ -107,6 +115,21 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
     }
   }
 
+ v0/ask22220000-6eeef137
+  function handleCopyAndContinue() {
+    navigator.clipboard.writeText(newId).then(() => {
+      setCopied(true)
+      setTimeout(() => {
+        // Save to localStorage then proceed with empty conversations (new user)
+        localStorage.setItem("mlg_user_id", newId)
+        localStorage.setItem("mlg_plan", plan)
+        onUserReady(newId, plan, true, [])
+      }, 800)
+    })
+  }
+
+
+ main
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"

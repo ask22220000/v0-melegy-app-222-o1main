@@ -1,9 +1,34 @@
-import { createServerClient } from "@supabase/ssr"
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
-// SHARED SINGLETON for service role client (prevents multiple GoTrueClient instances)
-let serviceRoleClientInstance: ReturnType<typeof createSupabaseClient> | null = null
+/**
+ * Especially important if using Fluid compute: Don't put this client in a
+ * global variable. Always create a new client within each function when using
+ * it.
+ */
+export async function createClient() {
+  const cookieStore = await cookies()
+
+ v0/ask22220000-6eeef137
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            )
+          } catch {
+            // The "setAll" method was called from a Server Component.
+            // This can be ignored if you have proxy refreshing
+            // user sessions.
+          }
 
 export function getServiceRoleClient() {
   // Use SUPABASE_URL for server-side (fallback to NEXT_PUBLIC for backwards compatibility)
@@ -22,32 +47,23 @@ export function getServiceRoleClient() {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
+ main
         },
       },
-    )
-  }
-  return serviceRoleClientInstance
+    },
+  )
 }
 
-export async function createClient() {
-  const cookieStore = await cookies()
+/**
+ * Service role client for server-side operations without auth
+ * Use this in API routes that need admin access to Supabase
+ */
+export function getServiceRoleClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
   
-  // Use SUPABASE_URL for server-side (fallback to NEXT_PUBLIC for backwards compatibility)
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  return createServerClient(supabaseUrl!, anonKey!, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll()
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        } catch {
-          // Called from Server Component
-        }
-      },
-    },
+  return createSupabaseClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: 'public' },
   })
 }

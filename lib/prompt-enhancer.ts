@@ -126,7 +126,28 @@ export async function processPromptForImageGeneration(userPrompt: string): Promi
   // Detect if prompt mentions animals (dogs, cats, birds, etc.)
   const mentionsAnimals = /كلب|قط|حيوان|جرو|كتكوت|طائر|حصان|بقرة|غنم|lion|tiger|dog|cat|puppy|kitten|bird|horse|cow|sheep|animal|pet|wolf|fox|deer|elephant|bear|monkey|rabbit|mouse|rat|fish|whale|dolphin|penguin|eagle|owl|parrot/i.test(userPrompt)
 
+  // Detect orientation from raw prompt to pass as hint to Groq
+  const lower = userPrompt.toLowerCase()
+  const isLandscape = /عرضي|عرضية|أفقي|أفقية|سينمائي|سينمائية|بانوراما|landscape|cinematic|wide|panoramic|horizontal|widescreen|16:9/i.test(lower)
+  const isSquare    = /مربع|مربعة|1:1|square/i.test(lower)
+  const orientationHint = isLandscape
+    ? "The image must be LANDSCAPE (wide/cinematic 16:9 format)."
+    : isSquare
+    ? "The image must be SQUARE (1:1 format)."
+    : "The image is PORTRAIT (4:5 format)."
+
   const system = `You are a professional prompt engineer for AI image generation (Flux model).
+ v0/ask22220000-6eeef137
+Your job:
+1. If the text is Arabic (including Egyptian dialect), translate it to English faithfully and completely — do NOT omit any detail.
+2. Enrich the translation with professional visual details: lighting, composition, color palette, mood, camera angle, photographic style.
+3. ${orientationHint} Include this orientation in the composition description.
+4. Do NOT change or remove any subject, person, object, or scene the user described.
+5. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly asks for a person in their prompt.
+6. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
+7. Do NOT add text overlays, watermarks, or typography.
+8. Return ONLY the final English prompt, under 120 words. No explanations.`
+
 
 YOUR CORE JOB:
 1. Translate Arabic (Egyptian dialect) to English faithfully - translate EVERY detail, do NOT omit anything.
@@ -152,6 +173,7 @@ CRITICAL RULES:
 1. Translate ALL Arabic accurately - cultural terms, religious references, descriptive language
 2. Apply request word-for-word - user's exact content goes into the image, nothing else
 3. Return ONLY the final English prompt under 250 words. No explanations or extra text.`
+ main
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
@@ -175,6 +197,9 @@ CRITICAL RULES:
       : enhancedResult
   } catch (error) {
     console.error("[prompt-enhancer] Groq generation error:", error)
+ v0/ask22220000-6eeef137
+    return userPrompt
+
     
     const qualityConstants = wantsPhotorealistic 
       ? `${IMAGE_GEN_QUALITY_CONSTANTS}, ${PHOTOREALISTIC_ENHANCEMENT}`
@@ -184,6 +209,7 @@ CRITICAL RULES:
     return mentionsAnimals 
       ? `${fallback} | AVOID: ${ANIMAL_ANATOMY_NEGATIVE}`
       : fallback
+ main
   }
 }
 

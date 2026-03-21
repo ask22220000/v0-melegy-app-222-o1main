@@ -9,6 +9,11 @@ import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { DesignViewer } from "@/components/design-viewer"
+ v0/ask22220000-6eeef137
+import { UserIdModal } from "@/components/user-id-modal"
+import { useAuth } from "@/lib/contexts/auth-context"
+
+ main
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { UsageIndicator } from "@/components/usage-indicator"
@@ -68,6 +73,7 @@ interface ChatHistory {
 
 export default function ChatPage() {
   const { translations, language, setLanguage } = useApp()
+  const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
 
   const [messages, setMessages] = useState<Message[]>([
@@ -103,6 +109,13 @@ export default function ChatPage() {
   const [animateAudio, setAnimateAudio] = useState<boolean>(false)
   const animateFileRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Check if user is authenticated, show AuthModal if not
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setShowUserModal(true)
+    }
+  }, [user, authLoading])
 
   const functionsList = [
     { id: "image", label: translations.fn_image, icon: Image, prompt: language === "ar" ? "اعملي صورة " : "Generate an image of " },
@@ -1318,6 +1331,27 @@ export default function ChatPage() {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {showUserModal && (
+        <UserIdModal
+          onUserReady={(userId, plan, isNew, conversations) => {
+            setMlgUserId(userId)
+            setMlgPlan(plan)
+            setShowUserModal(false)
+            // Load conversations if user is returning
+            if (!isNew && conversations.length > 0) {
+              const histories: ChatHistory[] = conversations.map((c: any) => ({
+                id: c.id,
+                title: c.title,
+                date: new Date(c.created_at).toLocaleDateString("ar-EG"),
+                messages: [],
+                conversationId: c.id,
+              }))
+              setChatHistories(histories)
+            }
+          }}
+        />
+      )}
 
       {attachedImage && (
         <div className="px-4 py-2 border-t border-border bg-card">
