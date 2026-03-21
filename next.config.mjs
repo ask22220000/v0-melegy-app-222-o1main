@@ -6,9 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    serverExternalPackages: ['sharp'],
-  },
+  serverExternalPackages: ['sharp'],
   skipTrailingSlashRedirect: true,
   productionBrowserSourceMaps: false,
   compress: true,
