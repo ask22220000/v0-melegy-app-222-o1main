@@ -2,12 +2,14 @@ import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
+
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  )
+}
 
 function getAuthToken(req: NextRequest): string | null {
   const authHeader = req.headers.get("authorization")
@@ -39,6 +41,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const conversationId = searchParams.get("conversationId")
 
+    const supabase = getSupabaseClient()
     let query = supabase
       .from("melegy_history")
       .select("*")

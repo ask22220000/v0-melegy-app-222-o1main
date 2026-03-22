@@ -3,12 +3,14 @@ import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import { NextRequest, NextResponse } from "next/server"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
+
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  )
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already exists
+    const supabase = getSupabaseClient()
     const { data: existingUser } = await supabase
       .from("melegy_users")
       .select("id")
@@ -33,7 +36,8 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Create user
-    const { data: newUser, error } = await supabase
+    const createSupabase = getSupabaseClient()
+    const { data: newUser, error } = await createSupabase
       .from("melegy_users")
       .insert({
         email,
