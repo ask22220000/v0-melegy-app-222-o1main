@@ -11,7 +11,6 @@
   "dependencies": {
     "@ai-sdk/react": "1.2.12",
     "@fal-ai/client": "1.7.2",
-    "@fal-ai/serverless-client": "^1.0.0",
     "@google/generative-ai": "0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "1.2.2",
