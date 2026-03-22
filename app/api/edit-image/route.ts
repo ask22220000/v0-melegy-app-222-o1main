@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
 
       console.log("[v0] 4. Editing image with fal-ai/flux-2-flex/edit...")
 
-      const result = (await fal.subscribe("fal-ai/flux-2-flex/edit", {
+      const result = (await fal.subscribe("fal-ai/nano-banana/edit", {
         input: {
           prompt: enhancedPrompt,
           image_urls: [imageUrl],

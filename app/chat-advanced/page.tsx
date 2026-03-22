@@ -104,7 +104,6 @@ export default function ChatAdvancedPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
-  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -186,17 +185,12 @@ export default function ChatAdvancedPage() {
     }
   }
 
-  // Initialize user from Supabase Auth
+  // Initialize user from localStorage
   useEffect(() => {
-    import("@/lib/supabase/client").then(({ createClient }) => {
-      createClient().auth.getUser().then(({ data }) => {
-        if (data.user) {
-          setMlgUserId(data.user.id)
-        } else {
-          window.location.href = "/auth/login"
-        }
-      })
-    })
+    const storedId = localStorage.getItem("mlg_user_id")
+    if (!storedId) {
+      window.location.href = '/login'
+    }
   }, [])
 
   // Set plan and check subscription access on mount
@@ -275,10 +269,9 @@ export default function ChatAdvancedPage() {
   useEffect(() => {
     const loadHistories = async () => {
       try {
-        const { createClient } = await import("@/lib/supabase/client")
-        const { data: authData } = await createClient().auth.getUser()
-        if (authData.user) {
-          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(authData.user.id)}`)
+        const storedId = localStorage.getItem("mlg_user_id")
+        if (storedId) {
+          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(storedId)}`)
           if (res.ok) {
             const data = await res.json()
             if (data.histories?.length > 0) setChatHistories(data.histories)
@@ -314,7 +307,7 @@ export default function ChatAdvancedPage() {
     fetch("/api/save-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: mlgUserId, chat_title: title, chat_date: chatDate, messages }),
+      body: JSON.stringify({ mlg_user_id: null, chat_title: title, chat_date: chatDate, messages }),
     }).then(() => {
       setChatHistories((prev) => {
         const idx = prev.findIndex((c) => c.title === title && c.date === chatDate)
@@ -383,21 +376,22 @@ export default function ChatAdvancedPage() {
   // Helper function to track analytics
   const trackAnalytics = async (action: string, data?: any) => {
     try {
-      await fetch("/api/stats", {
+      await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, data }),
       })
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // Silent fail - analytics are non-critical
     }
   }
 
   // Create conversation in database on first message
   const ensureConversationExists = async () => {
     if (conversationCreated) return
+    
     try {
-      await fetch("/api/stats", {
+      await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -458,10 +452,7 @@ export default function ChatAdvancedPage() {
           }),
         })
 
-        if (!editResponse.ok) {
-          const errData = await editResponse.json().catch(() => ({}))
-          throw new Error(errData.error || "فشل تعديل الصورة")
-        }
+        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -684,7 +675,7 @@ export default function ChatAdvancedPage() {
       console.error("[v0] Image generation error:", error)
       setIsGeneratingImage(false)
       toast({
-        title: "خط��",
+        title: "خطأ",
         description: "فشل في إنشاء الصورة",
         variant: "destructive",
       })
@@ -773,7 +764,7 @@ export default function ChatAdvancedPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: mlgUserId,
+          mlg_user_id: null,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,

@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
     const finalPrompt = await processPromptForImageEditing(prompt)
 
-    const result = await fal.subscribe("fal-ai/flux-2-flex/edit", {
+    const result = await fal.subscribe("fal-ai/nano-banana/edit", {
       input: {
         image_url: imageUrl,
         prompt: finalPrompt,

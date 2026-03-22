@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useAuth } from "@/hooks/use-auth"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import {
@@ -10,29 +11,9 @@ import {
 import {
   Activity, MessageSquare, Users, Zap, Clock, Crown,
   Star, Sparkles, TrendingUp, RefreshCw, Image, Video, Mic,
-  Shield, CheckCircle, XCircle, Search,
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface UserRecord {
-  user_ip: string
-  plan: string
-  messages: number
-  images: number
-  animated_videos: number
-  voice_minutes: number
-  last_active: string
-}
-
-interface SubscriptionRecord {
-  user_ip: string
-  user_email: string
-  plan_name: string
-  status: string
-  started_at: string
-  expires_at: string
-}
-
 interface AnalyticsData {
   activeUsersNow: number
   totalUsers: number
@@ -67,12 +48,9 @@ interface AnalyticsData {
   monthlyImages: number
   totalSubscribers: number
   lastUpdated: string
-  // New user tracking fields
-  userList: UserRecord[]
-  activeSubscriptions: SubscriptionRecord[]
 }
 
-// ── Color palette ─────────────────────────────────────────────────────────────
+// ── Color palette (no CSS vars — recharts needs real values) ──────────────────
 const COLORS = {
   blue:   "#3b82f6",
   cyan:   "#06b6d4",
@@ -86,37 +64,14 @@ const COLORS = {
 }
 
 const PLAN_COLORS = [COLORS.slate, COLORS.blue, COLORS.purple, COLORS.amber]
-const PLAN_BADGE: Record<string, string> = {
-  free:     "#475569",
-  starter:  "#3b82f6",
-  pro:      "#a855f7",
-  advanced: "#f59e0b",
-  vip:      "#f59e0b",
-}
+const FEATURE_COLORS = [COLORS.blue, COLORS.cyan, COLORS.purple, COLORS.green, COLORS.amber, COLORS.red]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n: number) { return n.toLocaleString("ar-EG") }
+
 function pct(value: number, total: number) {
   if (!total) return "0.0"
   return ((value / total) * 100).toFixed(1)
-}
-function maskIp(ip: string) {
-  const parts = ip.split(".")
-  if (parts.length === 4) return `${parts[0]}.${parts[1]}.***.***`
-  return ip.slice(0, 8) + "***"
-}
-function timeAgo(dateStr: string) {
-  if (!dateStr) return "—"
-  try {
-    const diff = Date.now() - new Date(dateStr).getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 1)  return "الآن"
-    if (mins < 60) return `منذ ${mins} دقيقة`
-    const hrs = Math.floor(mins / 60)
-    if (hrs < 24)  return `منذ ${hrs} ساعة`
-    const days = Math.floor(hrs / 24)
-    return `منذ ${days} يوم`
-  } catch { return "—" }
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -155,29 +110,6 @@ function Panel({ children, className = "" }: { children: React.ReactNode; classN
   )
 }
 
-function PlanBadge({ plan }: { plan: string }) {
-  const color = PLAN_BADGE[plan?.toLowerCase()] ?? COLORS.slate
-  const label = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "Free"
-  return (
-    <span
-      className="text-xs font-bold px-2 py-0.5 rounded-full"
-      style={{ background: color + "30", color, border: `1px solid ${color}60` }}
-    >
-      {label}
-    </span>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const isActive = status === "active"
-  return (
-    <span className={`flex items-center gap-1 text-xs font-semibold ${isActive ? "text-green-400" : "text-slate-500"}`}>
-      {isActive ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-      {isActive ? "نشط" : status}
-    </span>
-  )
-}
-
 // ── Custom Recharts Tooltip ───────────────────────────────────────────────────
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
@@ -196,30 +128,76 @@ function CustomTooltip({ active, payload, label }: any) {
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: "overview",  label: "نظرة عامة" },
-  { id: "users",     label: "المستخدمون" },
   { id: "features",  label: "المميزات" },
   { id: "plans",     label: "الخطط" },
   { id: "activity",  label: "النشاط" },
 ]
 
-// ── Main Page ──────────────────────────────────────────────────��──────────────
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DataPage() {
   const [data, setData]       = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab]         = useState("overview")
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
-  const [userSearch, setUserSearch]   = useState("")
-  const [userPage, setUserPage]       = useState(0)
-  const PAGE_SIZE = 20
 
   const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/stats")
-      if (res.ok) {
-        setData(await res.json())
-        setLastRefresh(new Date())
-      }
-    } catch { /* silent */ } finally {
+  try {
+    const token = localStorage.getItem("authToken")
+    if (!token) {
+      console.error("[v0] No auth token found")
+      return
+    }
+    
+    const res = await fetch("/api/user-analytics", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    
+    if (res.ok) {
+      const result = await res.json()
+      // Transform user analytics to match the expected format
+      setData({
+        activeUsersNow: 1, // Current user
+        totalUsers: 1,
+        subscriptionsByPlan: { free: 1, starter: 0, pro: 0, advanced: 0 },
+        totalConversations: result.stats.totalConversations,
+        totalMessages: result.stats.totalConversations, // Approximate
+        messagesPerMinute: 0,
+        averageResponseTime: 0,
+        activeUsers: 1,
+        pageviewsToday: 0,
+        visitorsToday: 1,
+        featureUsage: {
+          textGeneration: result.stats.totalConversations,
+          imageGeneration: result.stats.totalImages,
+          videoGeneration: result.stats.totalVideos,
+          deepSearch: 0,
+          ideaToPrompt: 0,
+          voiceCloning: 0,
+        },
+        responseTypes: { text: 0, search: 0, creative: 0, technical: 0 },
+        userSatisfaction: { positive: 0, neutral: 0, negative: 0 },
+        systemHealth: { apiResponseTime: 0, uptime: 99.9, errorRate: 0 },
+        topQueries: [],
+        hourlyActivity: result.hourlyActivity,
+        dailyActivity: result.dailyActivity,
+        totalImages: result.stats.totalImages,
+        totalVideos: result.stats.totalVideos,
+        totalVoiceMinutes: result.stats.totalVoiceMinutes,
+        messagesToday: result.stats.messagesToday,
+        conversationsToday: result.stats.totalConversations,
+        monthlyMessages: 0,
+        monthlyImages: 0,
+        totalSubscribers: 1,
+        lastUpdated: result.lastUpdated,
+      })
+      setLastRefresh(new Date())
+    } else if (res.status === 401) {
+      // Redirect to login if unauthorized
+      window.location.href = "/login"
+    }
+  } catch (err) {
+    console.error("[v0] Error fetching user analytics:", err)
+  } finally {
       setLoading(false)
     }
   }, [])
@@ -287,14 +265,6 @@ export default function DataPage() {
     رسائل: h.messages,
   }))
 
-  // Users tab data
-  const allUsers = data.userList ?? []
-  const filteredUsers = allUsers.filter((u) =>
-    u.user_ip.includes(userSearch) || u.plan?.toLowerCase().includes(userSearch.toLowerCase())
-  )
-  const pagedUsers = filteredUsers.slice(userPage * PAGE_SIZE, (userPage + 1) * PAGE_SIZE)
-  const totalPages = Math.ceil(filteredUsers.length / PAGE_SIZE)
-
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <Header />
@@ -334,16 +304,13 @@ export default function DataPage() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`px-5 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
-                tab === t.id ? "text-white" : "text-slate-400 hover:text-slate-200"
+                tab === t.id
+                  ? "text-white"
+                  : "text-slate-400 hover:text-slate-200"
               }`}
               style={tab === t.id ? { background: COLORS.blue } : { background: COLORS.card, border: `1px solid ${COLORS.border}` }}
             >
               {t.label}
-              {t.id === "users" && allUsers.length > 0 && (
-                <span className="mr-2 text-xs bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full">
-                  {allUsers.length}
-                </span>
-              )}
             </button>
           ))}
         </div>
@@ -351,6 +318,7 @@ export default function DataPage() {
         {/* ── Tab: Overview ─────────────────────────────────────────────────── */}
         {tab === "overview" && (
           <div className="space-y-6">
+            {/* Second KPI row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiCard label="صور مولّدة"          value={fmt(data.totalImages ?? 0)}          sub="كل الأوقات"        icon={<Image className="h-5 w-5" />}    accent={COLORS.cyan} />
               <KpiCard label="فيديوهات مولّدة"     value={fmt(data.totalVideos ?? 0)}          sub="كل الأوقات"        icon={<Video className="h-5 w-5" />}    accent={COLORS.purple} />
@@ -358,6 +326,7 @@ export default function DataPage() {
               <KpiCard label="إجمالي المشتركين"    value={fmt(data.totalSubscribers ?? totalPlans)} sub="في كل الخطط"  icon={<Crown className="h-5 w-5" />}   accent={COLORS.green} />
             </div>
 
+            {/* Hourly chart + Satisfaction */}
             <div className="grid md:grid-cols-2 gap-6">
               <Panel>
                 <SectionTitle><Activity className="h-5 w-5 text-blue-400" />النشاط بالساعة (آخر 24 ساعة)</SectionTitle>
@@ -410,6 +379,7 @@ export default function DataPage() {
               </Panel>
             </div>
 
+            {/* System health */}
             <Panel>
               <SectionTitle>صحة النظام</SectionTitle>
               <div className="grid md:grid-cols-3 gap-6">
@@ -430,155 +400,6 @@ export default function DataPage() {
                 ))}
               </div>
             </Panel>
-          </div>
-        )}
-
-        {/* ── Tab: Users ────────────────────────────────────────────────────── */}
-        {tab === "users" && (
-          <div className="space-y-6">
-            {/* Summary KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard label="إجمالي المستخدمين"   value={fmt(allUsers.length)}           sub="IP فريد" icon={<Users className="h-5 w-5" />}   accent={COLORS.blue} />
-              <KpiCard label="نشط آخر 24 ساعة"     value={fmt(data.activeUsersNow)}       sub="مستخدم نشط" icon={<Activity className="h-5 w-5" />} accent={COLORS.green} pulse />
-              <KpiCard label="إجمالي الاشتراكات"   value={fmt(data.totalSubscribers)}     sub="اشتراك مسجّل" icon={<Crown className="h-5 w-5" />}   accent={COLORS.amber} />
-              <KpiCard
-                label="مدفوعون"
-                value={fmt((data.subscriptionsByPlan.starter ?? 0) + (data.subscriptionsByPlan.pro ?? 0) + (data.subscriptionsByPlan.advanced ?? 0))}
-                sub="خارج الخطة المجانية"
-                icon={<Star className="h-5 w-5" />}
-                accent={COLORS.purple}
-              />
-            </div>
-
-            {/* Search + User table */}
-            <Panel>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-                <SectionTitle><Users className="h-5 w-5 text-blue-400" />قائمة المستخدمين ({fmt(filteredUsers.length)})</SectionTitle>
-                <div className="relative">
-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="بحث بـ IP أو الخطة..."
-                    value={userSearch}
-                    onChange={(e) => { setUserSearch(e.target.value); setUserPage(0) }}
-                    className="bg-slate-800/60 border border-slate-700 rounded-xl pr-9 pl-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52"
-                    dir="rtl"
-                  />
-                </div>
-              </div>
-
-              {/* Table header */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b" style={{ borderColor: COLORS.border }}>
-                      <th className="text-right text-slate-500 font-medium pb-3 pr-2">#</th>
-                      <th className="text-right text-slate-500 font-medium pb-3">User IP</th>
-                      <th className="text-right text-slate-500 font-medium pb-3">الخطة</th>
-                      <th className="text-right text-slate-500 font-medium pb-3">رسائل</th>
-                      <th className="text-right text-slate-500 font-medium pb-3">صور</th>
-                      <th className="text-right text-slate-500 font-medium pb-3">فيديو</th>
-                      <th className="text-right text-slate-500 font-medium pb-3">صوت (د)</th>
-                      <th className="text-right text-slate-500 font-medium pb-3">آخر نشاط</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedUsers.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="text-center text-slate-500 py-10">لا توجد بيانات</td>
-                      </tr>
-                    ) : pagedUsers.map((u, i) => (
-                      <tr
-                        key={u.user_ip}
-                        className="border-b hover:bg-white/5 transition-colors"
-                        style={{ borderColor: COLORS.border }}
-                      >
-                        <td className="py-3 pr-2 text-slate-600">{userPage * PAGE_SIZE + i + 1}</td>
-                        <td className="py-3">
-                          <span className="font-mono text-slate-300 text-xs bg-slate-800 px-2 py-1 rounded-lg">
-                            {maskIp(u.user_ip)}
-                          </span>
-                        </td>
-                        <td className="py-3"><PlanBadge plan={u.plan} /></td>
-                        <td className="py-3 text-white font-semibold">{fmt(u.messages)}</td>
-                        <td className="py-3 text-cyan-400">{fmt(u.images)}</td>
-                        <td className="py-3 text-purple-400">{fmt(u.animated_videos)}</td>
-                        <td className="py-3 text-amber-400">{u.voice_minutes.toFixed(1)}</td>
-                        <td className="py-3 text-slate-400 text-xs">{timeAgo(u.last_active)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-5 pt-4 border-t" style={{ borderColor: COLORS.border }}>
-                  <button
-                    onClick={() => setUserPage((p) => Math.max(0, p - 1))}
-                    disabled={userPage === 0}
-                    className="text-sm px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    السابق
-                  </button>
-                  <span className="text-slate-400 text-sm">
-                    صفحة {userPage + 1} من {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setUserPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={userPage >= totalPages - 1}
-                    className="text-sm px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    التالي
-                  </button>
-                </div>
-              )}
-            </Panel>
-
-            {/* Subscriptions table */}
-            {(data.activeSubscriptions ?? []).length > 0 && (
-              <Panel>
-                <SectionTitle><Shield className="h-5 w-5 text-amber-400" />سجل الاشتراكات ({fmt((data.activeSubscriptions ?? []).length)})</SectionTitle>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b" style={{ borderColor: COLORS.border }}>
-                        <th className="text-right text-slate-500 font-medium pb-3">#</th>
-                        <th className="text-right text-slate-500 font-medium pb-3">الإيميل / User ID</th>
-                        <th className="text-right text-slate-500 font-medium pb-3">الخطة</th>
-                        <th className="text-right text-slate-500 font-medium pb-3">الحالة</th>
-                        <th className="text-right text-slate-500 font-medium pb-3">بداية</th>
-                        <th className="text-right text-slate-500 font-medium pb-3">انتهاء</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(data.activeSubscriptions ?? []).slice(0, 50).map((s, i) => (
-                        <tr
-                          key={i}
-                          className="border-b hover:bg-white/5 transition-colors"
-                          style={{ borderColor: COLORS.border }}
-                        >
-                          <td className="py-3 text-slate-600 pr-2">{i + 1}</td>
-                          <td className="py-3">
-                            {s.user_email ? (
-                              <span className="text-blue-300 text-xs font-medium">{s.user_email}</span>
-                            ) : (
-                              <span className="font-mono text-slate-400 text-xs bg-slate-800 px-2 py-1 rounded-lg">
-                                {maskIp(s.user_ip || "—")}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3"><PlanBadge plan={s.plan_name} /></td>
-                          <td className="py-3"><StatusBadge status={s.status} /></td>
-                          <td className="py-3 text-slate-400 text-xs">{s.started_at ? new Date(s.started_at).toLocaleDateString("ar-EG") : "—"}</td>
-                          <td className="py-3 text-slate-400 text-xs">{s.expires_at ? new Date(s.expires_at).toLocaleDateString("ar-EG") : "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Panel>
-            )}
           </div>
         )}
 
@@ -613,6 +434,7 @@ export default function DataPage() {
               ))}
             </div>
 
+            {/* Top queries */}
             {data.topQueries.length > 0 && (
               <Panel>
                 <SectionTitle>أكثر الاستفسارات شيوعاً (آخر 7 أيام)</SectionTitle>
@@ -632,7 +454,7 @@ export default function DataPage() {
           </div>
         )}
 
-        {/* ── Tab: Plans ──────────────────────��─────────────────────────────── */}
+        {/* ── Tab: Plans ────────────────────────────────────────────────────── */}
         {tab === "plans" && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -651,16 +473,7 @@ export default function DataPage() {
                 <SectionTitle>توزيع الخطط</SectionTitle>
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
-                    <Pie
-                      data={planPieData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      dataKey="value"
-                      paddingAngle={4}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={false}
-                    >
+                    <Pie data={planPieData} cx="50%" cy="50%" outerRadius={100} dataKey="value" paddingAngle={4} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
                       {planPieData.map((_, i) => <Cell key={i} fill={PLAN_COLORS[i]} />)}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
@@ -690,6 +503,7 @@ export default function DataPage() {
         {/* ── Tab: Activity ─────────────────────────────────────────────────── */}
         {tab === "activity" && (
           <div className="space-y-6">
+            {/* Daily conversations — last 14 days */}
             {data.dailyActivity?.length > 0 && (
               <Panel>
                 <SectionTitle><TrendingUp className="h-5 w-5 text-green-400" />المحادثات اليومية (آخر 14 يوم)</SectionTitle>
@@ -711,6 +525,7 @@ export default function DataPage() {
               </Panel>
             )}
 
+            {/* Hourly chart */}
             <Panel>
               <SectionTitle><Activity className="h-5 w-5 text-blue-400" />المحادثات بالساعة (آخر 24 ساعة)</SectionTitle>
               <ResponsiveContainer width="100%" height={240}>

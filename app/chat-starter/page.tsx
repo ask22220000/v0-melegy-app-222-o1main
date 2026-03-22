@@ -96,7 +96,6 @@ export default function ChatStarterPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
-  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -186,17 +185,12 @@ export default function ChatStarterPage() {
   const MAX_WORDS = 30000
   const MAX_IMAGES = 10
 
-  // Initialize user from Supabase Auth
+  // Initialize user from localStorage
   useEffect(() => {
-    import("@/lib/supabase/client").then(({ createClient }) => {
-      createClient().auth.getUser().then(({ data }) => {
-        if (data.user) {
-          setMlgUserId(data.user.id)
-        } else {
-          window.location.href = "/auth/login"
-        }
-      })
-    })
+    const storedId = localStorage.getItem("mlg_user_id")
+    if (!storedId) {
+      window.location.href = '/login'
+    }
   }, [])
 
   // Set plan and check subscription access on mount
@@ -248,12 +242,11 @@ export default function ChatStarterPage() {
         document.documentElement.classList.add("dark")
       }
 
-      // Load chat histories from Supabase Auth user
+      // Load chat histories from server — scoped to this user's mlg_user_id
       try {
-        const { createClient } = await import("@/lib/supabase/client")
-        const { data: authData } = await createClient().auth.getUser()
-        if (authData.user) {
-          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(authData.user.id)}`)
+        const storedId = localStorage.getItem("mlg_user_id")
+        if (storedId) {
+          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(storedId)}`)
           if (res.ok) {
             const data = await res.json()
             if (data.histories?.length > 0) setChatHistories(data.histories)
@@ -320,7 +313,7 @@ export default function ChatStarterPage() {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({
         title: "غير مدعوم",
-        description: "المتصفح ده مش بيدعم التع��ف على الصوت",
+        description: "المتصفح ده مش بيدعم التعرف على الصوت",
         variant: "destructive",
       })
       return
@@ -451,31 +444,35 @@ export default function ChatStarterPage() {
   // Helper function to track analytics
   const trackAnalytics = async (action: string, data?: any) => {
     try {
-      await fetch("/api/stats", {
+      await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, data }),
       })
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // Silent fail - analytics are non-critical
     }
   }
 
   // Create conversation in database on first message
   const ensureConversationExists = async () => {
     if (conversationCreated) return
+    
     try {
-      await fetch("/api/stats", {
+      await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "trackConversation",
-          data: { conversationId: sessionId, userId: "anonymous" },
+          data: {
+            conversationId: sessionId,
+            userId: "anonymous",
+          },
         }),
       })
       setConversationCreated(true)
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // Silent fail - conversation tracking is non-critical
     }
   }
 
@@ -542,10 +539,7 @@ export default function ChatStarterPage() {
           }),
         })
 
-        if (!editResponse.ok) {
-          const errData = await editResponse.json().catch(() => ({}))
-          throw new Error(errData.error || "فشل تعديل الصورة")
-        }
+        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -764,7 +758,7 @@ export default function ChatStarterPage() {
     }
   }
 
-  // حفظ المحادثة الحالية في Supabase
+  // حفظ المحادثة الحالية ف�� Supabase
   const saveCurrentConversation = async () => {
     if (messages.length <= 1) {
       toast({
@@ -785,7 +779,7 @@ export default function ChatStarterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: mlgUserId,
+          mlg_user_id: null,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,
