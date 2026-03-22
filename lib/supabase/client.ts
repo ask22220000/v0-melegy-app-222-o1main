@@ -5,10 +5,7 @@ export function createClient() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!url || !key) {
-    throw new Error(
-      "@supabase/ssr: Your project's URL and API key are required to create a Supabase client!\n" +
-      "Check your Supabase project's API settings: https://supabase.com/dashboard/project/_/settings/api"
-    )
+    return null
   }
 
   return createBrowserClient(url, key)

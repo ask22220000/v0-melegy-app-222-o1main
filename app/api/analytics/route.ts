@@ -5,12 +5,11 @@ import { getServiceRoleClient } from "@/lib/supabase/server"
 
 
 export async function GET() {
-
   try {
-
-    const supabase = await getServiceRoleClient()
-
-
+    const supabase = getServiceRoleClient()
+    if (!supabase) {
+      return NextResponse.json({ totalConversations: 0, totalUsers: 0, totalMessages: 0 })
+    }
 
     const { count: convCount } = await supabase
 
@@ -86,9 +85,8 @@ export async function POST(request: Request) {
 
 
 
-    const supabase = await getServiceRoleClient()
-
-
+    const supabase = getServiceRoleClient()
+    if (!supabase) return NextResponse.json({ ok: true })
 
     if (action === "trackSession") {
 

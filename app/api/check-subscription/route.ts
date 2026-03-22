@@ -13,6 +13,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ hasAccess: false, message: "الخدمة غير متوفرة حالياً" }, { status: 503 })
+    }
 
     // Check for active subscription
     const { data: subscription, error } = await supabase

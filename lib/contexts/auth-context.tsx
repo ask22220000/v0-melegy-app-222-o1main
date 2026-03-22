@@ -41,13 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = useMemo(() => {
-    try {
-      return createClient()
-    } catch {
-      return null
-    }
-  }, [])
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
 
   const refreshUser = async () => {

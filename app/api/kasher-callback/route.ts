@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ success: false, error: "Supabase not configured" }, { status: 503 })
+    }
 
     // Map status from Kasher
     let paymentStatus = "pending"
