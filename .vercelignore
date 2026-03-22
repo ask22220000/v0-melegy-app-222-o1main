@@ -1,0 +1,18 @@
+# Vercel Deployment Configuration
+
+# Don't build these files
+.git
+.gitignore
+*.md
+!README.md
+!ENV_SETUP.md
+
+# Cache files
+.next/cache
+node_modules
+.pnpm-store
+
+# Environment
+.env
+.env.local
+.env.*.local
