@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import * as fal from "@fal-ai/client"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 

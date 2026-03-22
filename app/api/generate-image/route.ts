@@ -1,5 +1,5 @@
 import { processPromptForImageGeneration, IMAGE_GEN_QUALITY_CONSTANTS, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
-import * as fal from "@fal-ai/serverless-client"
+import * as fal from "@fal-ai/client"
 
 export async function POST(req: Request) {
   try {

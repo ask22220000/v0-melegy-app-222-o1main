@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import * as fal from "@fal-ai/client"
 import { IMAGE_EDIT_QUALITY_CONSTANTS } from "@/lib/prompt-enhancer"
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY
