@@ -3,14 +3,12 @@ import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import { NextRequest, NextResponse } from "next/server"
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
-function getSupabaseClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-  )
-}
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +19,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Find user
-    const supabase = getSupabaseClient()
     const { data: user, error } = await supabase
       .from("melegy_users")
       .select("*")
@@ -43,8 +40,7 @@ export async function POST(req: NextRequest) {
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "30d" })
 
     // Update last_login
-    const updateSupabase = getSupabaseClient()
-    await updateSupabase
+    await supabase
       .from("melegy_users")
       .update({ last_login: new Date().toISOString() })
       .eq("id", user.id)

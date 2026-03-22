@@ -2,14 +2,12 @@ import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
-function getSupabaseClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-  )
-}
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
 function getAuthToken(req: NextRequest): string | null {
   const authHeader = req.headers.get("authorization")
@@ -41,7 +39,6 @@ export async function GET(req: NextRequest) {
     const userId = auth.userId
 
     // Get user data
-    const supabase = getSupabaseClient()
     const { data: user, error: userError } = await supabase
       .from("melegy_users")
       .select("*")
