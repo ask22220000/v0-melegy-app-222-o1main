@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
-import * as XLSX from "xlsx"
+import ExcelJS from "exceljs"
 
 const AI_GATEWAY_API_KEY = process.env.AI_GATEWAY_API_KEY
 
@@ -40,10 +40,16 @@ export async function POST(req: NextRequest) {
       fileType === "application/vnd.ms-excel"
     ) {
       const buffer = Buffer.from(await file.arrayBuffer())
-      const workbook = XLSX.read(buffer, { type: "buffer" })
-      const sheets = workbook.SheetNames.map((sheetName) => {
-        const sheet = workbook.Sheets[sheetName]
-        return `\n--- Sheet: ${sheetName} ---\n${XLSX.utils.sheet_to_csv(sheet)}`
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(buffer)
+      const sheets: string[] = []
+      workbook.eachSheet((worksheet) => {
+        const rows: string[] = []
+        worksheet.eachRow((row) => {
+          const values = (row.values as ExcelJS.CellValue[]).slice(1)
+          rows.push(values.map((v) => (v === null || v === undefined ? "" : String(v))).join(","))
+        })
+        sheets.push(`\n--- Sheet: ${worksheet.name} ---\n${rows.join("\n")}`)
       })
       extractedContent = sheets.join("\n")
     }
