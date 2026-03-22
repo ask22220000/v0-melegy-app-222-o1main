@@ -25,6 +25,13 @@ export default function RootLayout({
   return (
     <html lang="ar" className="dark" suppressHydrationWarning dir="rtl">
       <head>
+        {/* Google Fonts */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Amiri:wght@400;700&family=Tajawal:wght@200;300;400;500;700;800;900&family=Almarai:wght@400;700&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Mada:wght@400;700&family=Markazi+Text:wght@400;700&family=Poppins:wght@400;700&family=Montserrat:wght@400;700&family=Playfair+Display:wght@400;700&family=Oswald:wght@400;700&family=Bebas+Neue&family=Inter:wght@400;700&display=swap"
+        />
         {/* PWA Core */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
