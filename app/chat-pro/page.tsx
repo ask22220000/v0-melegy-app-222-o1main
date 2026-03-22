@@ -270,7 +270,7 @@ export default function ChatProPage() {
     const imageKeywords = [
       "اعمللي صورة",
       "اعملي صورة",
-      "����عمل صورة",
+      "اعمل صورة",
       "عاوز صورة",
       "عاوزك تعمللي صورة",
       "عاوزك تولد صورة",
@@ -1057,7 +1057,6 @@ export default function ChatProPage() {
                     }, 1000)
                   }}
                     onLoad={() => {
-                      console.log("[v0] Image loaded successfully:", message.imageUrl)
                     }}
                     loading="eager"
                   />

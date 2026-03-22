@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useApp } from "@/lib/contexts/AppContext"
+import { useAuth } from "@/lib/contexts/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
-  import { DesignViewer } from "@/components/design-viewer"
+import { DesignViewer } from "@/components/design-viewer"
+import { UserIdModal } from "@/components/user-id-modal"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { UsageIndicator } from "@/components/usage-indicator"
@@ -95,6 +97,7 @@ export default function ChatPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
   const [mlgPlan, setMlgPlan] = useState<string>("free")
+  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)

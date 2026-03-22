@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing conversation_id" }, { status: 400 })
     }
     const supabase = getServiceRoleClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 })
     const { data, error } = await supabase
       .from("chat_messages")
       .select("id, role, content, media_urls, created_at")
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getServiceRoleClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 })
 
     const media_urls: { type: string; url: string }[] = []
     if (imageUrl) media_urls.push({ type: "image", url: imageUrl })

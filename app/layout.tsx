@@ -1,24 +1,10 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Cairo, Geist_Mono } from "next/font/google"
 import { AppProvider } from "@/lib/contexts/AppContext"
 import { AuthProvider } from "@/lib/contexts/auth-context"
 import { SessionTracker } from "@/components/session-tracker"
-import { Tajawal } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
-
-const tajawal = Tajawal({
-  subsets: ["arabic", "latin"],
-  weight: ["200", "300", "400", "500", "700", "800", "900"],
-  variable: "--font-tajawal",
-})
-
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "700"],
-  variable: "--font-cairo",
-})
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://melegy.app"),
@@ -39,6 +25,13 @@ export default function RootLayout({
   return (
     <html lang="ar" className="dark" suppressHydrationWarning dir="rtl">
       <head>
+        {/* Google Fonts */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Amiri:wght@400;700&family=Tajawal:wght@200;300;400;500;700;800;900&family=Almarai:wght@400;700&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Mada:wght@400;700&family=Markazi+Text:wght@400;700&family=Poppins:wght@400;700&family=Montserrat:wght@400;700&family=Playfair+Display:wght@400;700&family=Oswald:wght@400;700&family=Bebas+Neue&family=Inter:wght@400;700&display=swap"
+        />
         {/* PWA Core */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
@@ -79,7 +72,7 @@ export default function RootLayout({
         {/* Service Worker Registration */}
         <script src="/register-sw.js" defer></script>
       </head>
-      <body className={`${tajawal.className} ${cairo.className} antialiased`} suppressHydrationWarning>
+      <body className="font-sans antialiased" suppressHydrationWarning>
         <AuthProvider>
           <AppProvider>
             <SessionTracker />

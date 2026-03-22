@@ -70,19 +70,13 @@ function extractPrompt(text: string): string {
 }
 
 export async function POST(req: Request) {
-  const startTime = Date.now()
-
   try {
     const { messages } = await req.json()
     const userMessage = messages[messages.length - 1]?.content || ""
 
-    console.log("[v0] User message:", userMessage)
-
     // Check if user wants to generate an image
     if (isImageRequest(userMessage)) {
       const prompt = extractPrompt(userMessage)
-      console.log("[v0] Image generation request detected")
-      console.log("[v0] Extracted prompt:", prompt)
 
       try {
         const imageResponse = await fetch(`${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "http://localhost:3000"}/api/perplexity-image`, {
@@ -113,8 +107,6 @@ export async function POST(req: Request) {
     // Check if user wants to generate a video
     if (isVideoRequest(userMessage)) {
       const prompt = extractPrompt(userMessage)
-      console.log("[v0] Video generation request detected")
-      console.log("[v0] Extracted prompt:", prompt)
 
       try {
         const videoResponse = await fetch(`${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "http://localhost:3000"}/api/pollinations-video`, {
@@ -148,12 +140,7 @@ export async function POST(req: Request) {
       content: m.content,
     }))
 
-    console.log("[v0] Generating response with Perplexity...")
-
     const stream = await generateStreamingResponse(userMessage, conversationHistory)
-
-    const responseTime = (Date.now() - startTime) / 1000
-    console.log("[v0] Response generated in", responseTime, "seconds")
 
     return new Response(stream, {
       headers: {

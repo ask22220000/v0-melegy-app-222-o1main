@@ -268,7 +268,7 @@ export function Hero() {
       {isInstalled && (
         <div className="mt-6 flex items-center justify-center gap-2 text-green-400 text-sm">
           <Smartphone className="w-4 h-4" />
-          <span>التطبيق مثبت على جه����ك</span>
+          <span>التطبيق مثبت على جهازك</span>
         </div>
       )}
 

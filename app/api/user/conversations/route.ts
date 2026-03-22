@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     if (!userId) return NextResponse.json({ conversations: [] })
 
     const supabase = getServiceRoleClient()
+    if (!supabase) return NextResponse.json({ conversations: [] })
 
     const { data, error } = await supabase
       .from("melegy_history")
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getServiceRoleClient()
+    if (!supabase) return NextResponse.json({ conversation: { id: String(Date.now()) } })
     const now = new Date().toISOString()
 
     const { data, error } = await supabase

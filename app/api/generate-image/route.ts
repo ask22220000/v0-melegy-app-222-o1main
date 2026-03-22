@@ -12,11 +12,8 @@ export async function POST(req: Request) {
       })
     }
 
-    console.log("[v0] 1. Original prompt:", prompt)
-
     // Process the prompt through the professional prompt engineering system
     const engineeredPrompt = await processPromptForImageGeneration(prompt)
-    console.log("[v0] 2. Engineered prompt:", engineeredPrompt)
 
     if (!process.env.FAL_KEY) {
       return new Response(JSON.stringify({ error: "FAL_KEY is not configured" }), {
@@ -43,11 +40,8 @@ export async function POST(req: Request) {
     const generatedImageUrl = result.images?.[0]?.url
 
     if (!generatedImageUrl) {
-      console.error("[v0] fal.ai response:", JSON.stringify(result, null, 2))
       throw new Error("No image URL in response")
     }
-
-    console.log("[v0] 3. Generated image URL:", generatedImageUrl)
 
     return new Response(JSON.stringify({ imageUrl: generatedImageUrl }), {
       status: 200,

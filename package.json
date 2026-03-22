@@ -74,18 +74,13 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.2.5",
-    "undici": "^6.0.0",
+    "tw-animate-css": "^1.2.5",    "undici": "^6.0.0",
     "vaul": "^1.1.2",
     "exceljs": "^4.4.0",
-    "zod": "3.23.8",
-    "zod-to-json-schema": "3.23.5"
+    "zod": "^3.25.0",
+    "zod-to-json-schema": "^3.25.0"
   },
   "pnpm": {
-    "overrides": {
-      "zod": "3.23.8",
-      "zod-to-json-schema": "3.23.5"
-    },
     "onlyBuiltDependencies": [
       "sharp",
       "core-js"
@@ -98,6 +93,7 @@
     "@types/react-dom": "^19.0.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^4.0.0",
+    "tw-animate-css": "^1.2.5",
     "typescript": "^5.0.0",
     "eslint": "^8.0.0"
   }

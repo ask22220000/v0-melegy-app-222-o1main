@@ -20,6 +20,9 @@ export async function POST(request: NextRequest) {
       "unknown"
 
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ success: false, error: "Supabase not configured" }, { status: 503 })
+    }
 
     // Check if payment already processed
     const { data: existingSubscription } = await supabase

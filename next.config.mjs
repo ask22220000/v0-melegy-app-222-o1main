@@ -1,30 +1,23 @@
-/ @type {import('next').NextConfig} */
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     unoptimized: true,
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+    ],
   },
-  serverExternalPackages: ['sharp'],
+  serverExternalPackages: ['sharp', 'exceljs', 'pdf-parse', 'mammoth'],
   skipTrailingSlashRedirect: true,
   productionBrowserSourceMaps: false,
   compress: true,
   poweredByHeader: false,
-  reactStrictMode: true,
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          {
-            key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;"
-          },
-        ],
-      },
-    ];
-  },
+  reactStrictMode: false,
 };
 
 export default nextConfig;

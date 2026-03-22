@@ -16,11 +16,14 @@ export async function POST(request: NextRequest) {
       const buffer = await file.arrayBuffer()
 
       if (fileType === "xlsx" || fileType === "xls" || fileType === "csv") {
-        const XLSX = await import("xlsx")
-        const workbook = XLSX.read(buffer, { type: "buffer" })
-        const sheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
-        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+        const { Workbook } = await import("exceljs")
+        const workbook = new Workbook()
+        await workbook.xlsx.load(buffer)
+        const worksheet = workbook.worksheets[0]
+        const data: any[][] = []
+        worksheet?.eachRow((row) => {
+          data.push(row.values as any[])
+        })
 
         analyses.push(
           `تحليل ملف ${file.name}\n` +

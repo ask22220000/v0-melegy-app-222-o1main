@@ -5,9 +5,6 @@ import Groq from "groq-sdk"
 
 export const maxDuration = 300
 
-// Configure fal at module level — prevents AI Gateway override
-fal.config({ credentials: process.env.FAL_KEY })
-
 function getGroqClient() {
   return new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
 }

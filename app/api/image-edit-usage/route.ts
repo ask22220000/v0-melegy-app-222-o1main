@@ -26,6 +26,7 @@ function getMonthStartDate(): string {
 export async function GET(request: NextRequest) {
   try {
     const supabase = getServiceRoleClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 })
     const { searchParams } = new URL(request.url)
     const visitorId = searchParams.get("visitorId")
     const planType = searchParams.get("planType") || "free"
@@ -94,6 +95,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = getServiceRoleClient()
+    if (!supabase) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 })
     const body = await request.json()
     const { visitorId, planType = "free", action } = body
 

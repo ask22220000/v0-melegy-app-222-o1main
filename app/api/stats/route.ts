@@ -4,6 +4,10 @@ import { getServiceRoleClient } from "@/lib/supabase/server"
 export async function GET() {
   const supabase = getServiceRoleClient()
 
+  if (!supabase) {
+    return NextResponse.json({ error: "Supabase not configured" }, { status: 503 })
+  }
+
   let totalConversations = 0
   let totalUsers = 0
   let totalMessages = 0
@@ -106,6 +110,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const supabase = getServiceRoleClient()
+  if (!supabase) return NextResponse.json({ success: false })
   try {
     const body = await request.json()
     const { user_ip, auth_user_id, event_type, metadata } = body

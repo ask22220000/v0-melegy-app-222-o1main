@@ -9,6 +9,9 @@ export async function GET(request: NextRequest) {
     if (!userId) return NextResponse.json({ error: "Missing user_id" }, { status: 400 })
 
     const supabase = getServiceRoleClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured" }, { status: 503 })
+    }
 
     const { data: sub } = await supabase
       .from("subscriptions")
