@@ -3,7 +3,7 @@ export const PLAN_LIMITS = {
   free: {
     messagesPerDay: 10,
     imagesPerDay: 3,
-    animatedVideosPerDay: 5,
+    animatedVideosPerDay: 3,
     voiceMinutesPerDay: 15,
     wordsPerMonth: -1,
     name: "مجاني",
