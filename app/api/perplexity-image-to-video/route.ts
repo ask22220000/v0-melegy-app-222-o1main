@@ -1,4 +1,4 @@
-import * as fal from "@fal-ai/client"
+import * as fal from "@fal-ai/serverless-client"
 import { NextResponse } from "next/server"
 
 function enhanceArabicPrompt(prompt: string): string {

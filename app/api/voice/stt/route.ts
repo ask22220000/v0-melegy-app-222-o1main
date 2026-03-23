@@ -1,15 +1,8 @@
-// Map MIME type to the correct file extension Whisper expects
-function getExtension(mimeType: string): string {
-  if (mimeType.includes("mp4"))  return "mp4"
-  if (mimeType.includes("ogg"))  return "ogg"
-  if (mimeType.includes("wav"))  return "wav"
-  if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return "mp3"
-  return "webm" // default
-}
+export const runtime = "nodejs"
 
 export async function POST(request: Request) {
   try {
-    const formData  = await request.formData()
+    const formData = await request.formData()
     const audioFile = formData.get("audio") as File
 
     if (!audioFile) {
@@ -21,30 +14,22 @@ export async function POST(request: Request) {
       return Response.json({ error: "Groq API key not configured" }, { status: 500 })
     }
 
-    // Determine correct extension from the file's actual MIME type
-    const mimeType = audioFile.type || "audio/webm"
-    const ext      = getExtension(mimeType)
-    const filename = `audio.${ext}`
-
-    // Re-create the File with the correct name so Whisper parses it correctly
-    const renamedFile = new File([await audioFile.arrayBuffer()], filename, { type: mimeType })
-
     const groqForm = new FormData()
-    groqForm.append("file", renamedFile, filename)
-    groqForm.append("model", "whisper-large-v3")          // highest accuracy for Arabic
+    groqForm.append("file", audioFile, "audio.webm")
+    groqForm.append("model", "whisper-large-v3-turbo")
     groqForm.append("language", "ar")
     groqForm.append("response_format", "verbose_json")
-    groqForm.append("temperature", "0")                   // deterministic — most accurate
-    // Priming prompt: helps Whisper recognize Egyptian/Arabic dialect and spell correctly
+    groqForm.append("temperature", "0")
+    // Prompt helps Whisper understand Egyptian Arabic dialect and improves spelling accuracy
     groqForm.append(
       "prompt",
-      "هذا تسجيل صوتي باللغة العربية أو اللهجة المصرية العامية. المحادثة تحتوي على أسئلة يومية وطلبات ومحادثات عامة. اكتب النص بدقة إملائية صحيحة باللغة العربية."
+      "هذا تسجيل صوتي باللهجة المصرية العامية. الكلام يحتوي على أسئلة ومحادثات يومية بالعربية. يرجى كتابة النص بدقة إملائية صحيحة."
     )
 
     const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
-      method:  "POST",
+      method: "POST",
       headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
-      body:    groqForm,
+      body: groqForm,
     })
 
     if (!res.ok) {
@@ -53,12 +38,8 @@ export async function POST(request: Request) {
     }
 
     const data = await res.json()
+    // verbose_json returns full text in data.text same as json format
     const text = (data.text || "").trim()
-
-    if (!text) {
-      return Response.json({ error: "لم يتم التعرف على أي كلام" }, { status: 422 })
-    }
-
     return Response.json({ text })
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 })

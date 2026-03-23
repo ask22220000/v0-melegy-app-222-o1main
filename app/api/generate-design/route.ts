@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/client"
+import * as fal from "@fal-ai/serverless-client"
 import { processPromptForImageGeneration } from "@/lib/prompt-enhancer"
 
 export const maxDuration = 60
+export const runtime = "nodejs"
 
 // Extract optional text overlay requested in the prompt
 function extractTextFromPrompt(prompt: string): string | null {

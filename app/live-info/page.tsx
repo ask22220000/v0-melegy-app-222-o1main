@@ -2,7 +2,6 @@ import { LiveInfoFetcher } from '@/components/live-info-fetcher'
 import { Card } from '@/components/ui/card'
 
 export const metadata = {
-  metadataBase: new URL("https://melegy.app"),
   title: 'جلب المعلومات المحدثة - ميليجي',
   description: 'احصل على معلومات محدثة من الإنترنت باستخدام الذكاء الاصطناعي',
 }

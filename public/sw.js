@@ -1,7 +1,11 @@
-// Melegy PWA Service Worker — Network-First, auto-update on every deploy
-// Cache name includes a build timestamp so every new deploy = new cache = instant update
-const CACHE_VERSION = '__MELEGY_BUILD_' + (self.__BUILD_ID || Date.now()) + '__';
-const CACHE_NAME = 'melegy-v' + CACHE_VERSION;
+// Melegy PWA Service Worker — Network-First strategy
+// API calls always go to network; only static assets are cached
+const CACHE_NAME = 'melegy-static-v2';
+
+const STATIC_ASSETS = [
+  '/',
+  '/images/logo.jpg',
+];
 
 // Routes that must NEVER be served from cache
 const NETWORK_ONLY_PATTERNS = [
@@ -9,95 +13,78 @@ const NETWORK_ONLY_PATTERNS = [
   /^\/auth\//,
 ];
 
-// Only cache these truly static assets (images/icons/fonts — they don't change with code)
-const IMMUTABLE_PATTERNS = [
-  /\/images\//,
-  /\/icons\//,
-  /\/fonts\//,
-];
-
-// ── Message: client can trigger skipWaiting directly ──────────────────────
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
-
-// ── Install: activate immediately, skip waiting ────────────────────────────
-self.addEventListener('install', () => {
-  self.skipWaiting(); // activate new SW immediately on every deploy
-});
-
-// ── Activate: delete ALL old caches, claim all clients ────────────────────
-self.addEventListener('activate', (event) => {
+// ── Install: pre-cache static shell ────────────────────────────────────────
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all([
-        self.clients.claim(),
-        ...keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key)),
-      ])
-    ).then(() => {
-      // Tell all open tabs to reload so they get the latest code
-      self.clients.matchAll({ type: 'window' }).then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({ type: 'SW_UPDATED' });
-        });
-      });
-    })
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.addAll(STATIC_ASSETS).catch(() => {
+        // Silently ignore if any asset fails — don't block install
+      })
+    )
   );
 });
 
-// ── Fetch handler ──────────────────────────────────────────────────────────
+// ── Activate: clean up old caches ─────────────────────────────────────────
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
+      ),
+    ])
+  );
+});
+
+// ── Fetch: Network-First with static fallback ──────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Only handle same-origin GET requests
+  // Only handle same-origin requests
   if (url.origin !== self.location.origin) return;
-  if (request.method !== 'GET') return;
 
-  // API / auth: always network, never cache
-  const isNetworkOnly = NETWORK_ONLY_PATTERNS.some((p) => p.test(url.pathname));
+  // API / auth routes: always network, never cache
+  const isNetworkOnly = NETWORK_ONLY_PATTERNS.some((pattern) =>
+    pattern.test(url.pathname)
+  );
   if (isNetworkOnly) {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Immutable assets (images/icons/fonts): Cache-First — these never change
-  const isImmutable = IMMUTABLE_PATTERNS.some((p) => p.test(url.pathname));
-  if (isImmutable) {
+  // Navigation requests: Network-First, fallback to cached '/'
+  if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        });
-      })
+      fetch(request)
+        .catch(() => caches.match('/').then((r) => r || Response.error()))
     );
     return;
   }
 
-  // Everything else (HTML pages, JS, CSS): Network-First — always get fresh code
-  // Falls back to cache only if offline
+  // Static assets: Cache-First
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        // Update cache with latest version in background
-        if (response.ok) {
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      return fetch(request).then((response) => {
+        // Cache only successful GET responses for static assets
+        if (
+          request.method === 'GET' &&
+          response.status === 200 &&
+          (request.url.includes('/icons/') ||
+            request.url.includes('/images/') ||
+            request.url.includes('/fonts/'))
+        ) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return response;
-      })
-      .catch(() =>
-        // Offline fallback: serve from cache if available
-        caches.match(request).then((cached) => cached || caches.match('/').then((r) => r || Response.error()))
-      )
+      });
+    })
   );
 });

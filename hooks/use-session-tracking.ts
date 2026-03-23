@@ -59,7 +59,7 @@ export function useSessionTracking() {
     // Track session immediately
     const trackSession = async () => {
       try {
-        await fetch("/api/stats", {
+        await fetch("/api/analytics", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -101,7 +101,7 @@ export async function trackUser() {
   try {
     const userFingerprint = generateUserFingerprint()
 
-    await fetch("/api/stats", {
+    await fetch("/api/analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

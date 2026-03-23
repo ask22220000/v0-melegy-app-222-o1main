@@ -26,8 +26,7 @@ export default function PricingPage() {
       period: "مجاناً",
       features: [
         "10 رسائل يومياً",
-        "3 صور يومياً",
-        "3 فيديوهات يومياً",
+        "توليد 3 صور يومياً",
         "كتابة نصوص قصيرة",
         "تحليل بيانات بسيط",
         "مساعدة في محتوى أساسي",
@@ -46,7 +45,7 @@ export default function PricingPage() {
       name: "خطة Start UP",
       nameEn: "Start UP",
       description: "للمبتدئين والطلاب",
-      price: "49",
+      price: "39",
       period: "شهرياً",
       features: [
         "توليد 10 صور يومياً",
@@ -70,7 +69,7 @@ export default function PricingPage() {
       name: "الخطة الاحترافية",
       nameEn: "Pro",
       description: "للمحترفين وأصحاب المشاريع",
-      price: "129",
+      price: "99",
       period: "شهرياً",
       features: [
         "توليد 100 صورة يومياً",
@@ -94,7 +93,7 @@ export default function PricingPage() {
       name: "الخطة VIP",
       nameEn: "VIP",
       description: "كل شيء بلا حدود مع دعم فوري",
-      price: "299",
+      price: "250",
       period: "شهرياً",
       features: [
         "توليد صور غير محدود",
