@@ -121,10 +121,6 @@ export async function POST(request: NextRequest) {
         input: {
           prompt: enhancedPrompt,
           image_urls: [imageUrl],
-v0/ask22220000-3548c2c3
-          num_inference_steps: 45,
-          guidance_scale: 8.5,
-main
           num_images: 1,
           output_format: "png",
           safety_tolerance: "4",
