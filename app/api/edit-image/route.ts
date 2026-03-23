@@ -115,15 +115,19 @@ export async function POST(request: NextRequest) {
         credentials: process.env.FAL_KEY,
       })
 
-      console.log("[v0] 4. Editing image with fal-ai/flux-2-flex/edit...")
+      console.log("[v0] 4. Editing image with fal-ai/nano-banana/edit...")
 
       const result = (await fal.subscribe("fal-ai/nano-banana/edit", {
         input: {
           prompt: enhancedPrompt,
           image_urls: [imageUrl],
+v0/ask22220000-3548c2c3
           num_inference_steps: 45,
           guidance_scale: 8.5,
+main
           num_images: 1,
+          output_format: "png",
+          safety_tolerance: "4",
         },
       })) as { images?: { url: string }[] }
 

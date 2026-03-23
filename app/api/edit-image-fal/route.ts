@@ -54,12 +54,18 @@ export async function POST(request: NextRequest) {
       result = await fal.subscribe("fal-ai/nano-banana/edit", {
         input: {
           prompt: enhancedPrompt,
+v0/ask22220000-3548c2c3
+          image_urls: finalImageUrls,
+          num_images: 1,
+          output_format: "jpeg",
+          safety_tolerance: "4",
           negative_prompt: NEGATIVE_PROMPT_CONSTANTS,
           image_urls: finalImageUrls,
           guidance_scale: 4.0,
           num_inference_steps: 28,
           num_images: 1,
           enable_safety_checker: false,
+main
         },
       })
     } catch (falError: any) {

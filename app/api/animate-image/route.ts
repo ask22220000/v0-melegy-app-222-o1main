@@ -100,6 +100,28 @@ export async function POST(req: Request) {
     // 2. Ensure image is publicly accessible
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
+v0/ask22220000-3548c2c3
+    // 3. Fixed prompt suffix — preserve faces/people/products identity 100%
+    const FACE_PRESERVE_SUFFIX =
+      "preserve exact facial features and identity of all people and products, photorealistic, consistent appearance, natural smooth cinematic motion, subtle gentle movement, no face distortion, no morphing, no warping, high fidelity"
+
+    const NEGATIVE_PROMPT =
+      "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion"
+
+    const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
+
+    // 4. Generate video via fal.ai — hailuo-02-fast image-to-video
+    const result = await fal.subscribe("fal-ai/minimax/hailuo-02-fast/image-to-video", {
+      input: {
+        image_url: publicImageUrl,
+        prompt: finalPrompt,
+        duration: "6",
+        prompt_optimizer: true,
+      },
+    }) as any
+
+    const rawVideoUrl: string | undefined =
+      result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
     let rawVideoUrl: string | undefined
 
     if (mode === "r2v") {
@@ -139,6 +161,7 @@ export async function POST(req: Request) {
       }) as any
       rawVideoUrl = result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
     }
+main
 
     if (!rawVideoUrl) throw new Error("No video URL returned from model")
 
