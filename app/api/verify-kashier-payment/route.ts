@@ -15,14 +15,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user IP
-    const userIp = request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown"
+    const userIp = request.headers.get("x-forwarded-for") || 
+                   request.headers.get("x-real-ip") || 
+                   "unknown"
 
     const supabase = await createClient()
-    if (!supabase) {
-      return NextResponse.json({ success: false, error: "Supabase not configured" }, { status: 503 })
-    }
 
     // Check if payment already processed
     const { data: existingSubscription } = await supabase
@@ -43,12 +40,12 @@ export async function POST(request: NextRequest) {
     // In production, verify with Kashier API
     // For now, we'll check if payment exists and mark as completed
     // TODO: Add actual Kashier API verification when API key is provided
-
+    
     const kashierApiKey = process.env.KASHER_API_KEY
     const kashierMerchantId = process.env.NEXT_PUBLIC_KASHER_MID
-
+    
     let paymentStatus = "pending"
-
+    
     if (kashierApiKey && kashierMerchantId) {
       try {
         // Call Kashier API to verify payment
@@ -65,7 +62,7 @@ export async function POST(request: NextRequest) {
         if (kashierResponse.ok) {
           const kashierData = await kashierResponse.json()
           console.log("[v0] Kashier API response:", kashierData)
-
+          
           // Check if payment is successful based on Kashier's response
           if (kashierData.status === "SUCCESS" || kashierData.status === "PAID") {
             paymentStatus = "completed"
@@ -80,7 +77,7 @@ export async function POST(request: NextRequest) {
       // Fallback: Auto-approve after first check (for testing without API key)
       // In production, this should NOT happen - always verify with Kashier
       console.warn("[v0] No Kashier API credentials found - using fallback verification")
-
+      
       if (!existingSubscription) {
         // First time seeing this payment - mark as pending
         paymentStatus = "pending"

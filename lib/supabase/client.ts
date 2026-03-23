@@ -1,12 +1,18 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createBrowserClient } from "@supabase/ssr"
+import type { SupabaseClient } from "@supabase/supabase-js"
+
+// Singleton instance for browser client (prevents multiple GoTrueClient instances)
+let browserClientInstance: SupabaseClient | null = null
 
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!url || !key) {
-    return null
+  if (browserClientInstance) {
+    return browserClientInstance
   }
 
-  return createBrowserClient(url, key)
+  browserClientInstance = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  )
+
+  return browserClientInstance
 }

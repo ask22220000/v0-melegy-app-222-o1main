@@ -25,6 +25,8 @@ function VerifyPaymentContent() {
   
   // Use transaction ID as payment ID
   const paymentId = transactionId || `kasher_${Date.now()}_${plan}`
+  
+  console.log('[v0] Verify page loaded:', { plan, paymentId, transactionId, paymentStatus, allParams: Object.fromEntries(searchParams.entries()) })
 
   useEffect(() => {
     if (!plan || !paymentId) {
@@ -40,6 +42,8 @@ function VerifyPaymentContent() {
       attempts++
       
       try {
+        console.log("[v0] Verifying payment attempt:", attempts)
+        
         const response = await fetch("/api/verify-kashier-payment", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -50,6 +54,8 @@ function VerifyPaymentContent() {
         })
 
         const data = await response.json()
+        
+        console.log("[v0] Payment verification response:", data)
 
         if (data.success && data.status === "completed") {
           setStatus("success")
@@ -71,6 +77,8 @@ function VerifyPaymentContent() {
             }
             redirectUrl = redirectMap[plan] || "/chat"
           }
+          
+          console.log('[v0] Redirecting to:', redirectUrl)
           
           // Redirect after 2 seconds
           setTimeout(() => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
+import * as fal from "@fal-ai/serverless-client"
 
 const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري ودود جداً بشخصية حقيقية ومرحة! 🎉 طورتك Vision AI Studio المصرية.
 
@@ -123,6 +124,8 @@ export async function POST(request: NextRequest) {
 
     // Choose model based on search needs
     const modelToUse = needsWebSearch ? "perplexity/sonar" : "google/gemini-3-flash"
+
+    console.log(`[API] Using model: ${modelToUse} for query: ${userPrompt.substring(0, 50)}`)
 
     // Generate response
     const result = await generateText({

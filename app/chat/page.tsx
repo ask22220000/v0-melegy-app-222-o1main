@@ -8,9 +8,9 @@ import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { DesignViewer } from "@/components/design-viewer"
+import { UserIdModal } from "@/components/user-id-modal"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
 import { UsageIndicator } from "@/components/usage-indicator"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -92,7 +92,9 @@ export default function ChatPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [showUsageCard, setShowUsageCard] = useState(true)
   const [theme, setTheme] = useState<"light" | "dark">("dark")
-  const { user, isAuthenticated, logout } = useAuth()
+  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
+  const [mlgPlan, setMlgPlan] = useState<string>("free")
+  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -223,8 +225,10 @@ export default function ChatPage() {
             setMlgPlan(data.user.plan)
             loadConversationsFromServer(data.user.mlg_user_id)
           } else {
-            // User ID invalid - redirect to login
-            window.location.href = '/login'
+            // ID invalid, show modal
+            localStorage.removeItem("mlg_user_id")
+            localStorage.removeItem("mlg_plan")
+            setShowUserModal(true)
           }
         })
         .catch(() => {
@@ -234,8 +238,7 @@ export default function ChatPage() {
           loadConversationsFromServer(storedId)
         })
     } else {
-      // No user ID stored - redirect to login
-      window.location.href = '/login'
+      setShowUserModal(true)
     }
   }, [])
 
@@ -328,7 +331,7 @@ export default function ChatPage() {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({
         title: "غير مدعوم",
-        description: "المتصفح ده مش بيدعم التع����ف على الصو��",
+        description: "المتصفح ده مش بيدعم التعرف على الصوت",
         variant: "destructive",
       })
       return
@@ -865,7 +868,7 @@ export default function ChatPage() {
       return
     }
 
-    if (!user?.id) {
+    if (!mlgUserId) {
       toast({ title: "خطأ", description: "لازم تسجل الأول", variant: "destructive" })
       return
     }
@@ -881,7 +884,7 @@ export default function ChatPage() {
       const convRes = await fetch("/api/user/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mlg_user_id: user.id, title: title.substring(0, 80) }),
+        body: JSON.stringify({ mlg_user_id: mlgUserId, title: title.substring(0, 80) }),
       })
       const convData = await convRes.json()
       if (!convRes.ok) throw new Error(convData.error || "فشل إنشاء المحادثة")
@@ -896,7 +899,7 @@ export default function ChatPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             conversation_id: conversationId,
-            mlg_user_id: user?.id,
+            mlg_user_id: mlgUserId,
             role: msg.role,
             content: msg.content || "",
             imageUrl: msg.imageUrl || null,
@@ -1032,10 +1035,16 @@ export default function ChatPage() {
     }
   }
 
+  const handleUserReady = (userId: string, plan: string, isNew: boolean) => {
+    setMlgUserId(userId)
+    setMlgPlan(plan)
+    setShowUserModal(false)
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col" dir={language === "ar" ? "rtl" : "ltr"} style={{ backgroundColor: 'hsl(var(--background))' }}>
       <Toaster />
-      {/* UserIdModal removed - using auth system */}
+      {showUserModal && <UserIdModal onUserReady={handleUserReady} />}
       
       <div className="fixed top-0 left-0 right-0 z-[100] bg-background border-b border-border py-2 md:py-4" style={{ backgroundColor: 'hsl(var(--background))' }}>
         <div className="flex items-center justify-between px-2 sm:px-4 md:px-6">
@@ -1510,6 +1519,17 @@ export default function ChatPage() {
               <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: "Cairo, sans-serif" }}>
                 {animateMode === "i2v" ? "الصورة هتتحرك بشكل سلس (10 ثانية)" : "الشخصية هتظهر في مشهد جديد حسب البرومبت (10 ثانية)"}
               </p>
+            </div>
+
+            {/* Audio toggle */}
+            <div className="mb-4 flex items-center justify-between bg-gray-800 rounded-lg px-4 py-3 border border-gray-600">
+              <span className="text-sm text-gray-300" style={{ fontFamily: "Cairo, sans-serif" }}>توليد صوت مع الفيديو</span>
+              <button
+                onClick={() => setAnimateAudio((v) => !v)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${animateAudio ? "bg-purple-600" : "bg-gray-600"}`}
+              >
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${animateAudio ? "right-1" : "left-1"}`} />
+              </button>
             </div>
 
             {/* Prompt */}

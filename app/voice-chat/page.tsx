@@ -265,7 +265,8 @@ export default function VoiceChatPage() {
 
   const orbStateRef      = useRef<OrbState>("idle")
   const analyserRef      = useRef<AnalyserNode | null>(null)
-
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef   = useRef<Blob[]>([])
   const audioRef         = useRef<HTMLAudioElement | null>(null)
   const streamRef        = useRef<MediaStream | null>(null)
   const audioCtxRef      = useRef<AudioContext | null>(null)
@@ -331,28 +332,10 @@ export default function VoiceChatPage() {
     }
   }, [])
 
-  // Fix ambiguous Arabic words by adding tashkeel so TTS pronounces them correctly
-  const fixPronunciation = useCallback((text: string): string => {
-    const fixes: [RegExp, string][] = [
-      [/وحش/g,    "وَحْش"],
-      [/علم/g,    "عِلْم"],
-      [/عمل/g,    "عَمَل"],
-      [/كلب/g,    "كَلْب"],
-      [/قلب/g,    "قَلْب"],
-      [/ولد/g,    "وَلَد"],
-      [/بيت/g,    "بَيْت"],
-      [/كتب/g,    "كَتَب"],
-      [/حكم/g,    "حُكْم"],
-      [/صبر/g,    "صَبْر"],
-    ]
-    return fixes.reduce((t, [pattern, replacement]) => t.replace(pattern, replacement), text)
-  }, [])
-
   // TTS: fetch audio → connect analyser → play
-  const speakReply = useCallback(async (rawText: string) => {
+  const speakReply = useCallback(async (tashkeelText: string) => {
     setOrbState("speaking")
     orbStateRef.current = "speaking"
-    const tashkeelText = fixPronunciation(rawText)
     try {
       const ttsRes = await fetch("/api/text-to-speech", {
         method: "POST",
@@ -406,12 +389,41 @@ export default function VoiceChatPage() {
     }
   }, [getAudioCtx])
 
-  // processText: LLM → TTS (called after STT gives us text)
-  const processText = useCallback(async (sttText: string) => {
+  // processAudio: STT → LLM → TTS
+  const processAudio = useCallback(async () => {
+    const mimeType = getSupportedMimeType()
+    const blobType = mimeType || "audio/webm"
+    const blob = new Blob(audioChunksRef.current, { type: blobType })
+    audioChunksRef.current = []
+
+    if (blob.size < 500) {
+      setErrorMsg("مفيش صوت — اتكلم وضغط إيقاف")
+      setOrbState("idle")
+      return
+    }
+
     setOrbState("thinking")
     orbStateRef.current = "thinking"
-    setTranscript(sttText)
 
+    // STT
+    const form = new FormData()
+    // Use .webm or .mp4 extension depending on type
+    const ext  = blobType.includes("mp4") ? "mp4" : "webm"
+    form.append("audio", blob, `audio.${ext}`)
+    let sttText = ""
+    try {
+      const res  = await fetch("/api/voice/stt", { method: "POST", body: form })
+      const data = await res.json()
+      if (!res.ok || !data.text?.trim()) throw new Error(data.error || "مفيش كلام واضح")
+      sttText = data.text.trim()
+      setTranscript(sttText)
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : "خطأ في التعرف على الصوت")
+      setOrbState("idle")
+      return
+    }
+
+    // LLM
     try {
       const res  = await fetch("/api/voice/chat", {
         method: "POST",
@@ -434,90 +446,93 @@ export default function VoiceChatPage() {
     }
   }, [speakReply])
 
-  // recognitionRef for Web Speech API
-  const recognitionRef = useRef<any>(null)
-
-  // Start listening — uses Web Speech API (ar-EG) exactly like the regular chat page
-  const startListening = useCallback(() => {
+  // Start recording
+  const startListening = useCallback(async () => {
     if (!isSupported) return
 
+    // Check limit (sync — uses in-memory cache, safe in event handler)
     const voiceCheck = canUseVoiceChatSync()
     if (!voiceCheck.allowed) {
       setErrorMsg(voiceCheck.reason || "تجاوزت الحد المسموح للدردشة الصوتية اليوم")
       return
     }
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-
-    if (!SpeechRecognition) {
-      setErrorMsg("متصفحك لا يدعم التعرف على الصوت. استخدم Chrome أو Safari.")
-      return
-    }
-
     setErrorMsg(""); setTranscript(""); setReply("")
     sessionStartRef.current = Date.now()
 
-    const recognition = new SpeechRecognition()
-    recognition.lang             = "ar-EG"   // Egyptian Arabic — same as regular chat
-    recognition.continuous       = false
-    recognition.interimResults   = false
-    recognition.maxAlternatives  = 1
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
+      })
+    } catch {
+      setErrorMsg("لازم تسمح بالوصول للميكروفون")
+      return
+    }
+    streamRef.current = stream
 
-    recognition.onstart = () => {
-      setIsRecording(true)
-      setOrbState("listening")
-      orbStateRef.current = "listening"
+    // Mic analyser for orb (non-critical)
+    const actx = getAudioCtx()
+    if (actx) {
+      try {
+        const micSrc  = actx.createMediaStreamSource(stream)
+        const analyser = actx.createAnalyser()
+        analyser.fftSize = 256
+        micSrc.connect(analyser)
+        analyserRef.current = analyser
+      } catch { /* skip analyser on unsupported browsers */ }
     }
 
-    recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript?.trim()
-      if (text) {
-        processText(text)
-      } else {
-        setErrorMsg("مفيش كلام واضح — حاول تاني")
-        setOrbState("idle")
+    const mimeType = getSupportedMimeType()
+    let recorder: MediaRecorder
+    try {
+      recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream)
+    } catch {
+      // Fallback: let browser choose
+      try { recorder = new MediaRecorder(stream) }
+      catch {
+        setErrorMsg("متصفحك لا يدعم تسجيل الصوت")
+        stream.getTracks().forEach((t) => t.stop())
+        return
       }
     }
 
-    recognition.onerror = (event: any) => {
-      const code = event.error
-      if (code === "not-allowed" || code === "permission-denied") {
-        setErrorMsg("لازم تسمح بالوصول للميكروفون")
-      } else if (code === "no-speech") {
-        setErrorMsg("مفيش صوت — اتكلم وحاول تاني")
-      } else {
-        setErrorMsg("خطأ في التعرف على الصوت — حاول تاني")
-      }
-      setIsRecording(false)
-      setOrbState("idle")
+    audioChunksRef.current = []
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+    recorder.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop())
+      streamRef.current   = null
+      analyserRef.current = null
+      processAudio()
     }
+    mediaRecorderRef.current = recorder
+    recorder.start(100)
+    setIsRecording(true)
+    setOrbState("listening")
+    orbStateRef.current = "listening"
+  }, [getAudioCtx, processAudio, isSupported])
 
-    recognition.onend = () => {
-      setIsRecording(false)
-      if (sessionStartRef.current !== null) {
-        const elapsedMinutes = (Date.now() - sessionStartRef.current) / 60000
-        sessionStartRef.current = null
-        incrementVoiceUsage(elapsedMinutes)
-          .then(() =>
-            fetchUsage().then((usage) => {
-              const plan  = getUserPlan()
-              const limit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS].voiceMinutesPerDay
-              setVoiceStats({ used: usage.voice_minutes, limit })
-            })
-          )
-          .catch(() => {})
-      }
-    }
-
-    recognitionRef.current = recognition
-    recognition.start()
-  }, [isSupported, processText])
-
-  // Stop listening
+  // Stop recording
   const stopListening = useCallback(() => {
-    recognitionRef.current?.stop()
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop()
+    }
     setIsRecording(false)
+    if (sessionStartRef.current !== null) {
+      const elapsedMinutes = (Date.now() - sessionStartRef.current) / 60000
+      sessionStartRef.current = null
+      incrementVoiceUsage(elapsedMinutes)
+        .then(() =>
+          fetchUsage().then((usage) => {
+            const plan  = getUserPlan()
+            const limit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS].voiceMinutesPerDay
+            setVoiceStats({ used: usage.voice_minutes, limit })
+          })
+        )
+        .catch(() => {})
+    }
   }, [])
 
   const stateLabel =
