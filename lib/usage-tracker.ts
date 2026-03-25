@@ -1,4 +1,5 @@
 // Usage limits per plan - matching /pricing page exactly
+// Last updated: 2026-03-25 - Free plan video limit set to 3
 export const PLAN_LIMITS = {
   free: {
     messagesPerDay: 10,
