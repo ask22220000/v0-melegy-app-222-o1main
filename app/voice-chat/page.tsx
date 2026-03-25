@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowRight, MicOff, Mic } from "lucide-react"
 import { canUseVoiceChatSync, incrementVoiceUsage, fetchUsage, getUserPlan, PLAN_LIMITS } from "@/lib/usage-tracker"
+import { setActiveSubscription } from "@/lib/set-subscription"
 
 type OrbState = "idle" | "listening" | "thinking" | "speaking"
 
@@ -281,6 +282,20 @@ export default function VoiceChatPage() {
     if (!hasMedia || !hasMR) {
       setIsSupported(false)
       setErrorMsg("متصفحك لا يدعم التسجيل الصوتي. يرجى استخدام Chrome أو Safari.")
+    }
+  }, [])
+
+  // Sync active subscription plan from localStorage on mount
+  // Voice chat is available on all plans (free gets 15 min/day, paid plans get more)
+  useEffect(() => {
+    const sub = localStorage.getItem("activeSubscription")
+    if (sub) {
+      try {
+        const parsed = JSON.parse(sub)
+        if (parsed?.plan) {
+          setActiveSubscription(parsed.plan)
+        }
+      } catch { /* ignore malformed */ }
     }
   }, [])
 

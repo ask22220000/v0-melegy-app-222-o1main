@@ -96,8 +96,9 @@ export default function ChatProPage() {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
   const { toast } = useToast()
 
-  const MAX_WORDS = 120000
-  const MAX_IMAGES = 50
+  // Pro plan: unlimited words (wordsPerMonth: -1), 100 images/day
+  const MAX_WORDS = -1   // -1 = unlimited
+  const MAX_IMAGES = 100
 
   // Generate unique session ID for analytics tracking (UUID format for database)
   const [sessionId] = useState(() => crypto.randomUUID())
@@ -616,10 +617,11 @@ export default function ChatProPage() {
     }
 
     const wordCount = countWords(messageToSend)
-    if (monthlyWords + wordCount > MAX_WORDS) {
+    // Pro plan has unlimited words (MAX_WORDS === -1), so skip the word check
+    if (MAX_WORDS !== -1 && monthlyWords + wordCount > MAX_WORDS) {
       toast({
         title: "انتهت الكلمات الشهرية",
-        description: "ترقى لباقة الأساطير للحصول على استخدام بلا حدود!",
+        description: "ترقى لباقة VIP للحصول على استخدام بلا حدود!",
         variant: "destructive",
       })
       return

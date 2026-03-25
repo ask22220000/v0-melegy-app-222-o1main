@@ -376,8 +376,8 @@ export default function ChatStarterPage() {
   const generateImageWithPrompt = async (userPrompt: string) => {
     if (monthlyImages >= MAX_IMAGES) {
       toast({
-        title: "انتهت الصور الشهرية",
-        description: "ترقى لباقة المحترف للحصول على 50 صورة شهرياً!",
+        title: "انتهت الصور اليومية",
+        description: "ترقى لباقة المحترف للحصول على 100 صورة يومياً!",
         variant: "destructive",
       })
       return
@@ -589,7 +589,7 @@ export default function ChatStarterPage() {
     if (monthlyWords + wordCount > MAX_WORDS) {
       toast({
         title: "انتهت الكلمات الشهرية",
-        description: "ترقى لباقة المحترف للحصول على 120,000 كلمة شهرياً!",
+        description: "ترقى لباقة المحترف للحصول على كلمات غير محدودة!",
         variant: "destructive",
       })
       return
