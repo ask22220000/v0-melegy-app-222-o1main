@@ -131,6 +131,10 @@ export function todayEgypt(): string {
     .toISOString().slice(0, 10)
 }
 
+export function monthEgypt(): string {
+  return todayEgypt().slice(0, 7)
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UserMeta {
@@ -235,6 +239,19 @@ export async function setUserSubscription(userId: string, plan: string, duration
   await ensureUserMeta(userId)
   const expiresAt = new Date(Date.now() + durationDays * 86_400_000).toISOString()
   await upsertUserMeta(userId, { plan, planExpiresAt: expiresAt, updatedAt: new Date().toISOString() })
+}
+
+// Tracks total subscribers per plan — stored as a global counter item
+export async function incrementPlanCount(plan: string, amount = 1): Promise<void> {
+  try {
+    await dynamoRequest("UpdateItem", {
+      TableName:                TABLE,
+      Key:                      { PK: { S: "GLOBAL#STATS" }, SK: { S: `PLAN#${plan}` } },
+      UpdateExpression:         "SET #cnt = if_not_exists(#cnt, :z) + :a",
+      ExpressionAttributeNames:  { "#cnt": "count" },
+      ExpressionAttributeValues: { ":z": { N: "0" }, ":a": { N: String(amount) } },
+    })
+  } catch {}
 }
 
 // ─── Daily Usage ──────────────────────────────────────────────────────────────
