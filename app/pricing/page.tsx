@@ -114,7 +114,7 @@ export default function PricingPage() {
       popular: false,
       paypalId: null,
       kasherLink: "https://checkouts.kashier.io/ar/paymentpage?ppLink=PP-1817925703,live",
-      link: "/chat-advanced",
+      link: "/chat-vip",
     },
   ]
 
@@ -138,7 +138,7 @@ export default function PricingPage() {
               }),
             onApprove: (data: any) => {
               alert("تم الاشتراك بنجاح! رقم الاشتراك: " + data.subscriptionID)
-              window.location.href = "/chat-advanced"
+              window.location.href = "/chat-vip"
             },
           })
           .render("#paypal-button-container-P-7Y891040P38339115NFHYM4Q")
