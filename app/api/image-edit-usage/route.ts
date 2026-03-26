@@ -1,8 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServiceRoleClient } from "@/lib/supabase/server"
 
-// Use shared singleton from supabase/server
-const supabase = getServiceRoleClient()
+// Lazy getter — avoids top-level instantiation during build
+function getSupabase() {
+  return getServiceRoleClient()
+}
 
 // Plan limits
 const PLAN_LIMITS = {
@@ -139,7 +141,7 @@ export async function POST(request: NextRequest) {
         const availableTokens = totalPurchased - totalUsed
 
         if (availableTokens > 0) {
-          await supabase.from("feature_usage").insert({
+          await getSupabase().from("feature_usage").insert({
             user_id: visitorId,
             feature_name: "token_used",
             used_at: new Date().toISOString(),
@@ -161,7 +163,7 @@ export async function POST(request: NextRequest) {
       }
 
       const currentMonth = getCurrentMonthYear()
-      await supabase.from("feature_usage").insert({
+      await getSupabase().from("feature_usage").insert({
         user_id: visitorId,
         feature_name: `image_edit_${planType}_${currentMonth}`,
         used_at: new Date().toISOString(),
@@ -175,7 +177,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "addTokens") {
-      await supabase.from("feature_usage").insert({
+      await getSupabase().from("feature_usage").insert({
         user_id: visitorId,
         feature_name: "token_purchase",
         used_at: new Date().toISOString(),
