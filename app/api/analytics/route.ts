@@ -1,6 +1,7 @@
 import { getAnalytics, countUsersByPlan, scanAllUsers, scanRecentChats } from "@/lib/db"
 
 export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 // ── Vercel Analytics REST API helper ─────────────────────────────────────────
 async function fetchVercelAnalytics() {

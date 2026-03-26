@@ -1,3 +1,4 @@
+// @v0-recompile-2026-03-26
 /**
  * lib/db.ts — DynamoDB using ONLY Node.js built-ins (crypto + fetch).
  * Zero external packages. AWS Signature V4 implemented manually.
