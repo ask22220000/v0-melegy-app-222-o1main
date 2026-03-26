@@ -26,7 +26,7 @@ export default function proxy(request: NextRequest) {
     "media-src 'self' data: blob: https:",
     // Only allow browser connections to our own API routes and required 3rd-party SDKs.
     // All secret API calls (Groq, FAL, ElevenLabs, Perplexity) are server-side only.
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://va.vercel-scripts.com https://vercel.live wss:",
+    "connect-src 'self' https://va.vercel-scripts.com https://vercel.live wss:",
     "frame-src 'self' https://www.paypal.com https://checkouts.kashier.io https://vercel.live https://*.vercel.live",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",

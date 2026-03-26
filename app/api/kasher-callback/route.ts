@@ -1,92 +1,64 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { setUserSubscription, ensureUserMeta, incrementPlanCount } from "@/lib/db"
 
-// Kasher callback endpoint for receiving payment notifications
+export const runtime = "nodejs"
+
+const PLAN_MAP: Record<string, "free" | "startup" | "pro" | "vip"> = {
+  startup: "startup", starter: "startup", pro: "pro", vip: "vip", advanced: "vip",
+}
+
+function extractPlanAndUser(merchantOrderId?: string): { plan: "free" | "startup" | "pro" | "vip"; userId: string | null } {
+  if (!merchantOrderId) return { plan: "free", userId: null }
+  const match = merchantOrderId.match(/^plan_(\w+)_(.+)$/)
+  if (!match) return { plan: "free", userId: null }
+  return { plan: PLAN_MAP[match[1].toLowerCase()] ?? "free", userId: match[2] || null }
+}
+
+async function processCallback(body: Record<string, any>) {
+  const { transactionId, merchantOrderId, status, response } = body
+
+  if (!transactionId) return { success: false, error: "Missing transaction ID" }
+
+  const isSuccess = ["SUCCESS", "PAID", "CAPTURED"].includes(status) ||
+    response?.status === "SUCCESS"
+
+  if (!isSuccess) return { success: true, received: true, status }
+
+  const { plan, userId } = extractPlanAndUser(merchantOrderId)
+  if (!userId) return { success: false, error: "Could not determine userId from merchantOrderId" }
+
+  await ensureUserMeta(userId)
+  await setUserSubscription(userId, plan, 30)
+  incrementPlanCount(plan, 1).catch(() => {})
+
+  return { success: true, received: true, userId, plan }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
-    console.log("[v0] Kasher callback received:", body)
-
-    // Extract payment details from Kasher callback
-    const {
-      transactionId,
-      merchantOrderId,
-      status,
-      amount,
-      currency,
-      response,
-    } = body
-
-    if (!transactionId) {
-      return NextResponse.json(
-        { success: false, error: "Missing transaction ID" },
-        { status: 400 }
-      )
-    }
-
-    const supabase = await createClient()
-
-    // Map status from Kasher
-    let paymentStatus = "pending"
-    if (status === "SUCCESS" || status === "PAID" || response?.status === "SUCCESS") {
-      paymentStatus = "completed"
-    } else if (status === "FAILED" || status === "CANCELLED") {
-      paymentStatus = "failed"
-    }
-
-    // Try to find existing subscription by transaction ID
-    const { data: existingSubscription } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("kashier_payment_id", transactionId)
-      .single()
-
-    if (existingSubscription) {
-      // Update existing subscription
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({
-          payment_status: paymentStatus,
-          status: paymentStatus === "completed" ? "active" : "failed",
-        })
-        .eq("id", existingSubscription.id)
-
-      if (error) {
-        console.error("[v0] Error updating subscription:", error)
-        return NextResponse.json(
-          { success: false, error: "Database error" },
-          { status: 500 }
-        )
-      }
-
-      console.log("[v0] Subscription updated via callback:", transactionId)
-    }
-
-    return NextResponse.json({ success: true, received: true })
-  } catch (error) {
-    console.error("[v0] Error in Kasher callback:", error)
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    )
+    const result = await processCallback(body)
+    return NextResponse.json(result, { status: result.success ? 200 : 400 })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Internal server error"
+    console.error("[kasher-callback] error:", msg)
+    return NextResponse.json({ success: false, error: msg }, { status: 500 })
   }
 }
 
-// Handle GET requests (some payment gateways use GET for callbacks)
+// GET — some payment gateways use GET for callbacks
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  
+  const p = request.nextUrl.searchParams
   const body = {
-    transactionId: searchParams.get('transactionId') || searchParams.get('transaction_id'),
-    merchantOrderId: searchParams.get('merchantOrderId') || searchParams.get('orderId'),
-    status: searchParams.get('status'),
-    amount: searchParams.get('amount'),
-    currency: searchParams.get('currency'),
+    transactionId: p.get("transactionId") || p.get("transaction_id"),
+    merchantOrderId: p.get("merchantOrderId") || p.get("orderId"),
+    status: p.get("status"),
   }
-
-  console.log("[v0] Kasher GET callback received:", body)
-
-  // Process same as POST
-  return POST(request)
+  try {
+    const result = await processCallback(body)
+    return NextResponse.json(result, { status: result.success ? 200 : 400 })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Internal server error"
+    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+  }
 }
