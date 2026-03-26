@@ -61,13 +61,27 @@ let _cache: UsageRow | null = null
 let _cacheTime = 0
 const CACHE_TTL = 10_000 // 10 seconds
 
+// Get userId from localStorage (set by useUserId hook or chat page)
+function getStoredUserId(): string {
+  if (typeof window === "undefined") return "unknown"
+  try {
+    return localStorage.getItem("mlgUserId") ?? "unknown"
+  } catch {
+    return "unknown"
+  }
+}
+
 // Fetch today's usage from the backend (with short-lived cache)
 export async function fetchUsage(): Promise<UsageRow> {
   const now = Date.now()
   if (_cache && now - _cacheTime < CACHE_TTL) return _cache
 
   try {
-    const res = await fetch("/api/usage", { cache: "no-store" })
+    const userId = getStoredUserId()
+    const res = await fetch("/api/usage", {
+      cache: "no-store",
+      headers: userId !== "unknown" ? { "x-user-id": userId } : {},
+    })
     if (!res.ok) throw new Error("fetch failed")
     const json = await res.json()
     _cache = json.usage as UsageRow
@@ -92,9 +106,13 @@ export async function fetchUsage(): Promise<UsageRow> {
 async function saveUsage(updates: Partial<UsageRow>): Promise<void> {
   _cache = null // invalidate
   try {
+    const userId = getStoredUserId()
     await fetch("/api/usage", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(userId !== "unknown" ? { "x-user-id": userId } : {}),
+      },
       body: JSON.stringify(updates),
     })
   } catch {
