@@ -1,71 +1,65 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServiceRoleClient } from "@/lib/supabase/server"
+import { getConversations, saveConversation, deleteConversation, ensureUserMeta } from "@/lib/db"
 
-// GET /api/user/conversations?user_id=mlg_xxx — fetch all conversations for a user
+export const runtime = "nodejs"
+
+// GET /api/user/conversations?user_id=mlg_xxx
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const mlgUserId = searchParams.get("user_id")
+    const userId = searchParams.get("user_id")
 
-    if (!mlgUserId) {
-      return NextResponse.json({ error: "Missing user_id" }, { status: 400 })
+    if (!userId) {
+      return NextResponse.json({ conversations: [] })
     }
 
-    const supabase = getServiceRoleClient()
-
-    const { data, error } = await supabase
-      .from("conversations")
-      .select("id, title, created_at, updated_at")
-      .eq("mlg_user_id", mlgUserId)
-      .order("updated_at", { ascending: false })
-
-    if (error) {
-      // Schema cache miss — column likely missing, return empty gracefully
-      if (error.message?.includes("mlg_user_id") || error.code === "PGRST204") {
-        console.error("[v0] conversations schema error:", error.message)
-        return NextResponse.json({ conversations: [] })
-      }
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ conversations: data || [] })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    const conversations = await getConversations(userId, 100)
+    return NextResponse.json({ conversations })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "خطأ غير معروف"
+    console.error("[user/conversations] GET error:", msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
 // POST /api/user/conversations — create new conversation
 export async function POST(request: NextRequest) {
   try {
-    const { mlg_user_id, title } = await request.json()
+    const { mlg_user_id, title, messages, date } = await request.json()
 
     if (!mlg_user_id) {
       return NextResponse.json({ error: "Missing mlg_user_id" }, { status: 400 })
     }
 
-    const supabase = getServiceRoleClient()
+    await ensureUserMeta(mlg_user_id)
 
-    const { data, error } = await supabase
-      .from("conversations")
-      .insert({
-        mlg_user_id,
-        title: title || "محادثة جديدة",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select("id, title, created_at")
-      .single()
+    const id = await saveConversation({
+      userId: mlg_user_id,
+      title: title ?? "محادثة جديدة",
+      date: date ?? new Date().toISOString().slice(0, 10),
+      messages: messages ?? [],
+    })
 
-    if (error) {
-      // Schema cache miss — column likely missing, return empty gracefully
-      if (error.message?.includes("mlg_user_id") || error.code === "PGRST204") {
-        console.error("[v0] conversations POST schema error:", error.message)
-        return NextResponse.json({ conversation: { id: null, title: title || "محادثة جديدة", created_at: new Date().toISOString() } })
-      }
+    return NextResponse.json({ conversation: { id, title: title ?? "محادثة جديدة", createdAt: new Date().toISOString() } })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "خطأ غير معروف"
+    console.error("[user/conversations] POST error:", msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
+// DELETE /api/user/conversations — delete conversation by SK
+export async function DELETE(request: NextRequest) {
+  try {
+    const { user_id, sk } = await request.json()
+    if (!user_id || !sk) {
+      return NextResponse.json({ error: "Missing user_id or sk" }, { status: 400 })
     }
-
-    return NextResponse.json({ conversation: data })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    await deleteConversation(user_id, sk)
+    return NextResponse.json({ success: true })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "خطأ غير معروف"
+    console.error("[user/conversations] DELETE error:", msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

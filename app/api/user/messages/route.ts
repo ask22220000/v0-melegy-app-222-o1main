@@ -1,103 +1,70 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServiceRoleClient } from "@/lib/supabase/server"
+import { getConversations, updateConversationMessages, incrementAnalytics } from "@/lib/db"
 
-// GET /api/user/messages?conversation_id=xxx — fetch messages for a conversation
+export const runtime = "nodejs"
+
+/**
+ * Messages are stored inline inside each conversation item in DynamoDB.
+ * GET fetches a conversation's messages by user_id + conversation id.
+ * POST appends a message to an existing conversation.
+ */
+
+// GET /api/user/messages?user_id=mlg_xxx&conversation_id=xxx
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("user_id")
     const conversationId = searchParams.get("conversation_id")
 
-    if (!conversationId) {
-      return NextResponse.json({ error: "Missing conversation_id" }, { status: 400 })
+    if (!userId || !conversationId) {
+      return NextResponse.json({ messages: [] })
     }
 
-    const supabase = getServiceRoleClient()
+    const conversations = await getConversations(userId, 100)
+    const conv = conversations.find((c) => c.id === conversationId)
+    if (!conv) return NextResponse.json({ messages: [] })
 
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .select("id, role, content, media_urls, created_at")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ messages: data || [] })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ messages: conv.messages ?? [] })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "خطأ غير معروف"
+    console.error("[user/messages] GET error:", msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
-// POST /api/user/messages — save a message (preserves imageUrl, videoUrl)
+// POST /api/user/messages — append message to conversation
 export async function POST(request: NextRequest) {
   try {
-    const { conversation_id, mlg_user_id, role, content, imageUrl, videoUrl } = await request.json()
+    const { conversation_sk, mlg_user_id, role, content, imageUrl, videoUrl } = await request.json()
 
-    if (!conversation_id || !mlg_user_id || !role || !content) {
+    if (!conversation_sk || !mlg_user_id || !role || !content) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const supabase = getServiceRoleClient()
+    // Fetch existing conversation
+    const conversations = await getConversations(mlg_user_id, 100)
+    const conv = conversations.find((c) => (c as any).SK === conversation_sk)
+    if (!conv) return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
 
-    // Build media_urls array to store any attached images/videos
-    const media_urls: { type: string; url: string }[] = []
-    if (imageUrl) media_urls.push({ type: "image", url: imageUrl })
-    if (videoUrl) media_urls.push({ type: "video", url: videoUrl })
-
-    // Save message — try with media_urls first, fallback without if column missing
-    let data: any = null
-    let error: any = null
-
-    const insertPayload: any = {
-      conversation_id,
-      mlg_user_id,
-      role,
+    const newMsg = {
+      role: role as "user" | "assistant",
       content,
-      created_at: new Date().toISOString(),
-    }
-    if (media_urls.length > 0) insertPayload.media_urls = media_urls
-
-    const result = await supabase
-      .from("chat_messages")
-      .insert(insertPayload)
-      .select("id, role, content, media_urls, created_at")
-      .single()
-
-    data = result.data
-    error = result.error
-
-    // If media_urls column doesn't exist yet, retry without it
-    if (error && error.message?.includes("media_urls")) {
-      delete insertPayload.media_urls
-      const fallback = await supabase
-        .from("chat_messages")
-        .insert(insertPayload)
-        .select("id, role, content, created_at")
-        .single()
-      data = fallback.data
-      error = fallback.error
+      timestamp: Date.now(),
+      ...(imageUrl ? { imageUrl } : {}),
+      ...(videoUrl ? { videoUrl } : {}),
     }
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    const updatedMessages = [...(conv.messages ?? []), newMsg]
+    await updateConversationMessages(mlg_user_id, conversation_sk, updatedMessages)
 
-    // Update conversation updated_at
-    await supabase
-      .from("conversations")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", conversation_id)
-
-    // Increment messages_used for user (only count user messages)
     if (role === "user") {
-      await supabase.rpc("increment_messages_used", { user_id: mlg_user_id }).catch(() => {
-        // fallback if rpc not available
-      })
+      incrementAnalytics("totalMessages").catch(() => {})
     }
 
-    return NextResponse.json({ message: data })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ message: newMsg })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "خطأ غير معروف"
+    console.error("[user/messages] POST error:", msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
