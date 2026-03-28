@@ -1,14 +1,23 @@
 import * as fal from "@fal-ai/serverless-client"
 
-// Configure fal client - ensure FAL_KEY is set
-const FAL_KEY = process.env.FAL_KEY
-if (!FAL_KEY) {
-  console.error("[FalRouter] FAL_KEY environment variable is not set!")
+// Configure fal client - check multiple possible env var names
+const FAL_KEY = process.env.FAL_KEY || process.env.FAL_API_KEY || process.env.FAL_API
+
+function initFalClient() {
+  if (!FAL_KEY) {
+    console.error("[FalRouter] No FAL API key found! Checked: FAL_KEY, FAL_API_KEY, FAL_API")
+    return false
+  }
+  
+  console.log("[FalRouter] Configuring with key starting with:", FAL_KEY.substring(0, 8) + "...")
+  
+  fal.config({
+    credentials: FAL_KEY,
+  })
+  return true
 }
 
-fal.config({
-  credentials: FAL_KEY || "",
-})
+const isConfigured = initFalClient()
 
 interface Message {
   role: "user" | "assistant" | "system"
@@ -43,9 +52,10 @@ export async function generateWithFalRouter(
   const { maxTokens = 500, temperature = 0.7, model = "google/gemini-2.0-flash-001" } = options
 
   try {
-    // Check if FAL_KEY is available
-    if (!FAL_KEY) {
-      throw new Error("FAL_KEY environment variable is not configured")
+    // Check if FAL is configured
+    if (!isConfigured) {
+      console.error("[FalRouter] FAL not configured, returning error message")
+      return "عذراً، في مشكلة في الإعدادات. تأكد من إضافة FAL_KEY في Settings > Vars"
     }
 
     // Build the prompt from messages - only include the last user message
@@ -100,9 +110,9 @@ export async function generateWithFalRouterVision(
   const { maxTokens = 500, temperature = 0.7, model = "google/gemini-2.0-flash-001" } = options
 
   try {
-    // Check if FAL_KEY is available
-    if (!FAL_KEY) {
-      throw new Error("FAL_KEY environment variable is not configured")
+    // Check if FAL is configured
+    if (!isConfigured) {
+      return "عذراً، في مشكلة في الإعدادات. تأكد من إضافة FAL_KEY في Settings > Vars"
     }
 
     // For vision, include image URL in the prompt
