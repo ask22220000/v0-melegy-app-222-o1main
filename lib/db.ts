@@ -367,6 +367,27 @@ export async function deleteConversation(userId: string, sk: string): Promise<vo
   })
 }
 
+// Alias used by some routes
+export const getConversations = getUserConversations
+
+export async function updateConversationMessages(userId: string, skOrId: string, messages: any[]): Promise<void> {
+  try {
+    // Find the conversation SK if an ID was passed instead of SK
+    const convs = await getUserConversations(userId)
+    const match = convs.find(c => c.SK === skOrId || c.id === skOrId)
+    if (!match) return
+    await dynamoRequest("UpdateItem", {
+      TableName:                 TABLE,
+      Key:                       marshal({ PK: `USER#${userId}`, SK: match.SK }),
+      UpdateExpression:          "SET messages = :m, updatedAt = :u",
+      ExpressionAttributeValues: {
+        ":m": marshalValue(JSON.stringify(messages)),
+        ":u": marshalValue(new Date().toISOString()),
+      },
+    })
+  } catch {}
+}
+
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
 export async function getAnalytics(): Promise<AnalyticsGlobal> {
