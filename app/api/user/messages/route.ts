@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getConversations, updateConversationMessages } from "@/lib/db"
+import { getConversations, updateConversationMessages, getUserConversations } from "@/lib/db"
 
 export const runtime = "nodejs"
 
