@@ -42,8 +42,9 @@ async function generateExcelDataWithAI(
 
 لا تكتب أي شيء قبل أو بعد الـ JSON.`
 
-  const model = getModel("gemini-2.0-flash", systemPrompt)
+  const model = getModel("gemini-2.0-flash")
   const result = await model.generateContent({
+    systemInstruction: systemPrompt,
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: { maxOutputTokens: 4000, temperature: 0.3 },
   })

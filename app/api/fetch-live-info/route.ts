@@ -8,10 +8,11 @@ export async function POST(request: Request) {
       return Response.json({ error: "Query is required" }, { status: 400 })
     }
 
-    const sysPrompt = `You are a helpful assistant responding to users in Arabic with a friendly and professional tone. Be conversational, helpful, and accurate. Use Egyptian Arabic when possible.`
-    const model = getModel("gemini-2.0-flash", sysPrompt)
+    const model = getModel("gemini-2.0-flash")
 
     const result = await model.generateContent({
+      systemInstruction: `You are a helpful assistant responding to users in Arabic with a friendly and professional tone.
+      Be conversational, helpful, and accurate. Use Egyptian Arabic when possible.`,
       contents: [{
         role: "user",
         parts: [{ text: query }],

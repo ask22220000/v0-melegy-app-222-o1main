@@ -48,30 +48,23 @@ export async function POST(request: Request) {
       minute: "2-digit",
     })
 
-    const fullSystemPrompt = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
-    const model = getModel("gemini-2.0-flash", fullSystemPrompt)
+    const systemInstruction = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
 
-    // Build Gemini history (keep last 8 turns) - must start with 'user' and alternate
+    const model = getModel("gemini-2.0-flash")
+
+    // Build Gemini history (keep last 8 turns)
     const geminiHistory: { role: string; parts: { text: string }[] }[] = []
-    const rawHistory = (history || []).slice(-10)
-    const filtered = rawHistory.filter(
-      (msg: any) => (msg.role === "user" || msg.role === "assistant") && (msg.content || "").trim().length > 0
-    )
-    let startIdx = 0
-    while (startIdx < filtered.length && filtered[startIdx].role !== "user") startIdx++
-    for (let i = startIdx; i < filtered.length; i++) {
-      const msg = filtered[i]
-      const expectedRole = geminiHistory.length % 2 === 0 ? "user" : "model"
-      const msgRole = msg.role === "assistant" ? "model" : "user"
-      if (msgRole !== expectedRole) continue
-      geminiHistory.push({ role: msgRole, parts: [{ text: msg.content || "" }] })
-    }
-    // Must end with 'model' not 'user'
-    if (geminiHistory.length > 0 && geminiHistory[geminiHistory.length - 1].role === "user") {
-      geminiHistory.pop()
+    for (const msg of (history || []).slice(-8)) {
+      if (msg.role === "user" || msg.role === "assistant") {
+        geminiHistory.push({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content || "" }],
+        })
+      }
     }
 
     const chat = model.startChat({
+      systemInstruction,
       history: geminiHistory,
       generationConfig: { maxOutputTokens: 200, temperature: 0.75 },
     })

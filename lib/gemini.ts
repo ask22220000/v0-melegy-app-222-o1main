@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai"
 
-const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBsA63VeNfMFFZO1WXuhNVYqwEzDK7VYMI"
+const apiKey = process.env.GEMINI_API_KEY!
 
 export const genAI = new GoogleGenerativeAI(apiKey)
 
@@ -11,12 +11,8 @@ export const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ]
 
-export function getModel(modelName = "gemini-2.0-flash", systemInstruction?: string) {
-  return genAI.getGenerativeModel({
-    model: modelName,
-    safetySettings,
-    ...(systemInstruction ? { systemInstruction } : {}),
-  })
+export function getModel(modelName = "gemini-2.0-flash") {
+  return genAI.getGenerativeModel({ model: modelName, safetySettings })
 }
 
 /** Convert a data URL (data:mime;base64,...) to a Gemini InlinePart */

@@ -55,31 +55,21 @@ export async function POST(request: NextRequest) {
       ? `\n\n**التاريخ والوقت الحالي من جهاز المستخدم:** ${clientDateTime}\nاستخدم هذا التاريخ والوقت دايماً لما حد يسأل عن التاريخ أو الوقت.`
       : ""
 
-    const fullSystemPrompt = EGYPTIAN_SYSTEM_PROMPT + dateTimeContext
-    const model = getModel("gemini-2.0-flash", fullSystemPrompt)
+    const systemInstruction = EGYPTIAN_SYSTEM_PROMPT + dateTimeContext
 
-    // Build history for Gemini chat - must start with 'user' and alternate user/model
+    const model = getModel("gemini-2.0-flash")
+
+    // Build history for Gemini chat
     const history: { role: string; parts: { text: string }[] }[] = []
     if (conversationHistory.length > 0) {
-      const recent = conversationHistory.slice(-10)
-      const filtered = recent.filter(
-        (msg: any) => (msg.role === "user" || msg.role === "assistant") &&
-          typeof msg.content === "string" && msg.content.trim().length > 0
-      )
-      // Ensure history starts with 'user'
-      let startIdx = 0
-      while (startIdx < filtered.length && filtered[startIdx].role !== "user") startIdx++
-      for (let i = startIdx; i < filtered.length; i++) {
-        const msg = filtered[i]
-        const expectedRole = (history.length % 2 === 0) ? "user" : "model"
-        const msgRole = msg.role === "assistant" ? "model" : "user"
-        if (msgRole !== expectedRole) continue // skip out-of-order messages
-        history.push({ role: msgRole, parts: [{ text: msg.content.substring(0, 800) }] })
-      }
-      // History must end with 'model' (not 'user'), since we're about to send the new user message
-      // If it ends with 'user', pop it to avoid double-user
-      if (history.length > 0 && history[history.length - 1].role === "user") {
-        history.pop()
+      const recent = conversationHistory.slice(-6)
+      for (const msg of recent) {
+        if (msg.role === "user" || msg.role === "assistant") {
+          history.push({
+            role: msg.role === "assistant" ? "model" : "user",
+            parts: [{ text: typeof msg.content === "string" ? msg.content.substring(0, 500) : "" }],
+          })
+        }
       }
     }
 
@@ -87,8 +77,9 @@ export async function POST(request: NextRequest) {
     if (imageUrl) {
       try {
         const imagePart = await urlToInlinePart(imageUrl)
-        const visionModel = getModel("gemini-2.0-flash", fullSystemPrompt)
+        const visionModel = getModel("gemini-2.0-flash")
         const result = await visionModel.generateContent({
+          systemInstruction,
           contents: [{ role: "user", parts: [{ text: userPrompt }, imagePart] }],
         })
         const text = stripMarkdown(result.response.text())
@@ -100,6 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Text chat with history
     const chat = model.startChat({
+      systemInstruction,
       history,
       generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
     })
