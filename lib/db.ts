@@ -406,12 +406,14 @@ export async function getAnalytics(): Promise<AnalyticsGlobal> {
     const chatItems  = items.filter(i => typeof i.SK === "string" && i.SK.startsWith("CHAT#"))
     const usageItems = items.filter(i => typeof i.SK === "string" && i.SK.startsWith("USAGE#"))
 
+    // Build plan counts from all user meta records
     const planCounts: Record<string, number> = {}
     for (const m of metaItems) {
       const p = m.plan ?? "free"
       planCounts[p] = (planCounts[p] ?? 0) + 1
     }
 
+    // Sum all usage metrics across all users and dates
     let totalMessages = 0, totalImages = 0, totalVideos = 0, totalVoiceMinutes = 0
     for (const u of usageItems) {
       totalMessages     += Number(u.messages        ?? 0)
@@ -429,7 +431,16 @@ export async function getAnalytics(): Promise<AnalyticsGlobal> {
         requests: Number(u.messages ?? 0) + Number(u.images ?? 0) + Number(u.voice_minutes ?? 0),
       }))
 
-    return { totalMessages, totalImages, totalVideos, totalVoiceMinutes, totalUsers: metaItems.length, totalChats: chatItems.length, planCounts, recentUsage }
+    return {
+      totalMessages,
+      totalImages,
+      totalVideos,
+      totalVoiceMinutes,
+      totalUsers:  metaItems.length,
+      totalChats:  chatItems.length,   // full count, not just recent
+      planCounts,
+      recentUsage,
+    }
   } catch {
     return { totalMessages: 0, totalImages: 0, totalVideos: 0, totalVoiceMinutes: 0, totalUsers: 0, totalChats: 0, planCounts: {}, recentUsage: [] }
   }
@@ -442,12 +453,21 @@ export async function countUsersByPlan(): Promise<Record<string, number>> {
 
 export async function scanAllUsers(): Promise<UserMeta[]> {
   try {
-    const res = await dynamoRequest("Scan", {
-      TableName:                 TABLE,
-      FilterExpression:          "SK = :meta",
-      ExpressionAttributeValues: marshal({ ":meta": "META" }),
-    })
-    return unmarshalList(res.Items ?? []).map((u: any) => ({
+    let items: any[] = []
+    let lastKey: any = undefined
+    do {
+      const body: any = {
+        TableName:                 TABLE,
+        FilterExpression:          "SK = :meta",
+        ExpressionAttributeValues: marshal({ ":meta": "META" }),
+      }
+      if (lastKey) body.ExclusiveStartKey = lastKey
+      const res = await dynamoRequest("Scan", body)
+      items   = items.concat(unmarshalList(res.Items ?? []))
+      lastKey = res.LastEvaluatedKey
+    } while (lastKey)
+
+    return items.map((u: any) => ({
       userId:        u.userId        ?? String(u.PK ?? "").replace("USER#", ""),
       plan:          u.plan          ?? "free",
       planExpiresAt: u.planExpiresAt ?? null,
@@ -461,12 +481,21 @@ export async function scanAllUsers(): Promise<UserMeta[]> {
 export async function scanRecentChats(sinceDaysAgo: number): Promise<ConversationItem[]> {
   try {
     const since = new Date(Date.now() - sinceDaysAgo * 86_400_000).toISOString()
-    const res = await dynamoRequest("Scan", {
-      TableName:                 TABLE,
-      FilterExpression:          "begins_with(SK, :prefix) AND createdAt >= :since",
-      ExpressionAttributeValues: marshal({ ":prefix": "CHAT#", ":since": since }),
-    })
-    return unmarshalList(res.Items ?? []).map((u: any) => ({
+    let items: any[] = []
+    let lastKey: any = undefined
+    do {
+      const body: any = {
+        TableName:                 TABLE,
+        FilterExpression:          "begins_with(SK, :prefix) AND createdAt >= :since",
+        ExpressionAttributeValues: marshal({ ":prefix": "CHAT#", ":since": since }),
+      }
+      if (lastKey) body.ExclusiveStartKey = lastKey
+      const res = await dynamoRequest("Scan", body)
+      items   = items.concat(unmarshalList(res.Items ?? []))
+      lastKey = res.LastEvaluatedKey
+    } while (lastKey)
+
+    return items.map((u: any) => ({
       id:        u.id        ?? "",
       SK:        u.SK        ?? "",
       userId:    u.userId    ?? "",
