@@ -40,7 +40,7 @@ export async function generateWithFalRouter(
     model?: string
   } = {}
 ): Promise<string> {
-  const { maxTokens = 500, temperature = 0.7, model = "google/gemini-2.5-flash" } = options
+  const { maxTokens = 500, temperature = 0.7, model = "google/gemini-2.0-flash-001" } = options
 
   try {
     // Check if FAL_KEY is available
@@ -100,7 +100,7 @@ export async function generateWithFalRouterVision(
     model?: string
   } = {}
 ): Promise<string> {
-  const { maxTokens = 500, temperature = 0.7, model = "google/gemini-2.5-flash" } = options
+  const { maxTokens = 500, temperature = 0.7, model = "google/gemini-2.0-flash-001" } = options
 
   try {
     // Check if FAL_KEY is available
