@@ -48,9 +48,8 @@ export async function POST(request: Request) {
       minute: "2-digit",
     })
 
-    const systemInstruction = { parts: [{ text: `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}` }] }
-
-    const model = getModel("gemini-2.0-flash")
+    const fullSystemPrompt = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
+    const model = getModel("gemini-2.0-flash", fullSystemPrompt)
 
     // Build Gemini history (keep last 8 turns) - must start with 'user' and alternate
     const geminiHistory: { role: string; parts: { text: string }[] }[] = []
@@ -73,7 +72,6 @@ export async function POST(request: Request) {
     }
 
     const chat = model.startChat({
-      systemInstruction,
       history: geminiHistory,
       generationConfig: { maxOutputTokens: 200, temperature: 0.75 },
     })

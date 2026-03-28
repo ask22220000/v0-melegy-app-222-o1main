@@ -55,9 +55,8 @@ export async function POST(request: NextRequest) {
       ? `\n\n**التاريخ والوقت الحالي من جهاز المستخدم:** ${clientDateTime}\nاستخدم هذا التاريخ والوقت دايماً لما حد يسأل عن التاريخ أو الوقت.`
       : ""
 
-    const systemInstruction = { parts: [{ text: EGYPTIAN_SYSTEM_PROMPT + dateTimeContext }] }
-
-    const model = getModel("gemini-2.0-flash")
+    const fullSystemPrompt = EGYPTIAN_SYSTEM_PROMPT + dateTimeContext
+    const model = getModel("gemini-2.0-flash", fullSystemPrompt)
 
     // Build history for Gemini chat - must start with 'user' and alternate user/model
     const history: { role: string; parts: { text: string }[] }[] = []
@@ -88,9 +87,8 @@ export async function POST(request: NextRequest) {
     if (imageUrl) {
       try {
         const imagePart = await urlToInlinePart(imageUrl)
-        const visionModel = getModel("gemini-2.0-flash")
+        const visionModel = getModel("gemini-2.0-flash", fullSystemPrompt)
         const result = await visionModel.generateContent({
-          systemInstruction,
           contents: [{ role: "user", parts: [{ text: userPrompt }, imagePart] }],
         })
         const text = stripMarkdown(result.response.text())
@@ -102,7 +100,6 @@ export async function POST(request: NextRequest) {
 
     // Text chat with history
     const chat = model.startChat({
-      systemInstruction,
       history,
       generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
     })
