@@ -48,16 +48,13 @@ export async function generateWithFalRouter(
       throw new Error("FAL_KEY environment variable is not configured")
     }
 
-    // Build the prompt from messages
+    // Build the prompt from messages - only include the last user message
+    // Previous context is handled by system prompt
     let prompt = ""
-    for (const msg of messages) {
-      if (msg.role === "user") {
-        prompt += msg.content + "\n"
-      } else if (msg.role === "assistant") {
-        prompt += `المساعد: ${msg.content}\n`
-      }
+    const lastUserMessage = messages.filter(m => m.role === "user").pop()
+    if (lastUserMessage) {
+      prompt = lastUserMessage.content.trim()
     }
-    prompt = prompt.trim()
 
     console.log(`[FalRouter] Sending request to model: ${model}`)
     console.log(`[FalRouter] FAL_KEY exists: ${!!FAL_KEY}`)
