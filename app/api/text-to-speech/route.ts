@@ -12,9 +12,8 @@ export async function POST(request: Request) {
     }
 
     const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API
-    // Hammam - Egyptian Arabic voice (requires paid ElevenLabs plan)
-    // If on free plan, falls back to "George" which supports Arabic
-    const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM"
+    // Hammam - Egyptian Arabic voice
+    const VOICE_ID = "VxSsN5NGusWQZXue7VE9"
 
     if (!ELEVENLABS_API_KEY) {
       return new Response(JSON.stringify({ error: "ElevenLabs API key not configured" }), {
