@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
-import * as fal from "@fal-ai/serverless-client"
 
 const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري ودود جداً بشخصية حقيقية ومرحة! 🎉 طورتك Vision AI Studio المصرية.
 

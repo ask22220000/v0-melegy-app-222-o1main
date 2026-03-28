@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { headers } from "next/headers"
-import * as fal from "@fal-ai/serverless-client"
+import * as fal from "@fal-ai/client"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
 import { getDailyUsage, getEffectivePlan, todayEgypt } from "@/lib/db"

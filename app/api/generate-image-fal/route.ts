@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import * as fal from "@fal-ai/client"
 import { processPromptForImageGeneration } from "@/lib/prompt-enhancer"
 
 export const maxDuration = 60

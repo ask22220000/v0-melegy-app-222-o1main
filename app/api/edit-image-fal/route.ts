@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import * as fal from "@fal-ai/client"
 import { processPromptForImageEditing } from "@/lib/prompt-enhancer"
 
 // Increase body size limit for base64 images (50MB)

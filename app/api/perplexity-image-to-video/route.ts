@@ -1,4 +1,4 @@
-import * as fal from "@fal-ai/serverless-client"
+import * as fal from "@fal-ai/client"
 import { NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { getDailyUsage, getEffectivePlan, todayEgypt } from "@/lib/db"
