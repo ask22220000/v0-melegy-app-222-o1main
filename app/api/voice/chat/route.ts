@@ -1,4 +1,4 @@
-import { generateText } from "ai"
+import { getModel, stripMarkdown } from "@/lib/gemini"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -48,52 +48,46 @@ export async function POST(request: Request) {
       minute: "2-digit",
     })
 
-    const systemWithDate = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
+    const systemInstruction = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
 
-    // Build messages array — keep last 8 turns for better context
-    const messages: { role: "user" | "assistant"; content: string }[] = [
-      ...(history || []).slice(-8),
-      { role: "user", content: text },
-    ]
+    const model = getModel("gemini-2.0-flash")
 
-    // perplexity/sonar — fast, natural, has live web search built-in
-    const { text: rawReply } = await generateText({
-      model: "perplexity/sonar",
-      system: systemWithDate,
-      messages,
-      maxOutputTokens: 200,
-      temperature: 0.75,
+    // Build Gemini history (keep last 8 turns)
+    const geminiHistory: { role: string; parts: { text: string }[] }[] = []
+    for (const msg of (history || []).slice(-8)) {
+      if (msg.role === "user" || msg.role === "assistant") {
+        geminiHistory.push({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content || "" }],
+        })
+      }
+    }
+
+    const chat = model.startChat({
+      systemInstruction,
+      history: geminiHistory,
+      generationConfig: { maxOutputTokens: 200, temperature: 0.75 },
     })
 
-    // Strip any markdown, citations, or formatting that doesn't belong in voice output
-    const reply = rawReply
-      .replace(/\*\*/g, "")
-      .replace(/\*/g, "")
-      .replace(/\[\d+\]/g, "")          // remove citation numbers [1]
-      .replace(/#{1,6}\s/g, "")         // remove headings
-      .replace(/^\d+\.\s/gm, "")        // remove numbered lists
-      .replace(/^[-•–]\s/gm, "")        // remove bullet points
-      .replace(/\n{2,}/g, "، ")         // collapse multiple newlines to comma pause
-      .replace(/\n/g, " ")              // flatten single newlines
-      .replace(/\s{2,}/g, " ")          // collapse extra spaces
-      .replace(/[()[\]{}]/g, "")        // remove brackets
+    const result = await chat.sendMessage(text)
+    let reply = result.response.text()
+      .replace(/\*\*/g, "").replace(/\*/g, "")
+      .replace(/\[\d+\]/g, "").replace(/#{1,6}\s/g, "")
+      .replace(/^\d+\.\s/gm, "").replace(/^[-•–]\s/gm, "")
+      .replace(/\n{2,}/g, "، ").replace(/\n/g, " ")
+      .replace(/\s{2,}/g, " ").replace(/[()[\]{}]/g, "")
       .trim()
 
-    // إضافة: لو الرد بيبدأ بكلام رسمي نحذفها ونبدأ من بعدها
+    // Remove formal starts
     const formalStarts = ["بالتأكيد،", "بالتأكيد", "طبعاً،", "طبعاً", "بالطبع،", "بالطبع", "يسعدني", "بكل سرور"]
-    let cleanReply = reply
     for (const start of formalStarts) {
-      if (cleanReply.startsWith(start)) {
-        cleanReply = cleanReply.slice(start.length).replace(/^[،,\s]+/, "").trim()
-        // capitalize first letter if needed
-        if (cleanReply.length > 0) {
-          cleanReply = cleanReply.charAt(0).toUpperCase() + cleanReply.slice(1)
-        }
+      if (reply.startsWith(start)) {
+        reply = reply.slice(start.length).replace(/^[،,\s]+/, "").trim()
         break
       }
     }
 
-    return Response.json({ reply: cleanReply || reply })
+    return Response.json({ reply: reply || "معلش مش فاهم، ممكن تعيد؟" })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "خطأ غير معروف"
     console.error("[voice/chat] Error:", msg)

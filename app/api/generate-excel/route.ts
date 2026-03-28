@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { generateText } from "ai"
+import { getModel } from "@/lib/gemini"
 
 export async function POST(req: Request) {
   try {
@@ -27,11 +27,7 @@ export async function POST(req: Request) {
 async function generateExcelDataWithAI(
   prompt: string
 ): Promise<{ headers: string[]; rows: any[][] }> {
-  try {
-    // Detect if user needs web search for data
-    const needsWebSearch = /أحدث|أخبار|حالي|الآن|اليوم|2024|2025|2026|أسعار|مقارن/.test(prompt)
-
-    const systemPrompt = `أنت مساعد ذكي متخصص في إنشاء جداول Excel بدقة عالية.
+  const systemPrompt = `أنت مساعد ذكي متخصص في إنشاء جداول Excel بدقة عالية.
 
 تعليمات مهمة:
 1. افهم بالضبط البيانات المطلوبة من المستخدم
@@ -46,43 +42,27 @@ async function generateExcelDataWithAI(
 
 لا تكتب أي شيء قبل أو بعد الـ JSON.`
 
-    const model = needsWebSearch ? "perplexity/sonar" : "google/gemini-3-flash"
+  const model = getModel("gemini-2.0-flash")
+  const result = await model.generateContent({
+    systemInstruction: systemPrompt,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { maxOutputTokens: 4000, temperature: 0.3 },
+  })
 
-    const result = await generateText({
-      model,
-      system: systemPrompt,
-      messages: [{ role: "user", content: prompt }],
-      maxTokens: 4000,
-      temperature: 0.3,
-    })
+  let jsonText = result.response.text().trim()
+  jsonText = jsonText.replace(/```json\s*/g, "").replace(/```\s*/g, "")
 
-    // Extract JSON from response
-    let jsonText = result.text.trim()
-    
-    // Remove markdown code blocks if present
-    jsonText = jsonText.replace(/```json\s*/g, "").replace(/```\s*/g, "")
-    
-    // Try to find JSON object
-    const jsonMatch = jsonText.match(/\{[\s\S]*?"headers"[\s\S]*?"rows"[\s\S]*?\}/s)
-    
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      
-      if (
-        parsed.headers &&
-        Array.isArray(parsed.headers) &&
-        parsed.rows &&
-        Array.isArray(parsed.rows) &&
-        parsed.headers.length > 0 &&
-        parsed.rows.length > 0
-      ) {
-        return parsed
-      }
+  const jsonMatch = jsonText.match(/\{[\s\S]*?"headers"[\s\S]*?"rows"[\s\S]*?\}/s)
+  if (jsonMatch) {
+    const parsed = JSON.parse(jsonMatch[0])
+    if (
+      parsed.headers && Array.isArray(parsed.headers) &&
+      parsed.rows && Array.isArray(parsed.rows) &&
+      parsed.headers.length > 0 && parsed.rows.length > 0
+    ) {
+      return parsed
     }
-
-    throw new Error("Failed to parse AI response")
-  } catch (error) {
-    console.error("[API] AI Excel generation failed:", error)
-    throw error
   }
+
+  throw new Error("Failed to parse AI response")
 }

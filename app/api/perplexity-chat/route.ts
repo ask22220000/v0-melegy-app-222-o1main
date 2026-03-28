@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { generateText } from "ai"
+import { getModel, urlToInlinePart, stripMarkdown } from "@/lib/gemini"
 
 const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري ودود جداً بشخصية حقيقية ومرحة! 🎉 طورتك Vision AI Studio المصرية.
 
@@ -50,95 +50,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid prompt" }, { status: 400 })
     }
 
-    // Questions about current time/date are answered from clientDateTime - no web search needed
-    const isDateTimeQuestion = /النهاردة|اليوم|الوقت|الساعة|كام في الشهر|today|what time|what date|كم الساعة/.test(userPrompt.toLowerCase())
-
-    // Determine if we need web search based on the query
-    const needsWebSearch = !isDateTimeQuestion &&
-      /متى|إمتى|when|حدث|أخبار|news|الآن|now|حالياً|currently|recent|مقارنة|compare|سعر|price|معلومات عن|information about/.test(userPrompt.toLowerCase())
-
-    // Analyze image with Gemini vision if available
-    let imageAnalysisContext = ""
-    if (imageUrl) {
-      try {
-        const visionResult = await generateText({
-          model: "google/gemini-3-flash",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: userPrompt || "اوصف الصورة دي بالتفصيل" },
-                { type: "image", image: imageUrl }
-              ]
-            }
-          ],
-          maxTokens: 300,
-        })
-        imageAnalysisContext = visionResult.text
-      } catch (e: any) {
-        console.error("[API] Image analysis error:", e.message)
-      }
-    }
-
-    // Build messages array
-    const messages: any[] = []
-
-    // Add conversation history (last 6 messages)
-    if (conversationHistory && conversationHistory.length > 0) {
-      const history = conversationHistory.slice(-6)
-      let lastRole: string | null = null
-      
-      for (const msg of history) {
-        if ((msg.role === "user" || msg.role === "assistant") && msg.role !== lastRole) {
-          messages.push({
-            role: msg.role,
-            content: typeof msg.content === "string" ? msg.content.substring(0, 500) : "",
-          })
-          lastRole = msg.role
-        }
-      }
-    }
-
-    // Ensure no consecutive messages from same role
-    if (messages.length > 0 && messages[messages.length - 1].role === "user") {
-      messages.pop()
-    }
-
-    // Add current message
-    const currentContent = imageAnalysisContext 
-      ? `تحليل الصورة: ${imageAnalysisContext.substring(0, 300)}... السؤال: ${userPrompt}`
-      : userPrompt
-
-    messages.push({
-      role: "user",
-      content: currentContent,
-    })
-
     // Inject real datetime from client device
     const dateTimeContext = clientDateTime
       ? `\n\n**التاريخ والوقت الحالي من جهاز المستخدم:** ${clientDateTime}\nاستخدم هذا التاريخ والوقت دايماً لما حد يسأل عن التاريخ أو الوقت.`
       : ""
 
-    const systemWithDateTime = EGYPTIAN_SYSTEM_PROMPT + dateTimeContext
+    const systemInstruction = EGYPTIAN_SYSTEM_PROMPT + dateTimeContext
 
-    // Choose model based on search needs
-    const modelToUse = needsWebSearch ? "perplexity/sonar" : "google/gemini-3-flash"
+    const model = getModel("gemini-2.0-flash")
 
-    console.log(`[API] Using model: ${modelToUse} for query: ${userPrompt.substring(0, 50)}`)
+    // Build history for Gemini chat
+    const history: { role: string; parts: { text: string }[] }[] = []
+    if (conversationHistory.length > 0) {
+      const recent = conversationHistory.slice(-6)
+      for (const msg of recent) {
+        if (msg.role === "user" || msg.role === "assistant") {
+          history.push({
+            role: msg.role === "assistant" ? "model" : "user",
+            parts: [{ text: typeof msg.content === "string" ? msg.content.substring(0, 500) : "" }],
+          })
+        }
+      }
+    }
 
-    // Generate response
-    const result = await generateText({
-      model: modelToUse,
-      system: systemWithDateTime,
-      messages,
-      maxTokens: 600,
-      temperature: 0.7,
+    // If image is provided, use vision
+    if (imageUrl) {
+      try {
+        const imagePart = await urlToInlinePart(imageUrl)
+        const visionModel = getModel("gemini-2.0-flash")
+        const result = await visionModel.generateContent({
+          systemInstruction,
+          contents: [{ role: "user", parts: [{ text: userPrompt }, imagePart] }],
+        })
+        const text = stripMarkdown(result.response.text())
+        return NextResponse.json({ response: text || "معلش حصل مشكلة، جرب تاني 😅", detectedEmotion: "neutral", emotionScore: 0 })
+      } catch (e: any) {
+        console.error("[API] Vision error:", e.message)
+      }
+    }
+
+    // Text chat with history
+    const chat = model.startChat({
+      systemInstruction,
+      history,
+      generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
     })
 
-    const cleanedText = result.text
-      .replace(/\*\*/g, "")
-      .replace(/\[\d+\]/g, "")
-      .trim()
+    const result = await chat.sendMessage(userPrompt)
+    const cleanedText = stripMarkdown(result.response.text())
 
     return NextResponse.json({
       response: cleanedText || "معلش حصل مشكلة، جرب تاني 😅",
@@ -147,9 +106,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error("[API] Error:", error.message)
-    return NextResponse.json(
-      { error: "معلش حصل مشكلة، جرب تاني 😅" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "معلش حصل مشكلة، جرب تاني 😅" }, { status: 500 })
   }
 }
