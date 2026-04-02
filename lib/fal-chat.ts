@@ -16,7 +16,7 @@ export async function falChat(
   options: FalChatOptions = {}
 ): Promise<string> {
   const {
-    model = "google/gemini-flash-1.5",
+    model = "google/gemini-2.5-flash",
     systemPrompt,
     maxTokens = 600,
     temperature = 0.7,
