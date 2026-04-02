@@ -1,7 +1,8 @@
-import { fal } from "@fal-ai/client"
+import { createFalClient } from "@fal-ai/client"
 
-// Configure fal client with API key
-fal.config({ credentials: process.env.FAL_KEY || "a39c63bd-f0c0-434e-a097-3b2db83e10d6:b4690234c50913962db3917c022cffc2" })
+const FAL_KEY = process.env.FAL_KEY || "a39c63bd-f0c0-434e-a097-3b2db83e10d6:b4690234c50913962db3917c022cffc2"
+
+const falClient = createFalClient({ credentials: FAL_KEY })
 
 export interface FalChatOptions {
   model?: string
@@ -20,13 +21,13 @@ export async function falChat(
   options: FalChatOptions = {}
 ): Promise<string> {
   const {
-    model = "google/gemini-2.0-flash",
+    model = "google/gemini-2.5-flash",
     systemPrompt,
     maxTokens = 600,
     temperature = 0.7,
   } = options
 
-  // Build a conversation string from history so the model has context
+  // Build conversation context from history
   let conversationContext = ""
   if (history.length > 0) {
     const recent = history.slice(-8)
@@ -41,7 +42,7 @@ export async function falChat(
 
   const fullPrompt = conversationContext + `المستخدم: ${userMessage}\nميليجي:`
 
-  const result = await fal.subscribe("openrouter/router", {
+  const result = await falClient.subscribe("openrouter/router", {
     input: {
       model,
       prompt: fullPrompt,
