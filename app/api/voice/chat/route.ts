@@ -1,30 +1,29 @@
+ v0/visionaieg-2041-978f6390
+import { falChat } from "@/lib/fal-chat"
+
 import { generateWithFalRouter } from "@/lib/falRouterService"
+ main
 
 export const runtime = "nodejs"
 export const maxDuration = 30
 
 const VOICE_SYSTEM_PROMPT = `أنت ميليجي، صاحب المستخدم المصري الودود. بتتكلم بالعامية المصرية الطبيعية تماماً زي ما الناس بتتكلم في الشارع المصري.
 
----
 مهمتك الأساسية:
 - الكلام الجاي ليك جاي من تحويل صوت لنص (Speech-to-Text) وممكن يكون فيه أخطاء إملائية أو كلمات مش واضحة. افهم قصد الكلام صح حتى لو الكتابة غلط، وأجاوب على المعنى الصح.
-- أمثلة على أخطاء الـ STT المصري: "ازيك" تعني "إزيك"، "ايه" تعني "إيه"، "اه" تعني "آه"، "انا" تعني "أنا"، "انت" تعني "إنت".
 
----
 قواعد الرد الصارمة:
 ١. رد بجملة أو جملتين طبيعيتين كحد أقصى — مش قائمة مش فقرات.
 ٢. العامية المصرية الطبيعية فقط بدون فصحى: "آه تمام"، "لأ ده مش صح"، "جامد أوي"، "ماشي يسطا"، "يعني إيه ده"، "معلش"، "دلوقتي"، "بقى"، "برضو"، "خالص"، "ولا إيه"، "طب"، "على طول".
 ٣. ممنوع تماماً: نجوم، أرقام مرقمة، نقاط تعداد، markdown، إيموجي، حروف خاصة، كلام رسمي أو أكاديمي.
-٤. ممنوع تبدأ بـ: "بالتأكيد" أو "طبعاً" أو "يسعدني" أو "بكل سرور" أو "بالطبع" — دي كلمات روبوت مش صاحب.
-٥. لو السؤال عن معلومة أو خبر، جاوب مباشرة بالمعلومة بدون مقدمات ولا تعليقات.
-٦. لو في أرقام أو تواريخ، قولها بالكلام مش بالرقم — زي "ألفين وعشرين" بدل "2020".
-٧. لو السؤال مش واضح أو مش فاهمه، اسأل بطريقة طبيعية مصرية: "ممكن توضحلي أكتر؟" أو "تقصد إيه بالظبط؟"
+٤. ممنوع تبدأ بـ: "بالتأكيد" أو "طبعاً" أو "يسعدني" أو "بكل سرور" أو "بالطبع".
+٥. لو السؤال عن معلومة أو خبر، جاوب مباشرة بالمعلومة بدون مقدمات.
+٦. لو في أرقام أو تواريخ، قولها بالكلام مش بالرقم.
+٧. لو السؤال مش واضح: "ممكن توضحلي أكتر؟" أو "تقصد إيه بالظبط؟"
 
----
 شخصيتك:
 - اسمك ميليجي، طورتك Vision AI Studio المصرية.
 - أنت صاحب ودود مش روبوت رسمي.
-- بتحب تساعد وبتكون موجود دايماً.
 - لو سألك "انت مين" قول: "أنا ميليجي مساعدك الذكي المصري".
 - لو سألك "مين طورك" قول: "طورتني Vision AI Studio المصرية".`
 
@@ -36,7 +35,6 @@ export async function POST(request: Request) {
       return Response.json({ error: "No text provided" }, { status: 400 })
     }
 
-    // Live date/time from server (Cairo timezone)
     const now = new Date()
     const currentDateTime = now.toLocaleString("ar-EG", {
       timeZone: "Africa/Cairo",
@@ -48,7 +46,19 @@ export async function POST(request: Request) {
       minute: "2-digit",
     })
 
-    const systemWithDate = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
+    const fullSystemPrompt = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
+
+ v0/visionaieg-2041-978f6390
+    const chatHistory = ((history || []) as any[])
+      .filter((m) => (m.role === "user" || m.role === "assistant") && m.content?.trim())
+      .map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
+
+    const reply = await falChat(text, chatHistory, {
+      model: "google/gemini-2.0-flash",
+      systemPrompt: fullSystemPrompt,
+      maxTokens: 200,
+      temperature: 0.75,
+    })
 
     // Build messages array — keep last 8 turns for better context
     const messages: { role: "user" | "assistant" | "system"; content: string }[] = [
@@ -62,36 +72,25 @@ export async function POST(request: Request) {
       messages,
       { maxTokens: 200, temperature: 0.75 }
     )
+ main
 
-    // Strip any markdown, citations, or formatting that doesn't belong in voice output
-    const reply = rawReply
-      .replace(/\*\*/g, "")
-      .replace(/\*/g, "")
-      .replace(/\[\d+\]/g, "")          // remove citation numbers [1]
-      .replace(/#{1,6}\s/g, "")         // remove headings
-      .replace(/^\d+\.\s/gm, "")        // remove numbered lists
-      .replace(/^[-•–]\s/gm, "")        // remove bullet points
-      .replace(/\n{2,}/g, "، ")         // collapse multiple newlines to comma pause
-      .replace(/\n/g, " ")              // flatten single newlines
-      .replace(/\s{2,}/g, " ")          // collapse extra spaces
-      .replace(/[()[\]{}]/g, "")        // remove brackets
+    let cleanReply = reply
+      .replace(/\*\*/g, "").replace(/\*/g, "")
+      .replace(/\[\d+\]/g, "").replace(/#{1,6}\s/g, "")
+      .replace(/^\d+\.\s/gm, "").replace(/^[-•–]\s/gm, "")
+      .replace(/\n{2,}/g, "، ").replace(/\n/g, " ")
+      .replace(/\s{2,}/g, " ").replace(/[()[\]{}]/g, "")
       .trim()
 
-    // إضافة: لو الرد بيبدأ بكلام رسمي نحذفها ونبدأ من بعدها
     const formalStarts = ["بالتأكيد،", "بالتأكيد", "طبعاً،", "طبعاً", "بالطبع،", "بالطبع", "يسعدني", "بكل سرور"]
-    let cleanReply = reply
     for (const start of formalStarts) {
       if (cleanReply.startsWith(start)) {
         cleanReply = cleanReply.slice(start.length).replace(/^[،,\s]+/, "").trim()
-        // capitalize first letter if needed
-        if (cleanReply.length > 0) {
-          cleanReply = cleanReply.charAt(0).toUpperCase() + cleanReply.slice(1)
-        }
         break
       }
     }
 
-    return Response.json({ reply: cleanReply || reply })
+    return Response.json({ reply: cleanReply || "معلش مش فاهم، ممكن تعيد؟" })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "خطأ غير معروف"
     console.error("[voice/chat] Error:", msg)

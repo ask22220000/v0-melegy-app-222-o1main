@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import { fal } from "@/lib/fal-config"
 import { processPromptForImageGeneration } from "@/lib/prompt-enhancer"
 
 export const maxDuration = 60
@@ -22,12 +22,6 @@ function extractTextFromPrompt(prompt: string): string | null {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.FAL_KEY) {
-      return NextResponse.json({ error: "FAL_KEY is not configured" }, { status: 500 })
-    }
-
-    fal.config({ credentials: process.env.FAL_KEY })
-
     const { imagePrompt, textContent, textPosition = "center" } = await request.json()
 
     if (!imagePrompt) {

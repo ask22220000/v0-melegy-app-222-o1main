@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import { fal } from "@/lib/fal-config"
 import { IMAGE_EDIT_QUALITY_CONSTANTS } from "@/lib/prompt-enhancer"
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY
@@ -111,12 +111,6 @@ export async function POST(request: NextRequest) {
     let editedImageUrl: string | undefined
 
     try {
-      fal.config({
-        credentials: process.env.FAL_KEY,
-      })
-
-      console.log("[v0] 4. Editing image with fal-ai/nano-banana/edit...")
-
       const result = (await fal.subscribe("fal-ai/nano-banana/edit", {
         input: {
           prompt: enhancedPrompt,

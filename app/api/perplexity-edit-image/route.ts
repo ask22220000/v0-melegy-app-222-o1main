@@ -1,4 +1,4 @@
-import * as fal from "@fal-ai/serverless-client"
+import { fal } from "@/lib/fal-config"
 import { NextResponse } from "next/server"
 import { IMAGE_EDIT_QUALITY_CONSTANTS } from "@/lib/prompt-enhancer"
 
@@ -73,13 +73,6 @@ export async function POST(req: Request) {
     if (!imageUrl || !prompt) {
       return NextResponse.json({ error: "Image URL and prompt are required" }, { status: 400 })
     }
-
-    if (!process.env.FAL_KEY) {
-      return NextResponse.json({ error: "FAL_KEY is not configured" }, { status: 500 })
-    }
-    fal.config({
-      credentials: process.env.FAL_KEY,
-    })
 
     let finalPrompt = prompt
     const isArabic = /[\u0600-\u06FF]/.test(prompt)

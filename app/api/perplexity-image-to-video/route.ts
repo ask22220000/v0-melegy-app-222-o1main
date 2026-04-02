@@ -1,4 +1,4 @@
-import * as fal from "@fal-ai/serverless-client"
+import { fal } from "@/lib/fal-config"
 import { NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { getDailyUsage, getEffectivePlan, todayEgypt } from "@/lib/db"
@@ -69,19 +69,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Image URL is required" }, { status: 400 })
     }
 
-    if (!process.env.FAL_KEY) {
-      return NextResponse.json({ error: "FAL_KEY is not configured" }, { status: 500 })
-    }
-    fal.config({
-      credentials: process.env.FAL_KEY,
-    })
-
     let finalPrompt = prompt || "Animate this image naturally with smooth motion"
     const isArabic = /[\u0600-\u06FF]/.test(prompt || "")
-
-    if (isArabic && prompt) {
-      finalPrompt = enhanceArabicPrompt(prompt)
-    }
+    if (isArabic && prompt) finalPrompt = enhanceArabicPrompt(prompt)
 
     const result = await fal.subscribe("fal-ai/fast-animatediff/image-to-video", {
       input: {

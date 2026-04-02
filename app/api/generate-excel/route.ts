@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server"
+ v0/visionaieg-2041-978f6390
+import { falChat } from "@/lib/fal-chat"
+
 import { generateWithFalRouter } from "@/lib/falRouterService"
+ main
 
 export async function POST(req: Request) {
   try {
@@ -27,11 +31,7 @@ export async function POST(req: Request) {
 async function generateExcelDataWithAI(
   prompt: string
 ): Promise<{ headers: string[]; rows: any[][] }> {
-  try {
-    // Detect if user needs web search for data
-    const needsWebSearch = /أحدث|أخبار|حالي|الآن|اليوم|2024|2025|2026|أسعار|مقارن/.test(prompt)
-
-    const systemPrompt = `أنت مساعد ذكي متخصص في إنشاء جداول Excel بدقة عالية.
+  const systemPrompt = `أنت مساعد ذكي متخصص في إنشاء جداول Excel بدقة عالية.
 
 تعليمات مهمة:
 1. افهم بالضبط البيانات المطلوبة من المستخدم
@@ -41,10 +41,30 @@ async function generateExcelDataWithAI(
 5. اجعل الأعمدة واضحة ومنطقية
 6. أضف 10-30 صف على الأقل من البيانات الحقيقية
 
-**يجب أن يكون الرد JSON فقط بهذا الشكل:**
+يجب أن يكون الرد JSON فقط بهذا الشكل:
 {"headers": ["العمود1", "العمود2", "العمود3"], "rows": [["قيمة1", "قيمة2", "قيمة3"], ["قيمة4", "قيمة5", "قيمة6"]]}
 
 لا تكتب أي شيء قبل أو بعد الـ JSON.`
+
+ v0/visionaieg-2041-978f6390
+  const text = await falChat(prompt, [], {
+    model: "google/gemini-2.0-flash",
+    systemPrompt,
+    maxTokens: 4000,
+    temperature: 0.3,
+  })
+
+  let jsonText = text.trim().replace(/```json\s*/g, "").replace(/```\s*/g, "")
+
+  const jsonMatch = jsonText.match(/\{[\s\S]*?"headers"[\s\S]*?"rows"[\s\S]*?\}/s)
+  if (jsonMatch) {
+    const parsed = JSON.parse(jsonMatch[0])
+    if (
+      parsed.headers && Array.isArray(parsed.headers) &&
+      parsed.rows && Array.isArray(parsed.rows) &&
+      parsed.headers.length > 0 && parsed.rows.length > 0
+    ) {
+      return parsed
 
     const result = await generateWithFalRouter(
       systemPrompt,
@@ -74,11 +94,9 @@ async function generateExcelDataWithAI(
       ) {
         return parsed
       }
+ main
     }
-
-    throw new Error("Failed to parse AI response")
-  } catch (error) {
-    console.error("[API] AI Excel generation failed:", error)
-    throw error
   }
+
+  throw new Error("Failed to parse AI response")
 }

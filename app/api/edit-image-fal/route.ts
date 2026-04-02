@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import { fal } from "@/lib/fal-config"
 import { processPromptForImageEditing } from "@/lib/prompt-enhancer"
 
 // Increase body size limit for base64 images (50MB)
@@ -8,16 +8,6 @@ export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {
-    // Validate environment variables at runtime
-    if (!process.env.FAL_KEY) {
-      return NextResponse.json({ error: "FAL_KEY is not configured in environment" }, { status: 500 })
-    }
-
-    // Configure FAL client with current FAL_KEY (ensures fresh config per request)
-    fal.config({
-      credentials: process.env.FAL_KEY,
-    })
-
     const { imageUrl, imageUrls, prompt } = await request.json()
 
     // Support both single imageUrl and multiple imageUrls
