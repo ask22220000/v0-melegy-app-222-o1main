@@ -1,8 +1,9 @@
-import { createFalClient } from "@fal-ai/client"
+import { fal } from "@fal-ai/client"
 
-const FAL_KEY = process.env.FAL_KEY || "a39c63bd-f0c0-434e-a097-3b2db83e10d6:b4690234c50913962db3917c022cffc2"
-
-const falClient = createFalClient({ credentials: FAL_KEY })
+// Configure with key directly - ensures auth works even without env var
+fal.config({
+  credentials: process.env.FAL_KEY || "a39c63bd-f0c0-434e-a097-3b2db83e10d6:b4690234c50913962db3917c022cffc2",
+})
 
 export interface FalChatOptions {
   model?: string
@@ -42,7 +43,7 @@ export async function falChat(
 
   const fullPrompt = conversationContext + `المستخدم: ${userMessage}\nميليجي:`
 
-  const result = await falClient.subscribe("openrouter/router", {
+  const result = await fal.subscribe("openrouter/router", {
     input: {
       model,
       prompt: fullPrompt,
