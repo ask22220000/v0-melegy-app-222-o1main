@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       .map((m: any) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
 
     const responseText = await falChat(userPrompt, history, {
-      model: "google/gemini-2.0-flash",
+      model: "google/gemini-2.5-flash",
       systemPrompt: fullSystemPrompt,
       maxTokens: 600,
       temperature: 0.7,
