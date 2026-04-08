@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (imageUrl) {
       try {
         const imagePart = await urlToInlinePart(imageUrl)
-        const visionModel = getModel("gemini-2.0-flash")
+        const visionModel = getModel("gemini-2.5-flash", fullSystemPrompt)
         const result = await visionModel.generateContent({
           contents: [{ role: "user", parts: [{ text: userPrompt }, imagePart] }],
           generationConfig: { maxOutputTokens: 600, temperature: 0.7 },

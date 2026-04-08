@@ -43,7 +43,7 @@ async function generateExcelDataWithAI(
 لا تكتب أي شيء قبل أو بعد الـ JSON.`
 
   const text = await falChat(prompt, [], {
-    model: "google/gemini-2.0-flash",
+    model: "google/gemini-2.5-flash",
     systemPrompt,
     maxTokens: 4000,
     temperature: 0.3,

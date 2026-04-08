@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       .map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
 
     const reply = await falChat(text, chatHistory, {
-      model: "google/gemini-2.0-flash",
+      model: "google/gemini-2.5-flash",
       systemPrompt: fullSystemPrompt,
       maxTokens: 200,
       temperature: 0.75,

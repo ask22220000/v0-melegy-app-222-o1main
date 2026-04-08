@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 اذكر كل التفاصيل المرئية بدقة: الألوان، الخلفية، الإضاءة، الزوايا، الجو العام.${userPrompt !== "وصفلي الصورة دي بالتفصيل" ? `\n\nالمستخدم عايز يعرف: ${userPrompt}` : ""}`
 
     const imagePart = await urlToInlinePart(imageUrl)
-    const model = getModel("gemini-2.0-flash")
+    const model = getModel("gemini-2.5-flash")
 
     const result = await model.generateContent({
       contents: [{

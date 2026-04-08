@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const fileType = file.type
     const fileName = file.name
-    const model = getModel("gemini-2.0-flash")
+    const model = getModel("gemini-2.5-flash")
 
     // Images — use vision directly
     if (fileType.startsWith("image/")) {
