@@ -12,11 +12,11 @@ export async function POST(request: NextRequest) {
 
     const finalPrompt = await processPromptForImageGeneration(prompt)
 
-    const data = await falRun("fal-ai/flux/schnell", {
+    const data = await falRun("fal-ai/flux-pro/v1.1", {
       prompt: finalPrompt,
       image_size: { width: 1080, height: 1350 },
-      num_inference_steps: 4,
       num_images: 1,
+      safety_tolerance: "5",
     })
 
     const imageUrl = data?.images?.[0]?.url

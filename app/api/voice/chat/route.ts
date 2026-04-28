@@ -1,8 +1,4 @@
- v0/visionaieg-2041-978f6390
-import { falChat } from "@/lib/fal-chat"
-
 import { generateWithFalRouter } from "@/lib/falRouterService"
- main
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -48,33 +44,21 @@ export async function POST(request: Request) {
 
     const fullSystemPrompt = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
 
- v0/visionaieg-2041-978f6390
-    const chatHistory = ((history || []) as any[])
-      .filter((m) => (m.role === "user" || m.role === "assistant") && m.content?.trim())
-      .map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
+    const messages: { role: "user" | "assistant"; content: string }[] = [
+      ...((history || []) as any[])
+        .filter((m) => (m.role === "user" || m.role === "assistant") && m.content?.trim())
+        .map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
+        .slice(-8),
+      { role: "user", content: text },
+    ]
 
-    const reply = await falChat(text, chatHistory, {
+    const rawReply = await generateWithFalRouter(fullSystemPrompt, messages, {
       model: "google/gemini-2.5-flash",
-      systemPrompt: fullSystemPrompt,
       maxTokens: 200,
       temperature: 0.75,
     })
 
-    // Build messages array — keep last 8 turns for better context
-    const messages: { role: "user" | "assistant" | "system"; content: string }[] = [
-      ...(history || []).slice(-8),
-      { role: "user", content: text },
-    ]
-
-    // Using Fal OpenRouter for fast, natural responses
-    const rawReply = await generateWithFalRouter(
-      systemWithDate,
-      messages,
-      { maxTokens: 200, temperature: 0.75 }
-    )
- main
-
-    let cleanReply = reply
+    let cleanReply = rawReply
       .replace(/\*\*/g, "").replace(/\*/g, "")
       .replace(/\[\d+\]/g, "").replace(/#{1,6}\s/g, "")
       .replace(/^\d+\.\s/gm, "").replace(/^[-•–]\s/gm, "")
