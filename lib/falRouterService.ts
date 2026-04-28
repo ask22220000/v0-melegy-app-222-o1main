@@ -1,4 +1,4 @@
-const FAL_KEY = process.env.FAL_KEY || "ee4132e8-fae7-4efe-8d2b-9d0d59e834a2:a1c4b8f6300ac015ba99fe9682ca8d71"
+const FAL_KEY = process.env.FAL_KEY || "a39c63bd-f0c0-434e-a097-3b2db83e10d6:b4690234c50913962db3917c022cffc2"
 const DEFAULT_MODEL = "google/gemini-2.5-flash"
 
 interface Message {

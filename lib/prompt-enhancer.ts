@@ -62,8 +62,7 @@ Your job:
 4. CRITICAL: Do NOT add people, faces, persons, humans, or figures of any kind unless the user explicitly asks for a person in their prompt.
 5. CRITICAL: Do NOT add animals, objects, or elements the user did not mention.
 6. Do NOT add text overlays, watermarks, or typography.
-7. ALWAYS end with: "No anatomical errors. Correct human anatomy, natural proportions, accurate finger count, realistic muscle structure. Photorealistic, 8K quality."
-8. Return ONLY the final English prompt, under 140 words. No explanations.`
+7. Return ONLY the final English prompt, under 120 words. No explanations.`
 
   const userMsg = hasArabic
     ? `Translate and engineer a professional image prompt for: "${userPrompt}"`
