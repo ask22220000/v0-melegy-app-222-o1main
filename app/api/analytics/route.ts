@@ -1,5 +1,3 @@
-import { getAnalytics, scanAllUsers, scanRecentChats, todayEgypt } from "@/lib/db"
-
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
@@ -48,129 +46,74 @@ async function fetchVercelAnalytics() {
 // ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET() {
   try {
-    // 1. Global analytics counters from DynamoDB
-    const [globalStats, allUsers, recentChats] = await Promise.all([
-      getAnalytics(),
-      scanAllUsers(),
-      scanRecentChats(14),
-    ])
-
-    const totalUsers     = allUsers.length || globalStats.totalUsers
-    const now            = Date.now()
-    const since24h       = now - 86400000
-    const today          = todayEgypt()
-
-    // Active users: updated in the last 24h
-    const recentUsers24h = allUsers.filter(
-      u => u.updatedAt && new Date(u.updatedAt).getTime() > since24h
-    ).length
-
-    // ── Plan counts from real user records ───────────────────────────────────
-    // Plan names stored in DB: "free", "starter", "pro", "vip" / "advanced"
-    const subscriptionsByPlan = {
-      free:     allUsers.filter(u => !u.plan || u.plan === "free").length,
-      starter:  allUsers.filter(u => u.plan === "starter" || u.plan === "startup").length,
-      pro:      allUsers.filter(u => u.plan === "pro").length,
-      advanced: allUsers.filter(u => u.plan === "advanced" || u.plan === "vip").length,
-    }
-    const totalSubscribers = subscriptionsByPlan.free + subscriptionsByPlan.starter +
-      subscriptionsByPlan.pro + subscriptionsByPlan.advanced
-
-    // ── Hourly & daily activity from recent chats ────────────────────────────
-    const hourlyFromDB: { hour: number; messages: number }[] =
-      Array.from({ length: 24 }, (_, i) => ({ hour: i, messages: 0 }))
-
-    const dayMap: Record<string, number> = {}
-    for (let i = 13; i >= 0; i--) {
-      dayMap[new Date(now - i * 86400000).toISOString().slice(0, 10)] = 0
-    }
-
-    let conversationsToday = 0
-    recentChats.forEach(c => {
-      const d = (c.createdAt ?? "").slice(0, 10)
-      if (dayMap[d] !== undefined) dayMap[d]++
-      if (d === today) conversationsToday++
-      const h = new Date(c.createdAt ?? "").getHours()
-      if (h >= 0 && h < 24) hourlyFromDB[h].messages++
-    })
-
-    const dailyActivity = Object.entries(dayMap).map(([date, conversations]) => ({ date, conversations }))
-
-    // Total conversations = all CHAT items ever stored (from global scan)
-    const totalConversations = globalStats.totalChats || recentChats.length
-
-    // ── Messages today: sum of hourly from chats created today ───────────────
-    const messagesToday = recentChats.filter(c => (c.createdAt ?? "").slice(0, 10) === today).length
-
-    // ── Top queries from recent chat titles ──────────────────────────────────
-    const freq: Record<string, number> = {}
-    recentChats.forEach(c => {
-      const k = (c.title ?? "").trim().substring(0, 60)
-      if (k.length > 2) freq[k] = (freq[k] || 0) + 1
-    })
-    const topQueries = Object.entries(freq)
-      .map(([query, count]) => ({ query, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
-
-    // 2. Vercel Analytics (optional)
     const vercel = process.env.VERCEL_TOKEN
       ? await fetchVercelAnalytics()
       : { pageviews: 0, visitors: 0, hourlyActivity: [] as { hour: number; messages: number }[] }
 
+    const now = Date.now()
     const hourlyActivity = Array.from({ length: 24 }, (_, i) => ({
       hour: i,
-      messages: (vercel.hourlyActivity[i]?.messages || 0) + (hourlyFromDB[i]?.messages || 0),
+      messages: vercel.hourlyActivity[i]?.messages || 0,
     }))
+
+    const dailyActivity = Array.from({ length: 14 }, (_, i) => ({
+      date: new Date(now - i * 86400000).toISOString().slice(0, 10),
+      conversations: 0,
+    })).reverse()
 
     return Response.json({
       // Core counts
-      totalUsers,
-      totalConversations,
-      totalMessages:      globalStats.totalMessages,
-      totalImages:        globalStats.totalImages,
-      totalVideos:        globalStats.totalVideos,
-      totalVoiceMinutes:  Math.round(globalStats.totalVoiceMinutes),
+      totalUsers: 0,
+      totalConversations: 0,
+      totalMessages: 0,
+      totalImages: 0,
+      totalVideos: 0,
+      totalVoiceMinutes: 0,
 
       // Active / today
-      activeUsersNow:     recentUsers24h,
-      activeUsers:        recentUsers24h,
-      messagesToday,
-      conversationsToday,
-      monthlyMessages:    globalStats.totalMessages,
-      monthlyImages:      globalStats.totalImages,
+      activeUsersNow: 0,
+      activeUsers: 0,
+      messagesToday: 0,
+      conversationsToday: 0,
+      monthlyMessages: 0,
+      monthlyImages: 0,
 
       // Subscriptions
-      subscriptionsByPlan,
-      totalSubscribers,
+      subscriptionsByPlan: {
+        free: 0,
+        starter: 0,
+        pro: 0,
+        advanced: 0,
+      },
+      totalSubscribers: 0,
 
       // Feature usage
       featureUsage: {
-        textGeneration:  globalStats.totalMessages,
-        imageGeneration: globalStats.totalImages,
-        videoGeneration: globalStats.totalVideos,
-        deepSearch:      0,
-        ideaToPrompt:    0,
-        voiceCloning:    Math.round(globalStats.totalVoiceMinutes),
+        textGeneration: 0,
+        imageGeneration: 0,
+        videoGeneration: 0,
+        deepSearch: 0,
+        ideaToPrompt: 0,
+        voiceCloning: 0,
       },
 
       // Vercel Analytics
-      pageviewsToday:     vercel.pageviews,
-      visitorsToday:      vercel.visitors,
+      pageviewsToday: vercel.pageviews,
+      visitorsToday: vercel.visitors,
 
       // Misc
-      messagesPerMinute:   Number((hourlyActivity[new Date().getHours()]?.messages / 60).toFixed(2)),
+      messagesPerMinute: 0,
       averageResponseTime: 0,
 
       // Charts
       dailyActivity,
-      topQueries,
+      topQueries: [],
       hourlyActivity,
 
-      // Sentiment / health (static — no data source yet)
-      responseTypes:    { text: globalStats.totalMessages, search: 0, creative: 0, technical: 0 },
+      // Sentiment / health
+      responseTypes: { text: 0, search: 0, creative: 0, technical: 0 },
       userSatisfaction: { positive: 0, neutral: 0, negative: 0 },
-      systemHealth:     { apiResponseTime: 0, uptime: 99.9, errorRate: 0 },
+      systemHealth: { apiResponseTime: 0, uptime: 99.9, errorRate: 0 },
 
       lastUpdated: new Date().toISOString(),
     })

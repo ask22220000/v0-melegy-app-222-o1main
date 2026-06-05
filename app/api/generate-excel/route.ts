@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server"
- v0/visionaieg-2041-978f6390
 import { falChat } from "@/lib/fal-chat"
 
 import { generateWithFalRouter } from "@/lib/falRouterService"
- main
 
 export async function POST(req: Request) {
   try {
@@ -46,7 +44,6 @@ async function generateExcelDataWithAI(
 
 لا تكتب أي شيء قبل أو بعد الـ JSON.`
 
- v0/visionaieg-2041-978f6390
   const text = await falChat(prompt, [], {
     model: "google/gemini-2.5-flash",
     systemPrompt,

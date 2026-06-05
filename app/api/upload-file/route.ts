@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
- v0/visionaieg-2041-978f6390
 import { getModel, dataUrlToInlinePart } from "@/lib/gemini"
 
 import { generateWithFalRouter, generateWithFalRouterVision } from "@/lib/falRouterService"
- main
 import pdfParse from "pdf-parse"
 import mammoth from "mammoth"
 import * as XLSX from "xlsx"
@@ -76,7 +74,6 @@ export async function POST(req: NextRequest) {
     ) {
       const buffer = Buffer.from(await file.arrayBuffer())
       const workbook = XLSX.read(buffer, { type: "buffer" })
- v0/visionaieg-2041-978f6390
       extractedContent = workbook.SheetNames.map((name) => {
         const sheet = workbook.Sheets[name]
         return `\n--- Sheet: ${name} ---\n${XLSX.utils.sheet_to_csv(sheet)}`

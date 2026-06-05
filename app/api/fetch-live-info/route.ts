@@ -1,8 +1,6 @@
- v0/visionaieg-2041-978f6390
 import { falChat } from "@/lib/fal-chat"
 
 import { generateWithFalRouter } from "@/lib/falRouterService"
- main
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +10,6 @@ export async function POST(request: Request) {
       return Response.json({ error: "Query is required" }, { status: 400 })
     }
 
- v0/visionaieg-2041-978f6390
     const systemPrompt = `You are a helpful assistant responding to users in Arabic with a friendly and professional tone. Be conversational, helpful, and accurate. Use Egyptian Arabic when possible.`
 
     const content = await falChat(query, [], {

@@ -1,8 +1,6 @@
- v0/visionaieg-2041-978f6390
 import { falChat } from "@/lib/fal-chat"
 
 import { generateWithFalRouter } from "@/lib/falRouterService"
- main
 
 export const runtime = "nodejs"
 export const maxDuration = 30
