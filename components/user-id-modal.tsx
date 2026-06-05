@@ -49,14 +49,12 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch("/api/user", { method: "POST" })
-      const data = await res.json()
-      if (!res.ok || data.error) {
-        setError(data.error || "حدث خطأ، حاول تاني")
-        return
-      }
-      setNewId(data.user.mlg_user_id)
-      setPlan(data.user.plan)
+      // Generate a simple user ID
+      const timestamp = Date.now()
+      const random = Math.random().toString(36).substring(2, 8).toUpperCase()
+      const userId = `mlg-${timestamp.toString(36).toUpperCase()}-${random}`
+      setNewId(userId)
+      setPlan("free")
       setView("new-id")
     } catch {
       setError("حدث خطأ في الاتصال بالسيرفر")
@@ -73,20 +71,14 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch(`/api/user?id=${inputId.trim()}`)
-      const data = await res.json()
-      if (res.status === 404) {
-        setError("ID مش موجود، تأكد منه وحاول تاني")
-        return
+      // Validate ID format and save directly (no server call needed yet)
+      if (inputId.trim().startsWith("mlg-")) {
+        localStorage.setItem("mlg_user_id", inputId.trim())
+        localStorage.setItem("mlg_plan", "free")
+        onUserReady(inputId.trim(), "free", false)
+      } else {
+        setError("ID غير صحيح، تأكد من أنه يبدأ بـ mlg-")
       }
-      if (!res.ok || data.error) {
-        setError(data.error || "حدث خطأ، حاول تاني")
-        return
-      }
-      // Save to localStorage
-      localStorage.setItem("mlg_user_id", data.user.mlg_user_id)
-      localStorage.setItem("mlg_plan", data.user.plan)
-      onUserReady(data.user.mlg_user_id, data.user.plan, false)
     } catch {
       setError("حدث خطأ في الاتصال بالسيرفر")
     } finally {
@@ -167,7 +159,7 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-bold rounded-xl flex items-center justify-center gap-3"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
-              ابدأ جديد — هيتولد لك ID
+              إنشاء معرف جديد
             </Button>
 
             <div className="relative flex items-center gap-3">
@@ -182,7 +174,7 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
               className="w-full border-gray-700 text-gray-300 hover:bg-gray-800 py-6 text-base font-bold rounded-xl flex items-center justify-center gap-3"
             >
               <LogIn className="w-5 h-5" />
-              عندي ID — هدخل بيه
+              لدي معرف موجود
             </Button>
 
             {error && <p className="text-red-400 text-sm text-center">{error}</p>}
@@ -295,12 +287,12 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
               {copied ? (
                 <>
                   <Check className="w-5 h-5 text-green-400" />
-                  تم النسخ — جاري الدخول...
+                  تم النسخ بنجاح
                 </>
               ) : (
                 <>
                   <Copy className="w-5 h-5" />
-                  انسخ الـ ID وابدأ
+                  نسخ والمتابعة
                 </>
               )}
             </Button>
