@@ -1,11 +1,13 @@
 /**
  * lib/db.ts — Aurora PostgreSQL connection using AWS IAM authentication
+ * Also exports DynamoDB compatibility functions for backward compatibility
  */
 import { Pool, ClientBase } from 'pg'
 import { Signer } from '@aws-sdk/rds-signer'
 import { awsCredentialsProvider } from '@vercel/functions/oidc'
 import { attachDatabasePool } from '@vercel/functions'
 
+// Aurora PostgreSQL setup
 const signer = new Signer({
   credentials: awsCredentialsProvider({
     roleArn: process.env.AWS_ROLE_ARN!,
@@ -29,6 +31,7 @@ const pool = new Pool({
 
 attachDatabasePool(pool)
 
+// PostgreSQL functions
 export async function query(text: string, params?: unknown[]) {
   return pool.query(text, params)
 }
@@ -43,3 +46,6 @@ export async function withConnection<T>(
     client.release()
   }
 }
+
+// Export DynamoDB compatibility layer for backward compatibility with existing routes
+export * from './dynamodb'

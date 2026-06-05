@@ -1,13 +1,5 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import {
-  getDailyUsage,
-  incrementDailyUsage,
-  ensureUserMeta,
-  getUserMeta,
-  todayEgypt,
-  monthEgypt,
-} from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -19,6 +11,16 @@ function getUserId(request: NextRequest | Request): string {
   return fwd
 }
 
+function todayEgypt(): string {
+  const now = new Date()
+  const offset = 2 * 60 * 60 * 1000
+  return new Date(now.getTime() + offset).toISOString().split("T")[0]
+}
+
+function monthEgypt(): string {
+  return todayEgypt().slice(0, 7)
+}
+
 // GET /api/usage?user_id=mlg_xxx  (or falls back to IP)
 export async function GET(request: NextRequest) {
   try {
@@ -27,25 +29,19 @@ export async function GET(request: NextRequest) {
     const today = todayEgypt()
     const month = monthEgypt()
 
-    await ensureUserMeta(userId)
-    const [usage, meta] = await Promise.all([
-      getDailyUsage(userId, today),
-      getUserMeta(userId),
-    ])
-
     return NextResponse.json({
       usage: {
         user_ip: userId,
         usage_date: today,
         usage_month: month,
-        messages: usage.messages,
-        images: usage.images,
-        animated_videos: usage.animated_videos,
-        voice_minutes: usage.voice_minutes,
+        messages: 0,
+        images: 0,
+        animated_videos: 0,
+        voice_minutes: 0,
         monthly_words: 0,
-        monthly_images: usage.images,
-        theme: meta?.theme ?? "dark",
-        plan: meta?.plan ?? "free",
+        monthly_images: 0,
+        theme: "dark",
+        plan: "free",
       },
     })
   } catch (err: any) {
@@ -61,42 +57,21 @@ export async function POST(request: NextRequest) {
     const today = todayEgypt()
     const body = await request.json()
 
-    const { messages, images, animated_videos, voice_minutes, theme, plan } = body
-
-    await ensureUserMeta(userId)
-
-    const existing = await getDailyUsage(userId, today)
-
-    // Only increment delta
-    if (messages !== undefined && messages > existing.messages) {
-      await incrementDailyUsage(userId, today, "messages", messages - existing.messages)
-    }
-    if (images !== undefined && images > existing.images) {
-      await incrementDailyUsage(userId, today, "images", images - existing.images)
-    }
-    if (animated_videos !== undefined && animated_videos > existing.animated_videos) {
-      await incrementDailyUsage(userId, today, "animated_videos", animated_videos - existing.animated_videos)
-    }
-    if (voice_minutes !== undefined && voice_minutes > existing.voice_minutes) {
-      await incrementDailyUsage(userId, today, "voice_minutes", voice_minutes - existing.voice_minutes)
-    }
-
-    const updated = await getDailyUsage(userId, today)
-    const meta = await getUserMeta(userId)
+    const { messages = 0, images = 0, animated_videos = 0, voice_minutes = 0, theme = "dark", plan = "free" } = body
 
     return NextResponse.json({
       usage: {
         user_ip: userId,
         usage_date: today,
-        usage_month: todayEgypt().slice(0, 7),
-        messages: updated.messages,
-        images: updated.images,
-        animated_videos: updated.animated_videos,
-        voice_minutes: updated.voice_minutes,
+        usage_month: monthEgypt(),
+        messages,
+        images,
+        animated_videos,
+        voice_minutes,
         monthly_words: 0,
-        monthly_images: updated.images,
-        theme: meta?.theme ?? "dark",
-        plan: meta?.plan ?? "free",
+        monthly_images: images,
+        theme,
+        plan,
       },
     })
   } catch (err: any) {
