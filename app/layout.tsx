@@ -100,7 +100,15 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/images/logo.jpg" />
 
         {/* Service Worker Registration */}
-        <script src="/register-sw.js" defer></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/register-sw.js');
+              }
+            `,
+          }}
+        ></script>
       </head>
       <body className={`${cairo.className} antialiased`} suppressHydrationWarning>
         <AppProvider>
