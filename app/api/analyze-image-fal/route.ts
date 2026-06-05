@@ -35,16 +35,6 @@ export async function POST(request: NextRequest) {
       generationConfig: { maxOutputTokens: 2048, temperature: 0.7 },
     })
 
-    try {
-      // Use Fal OpenRouter with vision capability
-      const raw = await generateWithFalRouterVision(
-        "أنت مساعد ذكي متخصص في تحليل ووصف الصور بدقة عالية.",
-        analysisPrompt,
-        imageUrl,
-        { maxTokens: 2048, temperature: 0.7 }
-      )
- main
-
     const description = stripMarkdown(result.response.text())
 
     if (description && description.length > 20) {

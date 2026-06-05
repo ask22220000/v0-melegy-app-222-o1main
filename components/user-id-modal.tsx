@@ -95,15 +95,51 @@ export function UserIdModal({ onUserReady }: UserIdModalProps) {
   }
 
   function handleCopyAndContinue() {
-    navigator.clipboard.writeText(newId).then(() => {
+    // Try modern Clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(newId).then(() => {
+        setCopied(true)
+        setTimeout(() => {
+          localStorage.setItem("mlg_user_id", newId)
+          localStorage.setItem("mlg_plan", plan)
+          onUserReady(newId, plan, true)
+        }, 800)
+      }).catch(() => {
+        // Fallback: use textarea method
+        fallbackCopy()
+      })
+    } else {
+      // Fallback for older browsers or restricted contexts
+      fallbackCopy()
+    }
+  }
+
+  function fallbackCopy() {
+    const textarea = document.createElement("textarea")
+    textarea.value = newId
+    textarea.style.position = "fixed"
+    textarea.style.top = "0"
+    textarea.style.left = "0"
+    textarea.style.opacity = "0"
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    try {
+      document.execCommand("copy")
       setCopied(true)
       setTimeout(() => {
-        // Save to localStorage then proceed
         localStorage.setItem("mlg_user_id", newId)
         localStorage.setItem("mlg_plan", plan)
         onUserReady(newId, plan, true)
       }, 800)
-    })
+    } catch (err) {
+      // If copy fails, just proceed without copying
+      console.error("Copy failed:", err)
+      localStorage.setItem("mlg_user_id", newId)
+      localStorage.setItem("mlg_plan", plan)
+      onUserReady(newId, plan, true)
+    }
+    document.body.removeChild(textarea)
   }
 
   return (
