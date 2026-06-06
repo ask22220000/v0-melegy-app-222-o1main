@@ -1,12 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import Script from 'next/script'
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void
+          renderButton: (element: HTMLElement, config: any) => void
+          oneTap: (config: any) => void
+        }
+      }
+    }
+  }
+}
 
 export default function SignupPage() {
   const router = useRouter()
@@ -19,6 +34,15 @@ export default function SignupPage() {
     confirmPassword: '',
   })
   const [validationError, setValidationError] = useState('')
+
+  useEffect(() => {
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+        callback: handleGoogleCallback,
+      })
+    }
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -63,8 +87,52 @@ export default function SignupPage() {
     }
   }
 
+  const handleGoogleCallback = async (response: any) => {
+    try {
+      setValidationError('')
+      
+      // Decode the JWT token to get user info
+      const token = response.credential
+      const base64Url = token.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      const decoded = JSON.parse(jsonPayload)
+
+      console.log('[v0] Google callback received:', decoded)
+
+      // Sign in with Google
+      await signInWithGoogle(
+        decoded.sub,
+        decoded.email,
+        decoded.given_name,
+        decoded.family_name
+      )
+
+      toast.success('تم إنشاء الحساب بنجاح عبر Google')
+      router.push('/')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'فشل إنشاء الحساب عبر Google'
+      setValidationError(errorMessage)
+      toast.error(errorMessage)
+      console.error('[v0] Google signup error:', err)
+    }
+  }
+
   const handleGoogleSignup = () => {
-    toast.info('سيتم إضافة تسجيل Google قريباً')
+    const googleButton = document.getElementById('google-signin-button')
+    if (googleButton && window.google) {
+      window.google.accounts.id.renderButton(googleButton, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        locale: 'ar',
+      })
+    }
   }
 
   return (
@@ -178,11 +246,17 @@ export default function SignupPage() {
             </div>
           </div>
 
+          <div id="google-signin-button" className="w-full" ref={(el) => {
+            if (el && window.google) {
+              handleGoogleSignup()
+            }
+          }} />
+
+          {/* Fallback button if Google SDK doesn't load */}
           <Button
             type="button"
             variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignup}
+            className="w-full hidden"
             disabled={loading}
           >
             <svg className="w-5 h-5 ml-2" viewBox="0 0 24 24">
@@ -204,6 +278,21 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+      
+      <Script 
+        src="https://accounts.google.com/gsi/client" 
+        async 
+        defer
+        onLoad={() => {
+          if (window.google) {
+            console.log('[v0] Google SDK loaded')
+            window.google.accounts.id.initialize({
+              client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+              callback: handleGoogleCallback,
+            })
+          }
+        }}
+      />
     </div>
   )
 }
