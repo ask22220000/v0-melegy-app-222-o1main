@@ -1,8 +1,6 @@
- v0/visionaieg-2041-978f6390
 import { falChat } from "@/lib/fal-chat"
 
 import { generateWithFalRouter } from "@/lib/falRouterService"
- main
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -48,7 +46,6 @@ export async function POST(request: Request) {
 
     const fullSystemPrompt = `التاريخ والوقت الحالي بالقاهرة: ${currentDateTime}. استخدم دي دايماً لأسئلة الوقت والتاريخ.\n\n${VOICE_SYSTEM_PROMPT}`
 
- v0/visionaieg-2041-978f6390
     const chatHistory = ((history || []) as any[])
       .filter((m) => (m.role === "user" || m.role === "assistant") && m.content?.trim())
       .map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))

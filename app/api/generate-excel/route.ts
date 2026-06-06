@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server"
- v0/visionaieg-2041-978f6390
 import { falChat } from "@/lib/fal-chat"
 
 import { generateWithFalRouter } from "@/lib/falRouterService"
- main
 
 export async function POST(req: Request) {
   try {
@@ -46,7 +44,6 @@ async function generateExcelDataWithAI(
 
 لا تكتب أي شيء قبل أو بعد الـ JSON.`
 
- v0/visionaieg-2041-978f6390
   const text = await falChat(prompt, [], {
     model: "google/gemini-2.5-flash",
     systemPrompt,
@@ -65,36 +62,6 @@ async function generateExcelDataWithAI(
       parsed.headers.length > 0 && parsed.rows.length > 0
     ) {
       return parsed
-
-    const result = await generateWithFalRouter(
-      systemPrompt,
-      [{ role: "user", content: prompt }],
-      { maxTokens: 4000, temperature: 0.3 }
-    )
-
-    // Extract JSON from response
-    let jsonText = result.trim()
-    
-    // Remove markdown code blocks if present
-    jsonText = jsonText.replace(/```json\s*/g, "").replace(/```\s*/g, "")
-    
-    // Try to find JSON object
-    const jsonMatch = jsonText.match(/\{[\s\S]*?"headers"[\s\S]*?"rows"[\s\S]*?\}/s)
-    
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      
-      if (
-        parsed.headers &&
-        Array.isArray(parsed.headers) &&
-        parsed.rows &&
-        Array.isArray(parsed.rows) &&
-        parsed.headers.length > 0 &&
-        parsed.rows.length > 0
-      ) {
-        return parsed
-      }
- main
     }
   }
 

@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
- v0/visionaieg-2041-978f6390
 import { getModel, urlToInlinePart, stripMarkdown } from "@/lib/gemini"
 
 import { generateWithFalRouterVision } from "@/lib/falRouterService"
- main
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +24,6 @@ export async function POST(request: NextRequest) {
 
 اذكر كل التفاصيل المرئية بدقة: الألوان، الخلفية، الإضاءة، الزوايا، الجو العام.${userPrompt !== "وصفلي الصورة دي بالتفصيل" ? `\n\nالمستخدم عايز يعرف: ${userPrompt}` : ""}`
 
- v0/visionaieg-2041-978f6390
     const imagePart = await urlToInlinePart(imageUrl)
     const model = getModel("gemini-2.5-flash")
 
@@ -37,16 +34,6 @@ export async function POST(request: NextRequest) {
       }],
       generationConfig: { maxOutputTokens: 2048, temperature: 0.7 },
     })
-
-    try {
-      // Use Fal OpenRouter with vision capability
-      const raw = await generateWithFalRouterVision(
-        "أنت مساعد ذكي متخصص في تحليل ووصف الصور بدقة عالية.",
-        analysisPrompt,
-        imageUrl,
-        { maxTokens: 2048, temperature: 0.7 }
-      )
- main
 
     const description = stripMarkdown(result.response.text())
 

@@ -6,132 +6,164 @@ interface Message {
 }
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-
-export async function generateGeminiResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
-  const MAX_RETRIES = 3
-
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY غير محدد في متغيرات البيئة")
-  }
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Gemini API`)
-
-      // Build conversation history for context
-      const recentHistory = conversationHistory.slice(-5)
-
-      // Prepare messages for Gemini API
-      const geminiMessages = recentHistory
-        .filter((msg) => msg.role === "user" || msg.role === "assistant")
-        .map((msg) => ({
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.content }],
-        }))
-
-      // Add current user message
-      geminiMessages.push({
-        role: "user",
-        parts: [{ text: userInput }],
-      })
-
-      const requestBody = {
-        system_instruction: {
-          parts: [{ text: EGYPTIAN_DIALECT_INSTRUCTIONS }],
-        },
-        contents: geminiMessages,
-        generationConfig: {
-          maxOutputTokens: 500,
-          temperature: 0.7,
-          topP: 0.9,
-          topK: 40,
-        },
-      }
-
-      console.log("[v0] Sending request to Gemini API with", geminiMessages.length, "messages")
-
-      const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("[v0] Gemini API error:", errorData)
-        throw new Error(`Gemini API error ${response.status}: ${errorData.error?.message || "Unknown error"}`)
-      }
-
-      const data = await response.json()
-      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || ""
-
-      console.log("[v0] Received response from Gemini API successfully")
-
-      if (!generatedText || generatedText.length < 3) {
-        console.log("[v0] Empty response from Gemini, retrying...")
-        continue
-      }
-
-      // Clean up the response - remove any markdown formatting
-      let cleanText = generatedText
-        .replace(/\*\*(.+?)\*\*/g, "$1") // bold
-        .replace(/\*(.+?)\*/g, "$1") // italic
-        .replace(/_{1,2}(.+?)_{1,2}/g, "$1") // underline
-        .replace(/#{1,6}\s+/g, "") // headings
-        .replace(/^\s*[-*+]\s+/gm, "") // bullet points
-        .replace(/^\s*\d+\.\s+/gm, "") // numbered lists
-        .replace(/\[\d+\]/g, "") // citation numbers
-        .replace(/`{1,3}[^`]*`{1,3}/g, (m) => m.replace(/`/g, "")) // code blocks
-        .replace(/\s+/g, " ")
-        .trim()
-
-      // Ensure response doesn't start with "المساعد:" or similar
-      cleanText = cleanText.replace(/^(المساعد|ميليجي|المساعد الذكي):\s*/i, "").trim()
-
-      return cleanText
-    } catch (error: any) {
-      console.error(`[v0] Error on attempt ${attempt + 1}:`, error.message)
-
-      if (attempt === MAX_RETRIES - 1) {
-        throw new Error("معلش حصل مشكلة، جرب تاني بعد شوية")
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-    }
-  }
-
-  throw new Error("فشل الاتصال")
-}
+const GEMINI_STREAMING_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent"
 
 export async function generateStreamingResponse(
   userInput: string,
   conversationHistory: Message[]
 ): Promise<ReadableStream<Uint8Array>> {
-  const encoder = new TextEncoder()
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY غير محدد في متغيرات البيئة")
+  }
 
-  return new ReadableStream({
+  // Prepare messages for Gemini API
+  const geminiMessages = conversationHistory
+    .filter((msg) => msg.role === "user" || msg.role === "assistant")
+    .map((msg) => ({
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: [{ text: msg.content }],
+    }))
+
+  // Add current user message
+  geminiMessages.push({
+    role: "user",
+    parts: [{ text: userInput }],
+  })
+
+  const requestBody = {
+    system_instruction: {
+      parts: [{ text: EGYPTIAN_DIALECT_INSTRUCTIONS }],
+    },
+    contents: geminiMessages,
+    generationConfig: {
+      maxOutputTokens: 2048,
+      temperature: 0.9,
+      topP: 0.95,
+      topK: 64,
+    },
+  }
+
+  console.log("[v0] Requesting Gemini streaming API with", geminiMessages.length, "messages")
+
+  const response = await fetch(`${GEMINI_STREAMING_URL}?key=${GEMINI_API_KEY}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error("[v0] Gemini API error:", response.status, errorText)
+    throw new Error(`Gemini API error ${response.status}: ${errorText}`)
+  }
+
+  if (!response.body) {
+    throw new Error("No response body from Gemini API")
+  }
+
+  // Create a readable stream that processes the streaming response
+  return new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        const response = await generateGeminiResponse(userInput, conversationHistory)
+        const reader = response.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
 
-        // Stream the response in chunks for faster perceived speed
-        const chunkSize = Math.floor(Math.random() * 3) + 3
-        for (let i = 0; i < response.length; i += chunkSize) {
-          const chunk = response.slice(i, i + chunkSize)
-          controller.enqueue(encoder.encode(chunk))
-          await new Promise((resolve) => setTimeout(resolve, 10))
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+
+          // Process all complete lines
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim()
+            if (line.startsWith("data: ") || line === "") {
+              try {
+                if (line.startsWith("data: ")) {
+                  const jsonStr = line.substring(6)
+                  const chunk = JSON.parse(jsonStr)
+
+                  if (
+                    chunk.candidates &&
+                    chunk.candidates[0] &&
+                    chunk.candidates[0].content &&
+                    chunk.candidates[0].content.parts &&
+                    chunk.candidates[0].content.parts[0]
+                  ) {
+                    const text = chunk.candidates[0].content.parts[0].text
+                    if (text) {
+                      const cleaned = cleanResponse(text)
+                      if (cleaned) {
+                        controller.enqueue(new TextEncoder().encode(cleaned))
+                      }
+                    }
+                  }
+                }
+              } catch (parseError) {
+                console.error("[v0] Error parsing Gemini chunk:", parseError)
+              }
+            }
+          }
+
+          // Keep the last incomplete line in buffer
+          buffer = lines[lines.length - 1]
+        }
+
+        // Process any remaining buffer
+        if (buffer.trim().startsWith("data: ")) {
+          try {
+            const jsonStr = buffer.trim().substring(6)
+            const chunk = JSON.parse(jsonStr)
+
+            if (
+              chunk.candidates &&
+              chunk.candidates[0] &&
+              chunk.candidates[0].content &&
+              chunk.candidates[0].content.parts &&
+              chunk.candidates[0].content.parts[0]
+            ) {
+              const text = chunk.candidates[0].content.parts[0].text
+              if (text) {
+                const cleaned = cleanResponse(text)
+                if (cleaned) {
+                  controller.enqueue(new TextEncoder().encode(cleaned))
+                }
+              }
+            }
+          } catch (parseError) {
+            console.error("[v0] Error parsing final Gemini chunk:", parseError)
+          }
         }
 
         controller.close()
-      } catch (error: any) {
-        console.error("[v0] Streaming error:", error)
-        const errorMsg = error.message || "آسف، في مشكلة مؤقتة. جرب تاني بعد شوية"
-        controller.enqueue(encoder.encode(errorMsg))
+      } catch (error) {
+        console.error("[v0] Stream processing error:", error)
+        const errorMsg = "آسف، في مشكلة مؤقتة. جرب تاني بعد شوية"
+        controller.enqueue(new TextEncoder().encode(errorMsg))
         controller.close()
       }
     },
   })
+}
+
+function cleanResponse(text: string): string {
+  // Remove any "المساعد:" or similar prefixes
+  let cleaned = text.replace(/^(المساعد|ميليجي|المساعد الذكي|Assistant):\s*/i, "")
+
+  // Remove markdown formatting
+  cleaned = cleaned
+    .replace(/\*\*(.+?)\*\*/g, "$1") // bold
+    .replace(/\*(.+?)\*/g, "$1") // italic
+    .replace(/_{1,2}(.+?)_{1,2}/g, "$1") // underline
+    .replace(/#{1,6}\s+/g, "") // headings
+    .replace(/^\s*[-*+]\s+/gm, " ") // bullet points
+    .replace(/^\s*\d+\.\s+/gm, " ") // numbered lists
+    .replace(/\[\d+\]/g, "") // citation numbers
+    .replace(/`{1,3}/g, "") // code blocks
+
+  return cleaned.trim()
 }
