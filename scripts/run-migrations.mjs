@@ -10,6 +10,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Pool } from 'pg'
 import { Signer } from '@aws-sdk/rds-signer'
+import { awsCredentialsProvider } from '@vercel/functions/oidc'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -28,6 +29,10 @@ console.log(`[v0] Connecting to Aurora PostgreSQL at ${PGHOST}...`)
 
 // Create RDS signer for IAM auth
 const signer = new Signer({
+  credentials: awsCredentialsProvider({
+    roleArn: AWS_ROLE_ARN,
+    clientConfig: { region: REGION },
+  }),
   region: REGION,
   hostname: PGHOST,
   port: 5432,

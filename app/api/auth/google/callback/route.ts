@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     // Validation
     if (!googleId || !email) {
       return NextResponse.json(
-        { error: 'Google ID and email are required' },
+        { error: 'معرّف Google والبريد الإلكتروني مطلوبان' },
         { status: 400 }
       )
     }
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Failed to process Google login' },
+        { error: 'فشل معالجة تسجيل الدخول عبر Google' },
         { status: 500 }
       )
     }
@@ -60,8 +60,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[v0] Google callback error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'فشل تسجيل الدخول عبر Google'
     return NextResponse.json(
-      { error: 'Google login failed' },
+      { error: errorMessage || 'فشل تسجيل الدخول عبر Google' },
       { status: 500 }
     )
   }

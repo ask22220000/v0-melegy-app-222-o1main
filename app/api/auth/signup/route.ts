@@ -10,14 +10,14 @@ export async function POST(request: NextRequest) {
     // Validation
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'البريد الإلكتروني وكلمة المرور مطلوبان' },
         { status: 400 }
       )
     }
 
     if (password.length < 6) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: 'كلمة المرور يجب أن تكون على الأقل 6 أحرف' },
         { status: 400 }
       )
     }
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const existingUser = await getUserByEmail(email)
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User already exists' },
+        { error: 'هذا البريد الإلكتروني مسجل بالفعل' },
         { status: 409 }
       )
     }
@@ -47,8 +47,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(userResponse, { status: 201 })
   } catch (error) {
     console.error('[v0] Signup error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'فشل إنشاء الحساب'
     return NextResponse.json(
-      { error: 'Signup failed' },
+      { error: errorMessage || 'فشل إنشاء الحساب' },
       { status: 500 }
     )
   }

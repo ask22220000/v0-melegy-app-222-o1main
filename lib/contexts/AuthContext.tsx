@@ -89,13 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Signup failed')
+        const errorMsg = data.error || 'فشل إنشاء الحساب'
+        setError(errorMsg)
+        throw new Error(errorMsg)
       }
 
       // Auto-login after signup
       await logIn(email, password)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Signup failed'
+      const errorMessage = err instanceof Error ? err.message : 'فشل إنشاء الحساب'
       setError(errorMessage)
       throw err
     } finally {
@@ -116,7 +118,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Login failed')
+        const errorMsg = data.error || 'فشل تسجيل الدخول'
+        setError(errorMsg)
+        throw new Error(errorMsg)
       }
 
       const data = await response.json()
@@ -124,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user)
       localStorage.setItem('auth_token', data.token)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed'
+      const errorMessage = err instanceof Error ? err.message : 'فشل تسجيل الدخول'
       setError(errorMessage)
       throw err
     } finally {
@@ -150,7 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Google sign-in failed')
+        const errorMsg = data.error || 'فشل تسجيل الدخول عبر Google'
+        setError(errorMsg)
+        throw new Error(errorMsg)
       }
 
       const data = await response.json()
@@ -158,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user)
       localStorage.setItem('auth_token', data.token)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Google sign-in failed'
+      const errorMessage = err instanceof Error ? err.message : 'فشل تسجيل الدخول عبر Google'
       setError(errorMessage)
       throw err
     } finally {

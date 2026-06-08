@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     // Validation
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'البريد الإلكتروني وكلمة المرور مطلوبان' },
         { status: 400 }
       )
     }
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const user = await getUserByEmail(email)
     if (!user || !user.password_hash) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
         { status: 401 }
       )
     }
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const isPasswordValid = await bcrypt.compare(password, user.password_hash)
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
         { status: 401 }
       )
     }
@@ -49,8 +49,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[v0] Login error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'فشل تسجيل الدخول'
     return NextResponse.json(
-      { error: 'Login failed' },
+      { error: errorMessage || 'فشل تسجيل الدخول' },
       { status: 500 }
     )
   }

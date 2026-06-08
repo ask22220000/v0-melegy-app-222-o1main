@@ -104,7 +104,9 @@ export default function SignupPage() {
       toast.success('تم إنشاء الحساب بنجاح')
       router.push('/')
     } catch (err) {
-      toast.error(validationError || error || 'فشل إنشاء الحساب')
+      const errorMessage = err instanceof Error ? err.message : error || 'فشل إنشاء الحساب'
+      setValidationError(errorMessage)
+      toast.error(errorMessage)
     }
   }
 
