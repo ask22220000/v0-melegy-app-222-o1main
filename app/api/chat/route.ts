@@ -162,9 +162,10 @@ export async function POST(req: Request) {
       },
     })
   } catch (error) {
-    console.error("[v0] Chat error:", error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error("[v0] Chat error:", errorMessage)
 
-    return new Response("آسف، في مشكلة مؤقتة", {
+    return new Response("آسف، في مشكلة مؤقتة. جرب تاني بعد شوية", {
       status: 500,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     })
