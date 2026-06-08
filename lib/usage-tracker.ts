@@ -5,7 +5,7 @@ export const PLAN_LIMITS = {
     messagesPerDay: 10,
     imagesPerDay: 3,
     animatedVideosPerDay: 3,
-    voiceMinutesPerDay: 15,
+    voiceMinutesPerDay: 10,
     wordsPerMonth: -1,
     name: "مجاني",
   },
