@@ -1,4 +1,4 @@
-import { generateStreamingResponse } from "@/lib/perplexityService"
+import { generateStreamingResponse } from "@/lib/geminiNativeService"
 
 export const maxDuration = 30
 
@@ -143,12 +143,12 @@ export async function POST(req: Request) {
     }
 
     // Regular chat response
-    const conversationHistory = messages.slice(-1).map((m: any) => ({
+    const conversationHistory = messages.map((m: any) => ({
       role: m.role === "user" ? ("user" as const) : ("assistant" as const),
       content: m.content,
     }))
 
-    console.log("[v0] Generating response with Perplexity...")
+    console.log("[v0] Generating response with Gemini...")
 
     const stream = await generateStreamingResponse(userMessage, conversationHistory)
 

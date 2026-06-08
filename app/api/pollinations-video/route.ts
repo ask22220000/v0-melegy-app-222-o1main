@@ -1,30 +1,37 @@
 import { NextResponse } from "next/server"
-import Groq from "groq-sdk"
+import { headers } from "next/headers"
+import { getDailyUsage, getEffectivePlan, todayEgypt } from "@/lib/db"
+import { PLAN_LIMITS } from "@/lib/usage-tracker"
 
-function getGroqClient() {
-  return new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
+const FREE_VIDEO_LIMIT = PLAN_LIMITS.free.animatedVideosPerDay
+
+async function checkVideoLimit(ip: string): Promise<{ allowed: boolean; reason?: string }> {
+  try {
+    const plan = await getEffectivePlan(ip)
+    if (plan !== "free") return { allowed: true }
+    const usage = await getDailyUsage(ip, todayEgypt())
+    if (usage.animated_videos >= FREE_VIDEO_LIMIT) {
+      return {
+        allowed: false,
+        reason: `لقد وصلت للحد الأقصى (${FREE_VIDEO_LIMIT} فيديو/يوم) في الخطة المجانية. قم بالترقية للمزيد!`,
+      }
+    }
+    return { allowed: true }
+  } catch {
+    return { allowed: true }
+  }
 }
 
-async function translateToEnglish(prompt: string): Promise<string> {
-  const groq = getGroqClient()
-  const hasArabic = /[\u0600-\u06FF]/.test(prompt)
-  if (!hasArabic) return prompt
+async function translateToEnglish(arabicText: string): Promise<string> {
   try {
-    const res = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a professional translator. Translate the following Arabic text (including Egyptian dialect) to English. Return ONLY the English translation — no explanations, no extra text.",
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 300,
-    })
-    return res.choices[0]?.message?.content?.trim() || prompt
+    const response = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(arabicText)}`,
+    )
+    if (!response.ok) return arabicText
+    const data = await response.json()
+    return data?.[0]?.[0]?.[0] || arabicText
   } catch {
-    return prompt
+    return arabicText
   }
 }
 
@@ -36,11 +43,22 @@ async function generateVideo(translatedPrompt: string): Promise<string> {
 
   const seed = Math.floor(Math.random() * 999999)
   const encodedPrompt = encodeURIComponent(cleanPrompt)
-  return `https://video.pollinations.ai/prompt/${encodedPrompt}?model=seedance-pro&seed=${seed}&duration=10`
+  return `https://video.pollinations.ai/prompt/${encodedPrompt}?model=seedance-pro&seed=${seed}`
 }
 
 export async function POST(req: Request) {
   try {
+    const headersList = await headers()
+    const ip =
+      (headersList.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+      headersList.get("x-real-ip") ||
+      "unknown"
+
+    const limitCheck = await checkVideoLimit(ip)
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.reason }, { status: 429 })
+    }
+
     const { prompt } = await req.json()
 
     if (!prompt) {

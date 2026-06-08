@@ -1,43 +1,68 @@
 import type React from "react"
 import type { Metadata } from "next"
+import Script from "next/script"
 import { Cairo, Geist_Mono } from "next/font/google"
 import { AppProvider } from "@/lib/contexts/AppContext"
-import { AuthProvider } from "@/lib/contexts/auth-context"
+import { AuthProvider } from "@/lib/contexts/AuthContext"
 import { SessionTracker } from "@/components/session-tracker"
-import { Tajawal } from "next/font/google"
 import "./globals.css"
-import { Toaster } from "@/components/ui/toaster"
-
-const tajawal = Tajawal({
-  subsets: ["arabic", "latin"],
-  weight: ["200", "300", "400", "500", "700", "800", "900"],
-  variable: "--font-tajawal",
-})
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
   weight: ["400", "700"],
   variable: "--font-cairo",
 })
+const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://melegy.app"),
   title: "Melegy - Egyptian AI Assistant",
-  description: "AI-powered Egyptian dialect chat assistant with image and video generation",
+  description: "مساعد ذكاء اصطناعي متطور يوفر لك إجابات دقيقة، بحث متقدم، وتوليد محتوى إبداعي",
+  generator: "v0.app",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/images/logo.jpg", sizes: "192x192", type: "image/jpeg" },
+      { url: "/images/logo.jpg", sizes: "512x512", type: "image/jpeg" },
+    ],
+    apple: [
+      { url: "/images/logo.jpg", sizes: "180x180", type: "image/jpeg" },
+    ],
+    shortcut: "/images/logo.jpg",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Melegy",
+  },
   openGraph: {
     title: "Melegy - Egyptian AI Assistant",
-    description: "AI-powered Egyptian dialect chat assistant",
-    images: ["/og-image.png"],
+    description: "مساعد ذكاء اصطناعي متطور يوفر لك إجابات دقيقة، بحث متقدم، وتوليد محتوى إبداعي",
+    images: [
+      {
+        url: "/icons/icon-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "Melegy - Egyptian AI Assistant",
+      },
+    ],
+    locale: "ar_EG",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Melegy - Egyptian AI Assistant",
+    description: "مساعد ذكاء اصطناعي متطور يوفر لك إجابات دقيقة، بحث متقدم، وتوليد محتوى إبداعي",
+    images: ["/icons/icon-512x512.png"],
   },
 }
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
-    <html lang="ar" className="dark" suppressHydrationWarning dir="rtl">
+    <html lang="ar" className="dark" suppressHydrationWarning>
       <head>
         {/* PWA Core */}
         <link rel="manifest" href="/manifest.json" />
@@ -77,14 +102,13 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/images/logo.jpg" />
 
         {/* Service Worker Registration */}
-        <script src="/register-sw.js" defer></script>
+        <Script src="/register-sw.js" strategy="lazyOnload" />
       </head>
-      <body className={`${tajawal.className} ${cairo.className} antialiased`} suppressHydrationWarning>
+      <body className={`${cairo.className} antialiased`} suppressHydrationWarning>
         <AuthProvider>
           <AppProvider>
             <SessionTracker />
             {children}
-            <Toaster />
           </AppProvider>
         </AuthProvider>
       </body>

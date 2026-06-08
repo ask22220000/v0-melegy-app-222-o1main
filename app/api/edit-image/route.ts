@@ -1,19 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
-import { IMAGE_EDIT_QUALITY_CONSTANTS } from "@/lib/prompt-enhancer"
+import { editImage } from "@/lib/openrouterImageService"
 
-const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 
-async function translateWithPerplexity(arabicPrompt: string): Promise<string> {
+async function translateWithOpenRouter(arabicPrompt: string): Promise<string> {
   try {
-    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "Melegy App",
       },
       body: JSON.stringify({
-        model: "sonar",
+        model: "nvidia/nemotron-3.5-8b",
         messages: [
           {
             role: "system",
@@ -47,7 +48,7 @@ async function translateWithPerplexity(arabicPrompt: string): Promise<string> {
     })
 
     if (!response.ok) {
-      console.error("[v0] Perplexity translation error:", response.status)
+      console.error("[v0] OpenRouter translation error:", response.status)
       return arabicPrompt
     }
 
@@ -55,96 +56,52 @@ async function translateWithPerplexity(arabicPrompt: string): Promise<string> {
     const translation = data.choices?.[0]?.message?.content?.trim()
 
     if (translation) {
-      console.log("[v0] Perplexity edit translation:", translation)
+      console.log("[v0] OpenRouter edit translation:", translation)
       return translation
     }
 
     return arabicPrompt
   } catch (error) {
-    console.error("[v0] Perplexity translation failed:", error)
+    console.error("[v0] OpenRouter translation failed:", error)
     return arabicPrompt
   }
 }
 
-async function editWithPollinations(imageUrl: string, prompt: string): Promise<string> {
-  try {
-    console.log("[v0] Trying Pollinations fallback for editing...")
-
-    // Pollinations supports image-to-image with the image parameter
-    const encodedPrompt = encodeURIComponent(prompt.substring(0, 400))
-    const encodedImageUrl = encodeURIComponent(imageUrl)
-
-    // Use Pollinations img2img endpoint
-    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&model=flux&nologo=true&enhance=true&image=${encodedImageUrl}`
-
-    // Verify the URL is accessible
-    const response = await fetch(pollinationsUrl, { method: "HEAD", signal: AbortSignal.timeout(30000) })
-
-    if (response.ok) {
-      console.log("[v0] Pollinations edit URL generated successfully")
-      return pollinationsUrl
-    }
-
-    throw new Error("Pollinations edit URL not accessible")
-  } catch (error) {
-    console.error("[v0] Pollinations edit fallback failed:", error)
-    throw error
-  }
-}
+export const maxDuration = 30
 
 export async function POST(request: NextRequest) {
   try {
-    const { imageUrl, prompt } = await request.json()
+    const { images, prompt, width = 1024, height = 1024 } = await request.json()
 
-    if (!imageUrl || !prompt) {
-      return NextResponse.json({ error: "Image URL and prompt are required" }, { status: 400 })
+    if (!images || !prompt) {
+      return NextResponse.json({ error: "Images and prompt are required" }, { status: 400 })
+    }
+
+    if (!Array.isArray(images) || images.length > 5) {
+      return NextResponse.json({ error: "يجب رفع بين 1 و 5 صور للتعديل" }, { status: 400 })
     }
 
     console.log("[v0] 1. Original edit prompt:", prompt)
+    console.log("[v0] 2. Number of images to edit:", images.length)
 
-    const translatedPrompt = await translateWithPerplexity(prompt)
-    console.log("[v0] 2. Translated edit prompt:", translatedPrompt)
+    const translatedPrompt = await translateWithOpenRouter(prompt)
+    console.log("[v0] 3. Translated edit prompt:", translatedPrompt)
 
-    const enhancedPrompt = `${translatedPrompt}. ${IMAGE_EDIT_QUALITY_CONSTANTS}`
-    console.log("[v0] 3. Enhanced edit prompt:", enhancedPrompt)
+    const qualitySuffix =
+      "high quality, detailed, professional, 8K ultra HD, intricate details, sharp focus, masterpiece, best quality, cinematic lighting"
 
-    let editedImageUrl: string | undefined
+    const enhancedPrompt = `${translatedPrompt}, ${qualitySuffix}`
+    console.log("[v0] 4. Enhanced edit prompt:", enhancedPrompt)
 
-    try {
-      fal.config({
-        credentials: process.env.FAL_KEY,
-      })
+    // Use OpenRouter Riverflow for image editing
+    const editedImageUrl = await editImage({
+      prompt: enhancedPrompt,
+      images: images,
+      width,
+      height,
+    })
 
-      console.log("[v0] 4. Editing image with fal-ai/flux-2-flex/edit...")
-
-      const result = (await fal.subscribe("fal-ai/flux-2-flex/edit", {
-        input: {
-          prompt: enhancedPrompt,
-          image_urls: [imageUrl],
-          num_inference_steps: 45,
-          guidance_scale: 8.5,
-          num_images: 1,
-        },
-      })) as { images?: { url: string }[] }
-
-      editedImageUrl = result.images?.[0]?.url
-
-      if (!editedImageUrl) {
-        throw new Error("No image returned from fal.ai")
-      }
-
-      console.log("[v0] 5. Image edited successfully with fal.ai:", editedImageUrl)
-    } catch (falError: any) {
-      console.error("[v0] fal.ai edit failed, trying Pollinations fallback:", falError.message)
-
-      try {
-        editedImageUrl = await editWithPollinations(imageUrl, enhancedPrompt)
-        console.log("[v0] 5. Image edited successfully with Pollinations fallback:", editedImageUrl)
-      } catch (pollinationsError) {
-        console.error("[v0] Both fal.ai and Pollinations failed for editing")
-        throw new Error("Image editing failed with all providers")
-      }
-    }
+    console.log("[v0] 5. Image edited successfully with Riverflow:", editedImageUrl)
 
     return NextResponse.json({
       success: true,

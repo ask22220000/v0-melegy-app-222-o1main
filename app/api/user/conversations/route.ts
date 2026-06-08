@@ -1,71 +1,50 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServiceRoleClient } from "@/lib/supabase/server"
+import { getConversations, saveConversation, ensureUserMeta } from "@/lib/db"
 
-// GET /api/user/conversations?user_id=<id>
+export const runtime = "nodejs"
+
+// GET /api/user/conversations?user_id=mlg_xxx
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("user_id")
 
-    if (!userId) return NextResponse.json({ conversations: [] })
+    if (!userId) return NextResponse.json({ error: "Missing user_id" }, { status: 400 })
 
-    const supabase = getServiceRoleClient()
-
-    const { data, error } = await supabase
-      .from("melegy_history")
-      .select("id, chat_title, chat_date, created_at")
-      .eq("auth_user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(50)
-
-    if (error) {
-      return NextResponse.json({ conversations: [] })
-    }
-
-    const conversations = (data ?? []).map((row: any) => ({
-      id: row.id,
-      title: row.chat_title ?? "محادثة",
-      created_at: row.created_at,
+    const convs = await getConversations(userId, 100)
+    const conversations = convs.map((c) => ({
+      id: c.SK ?? c.id,
+      title: c.title ?? "محادثة",
+      created_at: c.createdAt ?? "",
+      updated_at: c.createdAt ?? "",
     }))
 
     return NextResponse.json({ conversations })
-  } catch {
-    return NextResponse.json({ conversations: [] })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
 
-// POST /api/user/conversations — called by legacy chat pages
+// POST /api/user/conversations
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const userId = body.user_id
-    const title = body.title ?? "محادثة"
+    const { mlg_user_id, title } = await request.json()
 
-    if (!userId) {
-      return NextResponse.json({ conversation: { id: String(Date.now()) } })
-    }
+    if (!mlg_user_id) return NextResponse.json({ error: "Missing mlg_user_id" }, { status: 400 })
 
-    const supabase = getServiceRoleClient()
-    const now = new Date().toISOString()
+    await ensureUserMeta(mlg_user_id)
 
-    const { data, error } = await supabase
-      .from("melegy_history")
-      .insert({
-        auth_user_id: userId,
-        chat_title: title,
-        chat_date: new Date().toLocaleDateString("ar-EG"),
-        messages: [],
-        created_at: now,
-      })
-      .select("id")
-      .single()
+    const id = await saveConversation({
+      userId: mlg_user_id,
+      title: title || "محادثة جديدة",
+      date: new Date().toISOString().slice(0, 10),
+      messages: [],
+    })
 
-    if (error) {
-      return NextResponse.json({ conversation: { id: String(Date.now()) } })
-    }
-
-    return NextResponse.json({ conversation: { id: data.id } })
-  } catch {
-    return NextResponse.json({ conversation: { id: String(Date.now()) } })
+    return NextResponse.json({
+      conversation: { id, title: title || "محادثة جديدة", created_at: new Date().toISOString() },
+    })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

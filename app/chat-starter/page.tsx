@@ -12,6 +12,7 @@ import Link from "next/link"
 import { checkSubscriptionAccess } from "@/lib/subscription-check"
 import { setActiveSubscription } from "@/lib/set-subscription"
 import { UsageIndicator } from "@/components/usage-indicator"
+import { UserIdModal } from "@/components/user-id-modal"
 import { useRouter } from "next/navigation"
 import { canSendMessage, canGenerateImage, incrementMessageUsage, incrementImageUsage, canAnimateVideoSync, incrementVideoUsage } from "@/lib/usage-tracker"
 import {
@@ -97,6 +98,7 @@ export default function ChatStarterPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const [subscriptionChecked, setSubscriptionChecked] = useState(false)
   const [mlgUserId, setMlgUserId] = useState<string | null>(null)
+  const [showUserModal, setShowUserModal] = useState(false)
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -186,17 +188,14 @@ export default function ChatStarterPage() {
   const MAX_WORDS = 30000
   const MAX_IMAGES = 10
 
-  // Initialize user from Supabase Auth
+  // Initialize user from localStorage
   useEffect(() => {
-    import("@/lib/supabase/client").then(({ createClient }) => {
-      createClient().auth.getUser().then(({ data }) => {
-        if (data.user) {
-          setMlgUserId(data.user.id)
-        } else {
-          window.location.href = "/auth/login"
-        }
-      })
-    })
+    const storedId = localStorage.getItem("mlg_user_id")
+    if (storedId) {
+      setMlgUserId(storedId)
+    } else {
+      setShowUserModal(true)
+    }
   }, [])
 
   // Set plan and check subscription access on mount
@@ -248,12 +247,11 @@ export default function ChatStarterPage() {
         document.documentElement.classList.add("dark")
       }
 
-      // Load chat histories from Supabase Auth user
+      // Load chat histories from server — scoped to this user's mlg_user_id
       try {
-        const { createClient } = await import("@/lib/supabase/client")
-        const { data: authData } = await createClient().auth.getUser()
-        if (authData.user) {
-          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(authData.user.id)}`)
+        const storedId = localStorage.getItem("mlg_user_id")
+        if (storedId) {
+          const res = await fetch(`/api/save-chat?user_id=${encodeURIComponent(storedId)}`)
           if (res.ok) {
             const data = await res.json()
             if (data.histories?.length > 0) setChatHistories(data.histories)
@@ -320,7 +318,7 @@ export default function ChatStarterPage() {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({
         title: "غير مدعوم",
-        description: "المتصفح ده مش بيدعم التع��ف على الصوت",
+        description: "المتصفح ده مش بيدعم التعرف على الصوت",
         variant: "destructive",
       })
       return
@@ -378,8 +376,8 @@ export default function ChatStarterPage() {
   const generateImageWithPrompt = async (userPrompt: string) => {
     if (monthlyImages >= MAX_IMAGES) {
       toast({
-        title: "انتهت الصور الشهرية",
-        description: "ترقى لباقة المحترف للحصول على 50 صورة شهرياً!",
+        title: "انتهت الصور اليومية",
+        description: "ترقى لباقة المحترف للحصول على 100 صورة يومياً!",
         variant: "destructive",
       })
       return
@@ -451,31 +449,35 @@ export default function ChatStarterPage() {
   // Helper function to track analytics
   const trackAnalytics = async (action: string, data?: any) => {
     try {
-      await fetch("/api/stats", {
+      await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, data }),
       })
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // Silent fail - analytics are non-critical
     }
   }
 
   // Create conversation in database on first message
   const ensureConversationExists = async () => {
     if (conversationCreated) return
+    
     try {
-      await fetch("/api/stats", {
+      await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "trackConversation",
-          data: { conversationId: sessionId, userId: "anonymous" },
+          data: {
+            conversationId: sessionId,
+            userId: "anonymous",
+          },
         }),
       })
       setConversationCreated(true)
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // Silent fail - conversation tracking is non-critical
     }
   }
 
@@ -542,10 +544,7 @@ export default function ChatStarterPage() {
           }),
         })
 
-        if (!editResponse.ok) {
-          const errData = await editResponse.json().catch(() => ({}))
-          throw new Error(errData.error || "فشل تعديل الصورة")
-        }
+        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -590,7 +589,7 @@ export default function ChatStarterPage() {
     if (monthlyWords + wordCount > MAX_WORDS) {
       toast({
         title: "انتهت الكلمات الشهرية",
-        description: "ترقى لباقة المحترف للحصول على 120,000 كلمة شهرياً!",
+        description: "ترقى لباقة المحترف للحصول على كلمات غير محدودة!",
         variant: "destructive",
       })
       return
@@ -785,7 +784,7 @@ export default function ChatStarterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: mlgUserId,
+          mlg_user_id: mlgUserId,
           chat_title: title.substring(0, 50),
           chat_date: new Date().toLocaleDateString("ar-EG"),
           messages: messages,
@@ -1275,6 +1274,12 @@ export default function ChatStarterPage() {
               </div>
               <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: "Cairo, sans-serif" }}>{animateMode === "i2v" ? "الصورة هتتحرك بشكل سلس (10 ثانية)" : "الشخصية هتظهر في مشهد جديد حسب البرومبت (10 ثانية)"}</p>
             </div>
+            <div className="mb-4 flex items-center justify-between bg-gray-800 rounded-lg px-4 py-3 border border-gray-600">
+              <span className="text-sm text-gray-300" style={{ fontFamily: "Cairo, sans-serif" }}>توليد صوت مع الفيديو</span>
+              <button onClick={() => setAnimateAudio((v) => !v)} className={`relative w-12 h-6 rounded-full transition-colors ${animateAudio ? "bg-purple-600" : "bg-gray-600"}`}>
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${animateAudio ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
             <div className="mb-5">
               <p className="text-xs text-gray-400 mb-2" style={{ fontFamily: "Cairo, sans-serif" }}>البرومبت (عربي أو إنجليزي)</p>
               <textarea value={animatePrompt} onChange={(e) => setAnimatePrompt(e.target.value)} placeholder={animateMode === "i2v" ? "مثال: الشعر يتحرك مع الريح..." : "مثال: الشخصية بتمشي في الشارع..."} className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-sm resize-none min-h-[80px] focus:outline-none focus:border-purple-500" style={{ fontFamily: "Cairo, sans-serif" }} dir="rtl" />
@@ -1332,6 +1337,14 @@ export default function ChatStarterPage() {
         </div>
       )}
       <Toaster />
+      {showUserModal && (
+        <UserIdModal
+          onUserReady={(userId, plan, isNew) => {
+            setMlgUserId(userId)
+            setShowUserModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { getModel, urlToInlinePart, stripMarkdown } from "@/lib/gemini"
+
+import { generateWithFalRouterVision } from "@/lib/falRouterService"
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,42 +24,18 @@ export async function POST(request: NextRequest) {
 
 اذكر كل التفاصيل المرئية بدقة: الألوان، الخلفية، الإضاءة، الزوايا، الجو العام.${userPrompt !== "وصفلي الصورة دي بالتفصيل" ? `\n\nالمستخدم عايز يعرف: ${userPrompt}` : ""}`
 
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY
-    if (!apiKey) {
-      return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 })
-    }
+    const imagePart = await urlToInlinePart(imageUrl)
+    const model = getModel("gemini-2.5-flash")
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+    const result = await model.generateContent({
+      contents: [{
+        role: "user",
+        parts: [{ text: analysisPrompt }, imagePart],
+      }],
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.7 },
+    })
 
-    // Fetch image and convert to base64
-    const imageResponse = await fetch(imageUrl)
-    const imageBuffer = await imageResponse.arrayBuffer()
-    const imageBase64 = Buffer.from(imageBuffer).toString("base64")
-    const mimeType = imageResponse.headers.get("content-type") || "image/jpeg"
-
-    const result = await model.generateContent([
-      { text: analysisPrompt },
-      {
-        inlineData: {
-          mimeType: mimeType as any,
-          data: imageBase64,
-        },
-      },
-    ])
-
-    const raw = result.response.text()
-
-    const description = raw
-      .replace(/\*\*(.+?)\*\*/g, "$1")
-      .replace(/\*(.+?)\*/g, "$1")
-      .replace(/_{1,2}(.+?)_{1,2}/g, "$1")
-      .replace(/^#{1,6}\s+/gm, "")
-      .replace(/`{1,3}[^`]*`{1,3}/g, "")
-      .replace(/^[\s]*[-*•]\s+/gm, "")
-      .replace(/^\d+\.\s+/gm, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
+    const description = stripMarkdown(result.response.text())
 
     if (description && description.length > 20) {
       return NextResponse.json({ description, provider: "gemini-vision" })

@@ -1,5 +1,27 @@
-import * as fal from "@fal-ai/serverless-client"
+import { falRun } from "@/lib/fal-config"
 import { NextResponse } from "next/server"
+import { headers } from "next/headers"
+import { getDailyUsage, getEffectivePlan, todayEgypt } from "@/lib/db"
+import { PLAN_LIMITS } from "@/lib/usage-tracker"
+
+const FREE_VIDEO_LIMIT = PLAN_LIMITS.free.animatedVideosPerDay
+
+async function checkVideoLimit(ip: string): Promise<{ allowed: boolean; reason?: string }> {
+  try {
+    const plan = await getEffectivePlan(ip)
+    if (plan !== "free") return { allowed: true }
+    const usage = await getDailyUsage(ip, todayEgypt())
+    if (usage.animated_videos >= FREE_VIDEO_LIMIT) {
+      return {
+        allowed: false,
+        reason: `لقد وصلت للحد الأقصى (${FREE_VIDEO_LIMIT} فيديو/يوم) في الخطة المجانية. قم بالترقية للمزيد!`,
+      }
+    }
+    return { allowed: true }
+  } catch {
+    return { allowed: true }
+  }
+}
 
 function enhanceArabicPrompt(prompt: string): string {
   const arabicToEnglish: Record<string, string> = {
@@ -30,41 +52,37 @@ function enhanceArabicPrompt(prompt: string): string {
 
 export async function POST(req: Request) {
   try {
+    const headersList = await headers()
+    const ip =
+      (headersList.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+      headersList.get("x-real-ip") ||
+      "unknown"
+
+    const limitCheck = await checkVideoLimit(ip)
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.reason }, { status: 429 })
+    }
+
     const { imageUrl, prompt } = await req.json()
 
     if (!imageUrl) {
       return NextResponse.json({ error: "Image URL is required" }, { status: 400 })
     }
 
-    if (!process.env.FAL_KEY) {
-      return NextResponse.json({ error: "FAL_KEY is not configured" }, { status: 500 })
-    }
-    fal.config({
-      credentials: process.env.FAL_KEY,
-    })
-
     let finalPrompt = prompt || "Animate this image naturally with smooth motion"
     const isArabic = /[\u0600-\u06FF]/.test(prompt || "")
+    if (isArabic && prompt) finalPrompt = enhanceArabicPrompt(prompt)
 
-    if (isArabic && prompt) {
-      finalPrompt = enhanceArabicPrompt(prompt)
-    }
-
-    const result = await fal.subscribe("fal-ai/fast-animatediff/image-to-video", {
-      input: {
-        image_url: imageUrl,
-        prompt: finalPrompt,
-        video_size: {
-          width: 512,
-          height: 512,
-        },
-        num_frames: 8,
-        num_inference_steps: 25,
-        guidance_scale: 7.5,
-      },
+    const result = await falRun("fal-ai/fast-animatediff/image-to-video", {
+      image_url: imageUrl,
+      prompt: finalPrompt,
+      video_size: { width: 512, height: 512 },
+      num_frames: 8,
+      num_inference_steps: 25,
+      guidance_scale: 7.5,
     })
 
-    const videoUrl = result.data?.video?.url
+    const videoUrl = result?.video?.url
 
     if (!videoUrl) {
       throw new Error("No video URL in response")
