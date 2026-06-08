@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
 
     const limit = PLAN_LIMITS[planType as keyof typeof PLAN_LIMITS] || 3
 
+    const supabase = getSupabase()
     let query = supabase
       .from("feature_usage")
       .select("id", { count: "exact" })
@@ -107,6 +108,7 @@ export async function POST(request: NextRequest) {
     const limit = PLAN_LIMITS[planType as keyof typeof PLAN_LIMITS] || 3
 
     if (action === "increment") {
+      const supabase = getSupabase()
       let query = supabase
         .from("feature_usage")
         .select("id", { count: "exact" })

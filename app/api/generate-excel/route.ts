@@ -53,7 +53,7 @@ async function generateExcelDataWithAI(
 
   let jsonText = text.trim().replace(/```json\s*/g, "").replace(/```\s*/g, "")
 
-  const jsonMatch = jsonText.match(/\{[\s\S]*?"headers"[\s\S]*?"rows"[\s\S]*?\}/s)
+  const jsonMatch = jsonText.match(/\{[\s\S]*?"headers"[\s\S]*?"rows"[\s\S]*?\}/)
   if (jsonMatch) {
     const parsed = JSON.parse(jsonMatch[0])
     if (
