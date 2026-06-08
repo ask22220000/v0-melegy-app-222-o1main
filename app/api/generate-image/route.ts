@@ -1,6 +1,10 @@
+import { generateImage } from "@/lib/openrouterImageService"
+
+export const maxDuration = 30
+
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json()
+    const { prompt, width = 1024, height = 1024 } = await req.json()
 
     if (!prompt) {
       return new Response(JSON.stringify({ error: "Prompt is required" }), {
@@ -36,6 +40,7 @@ export async function POST(req: Request) {
     console.log("[v0] 2. After negative extraction:", cleanPrompt)
     console.log("[v0] 3. Negative items found:", negativeItems)
 
+    // Translate using MyMemory
     const translateText = async (text: string): Promise<string> => {
       if (text.length <= 450) {
         try {
@@ -84,7 +89,7 @@ export async function POST(req: Request) {
     const translatedPrompt = await translateText(cleanPrompt)
     console.log("[v0] 4. After MyMemory translation:", translatedPrompt)
 
-    // Arabic to English dictionary for common words
+    // Arabic to English dictionary
     const arabicToEnglish: { [key: string]: string } = {
       صورة: "image",
       محاربة: "warrior",
@@ -132,30 +137,29 @@ export async function POST(req: Request) {
 
     console.log("[v0] 5. After dictionary cleanup:", finalPrompt)
 
-    const compositionPrefix =
-      "full body shot, wide angle view, distant perspective, subject in center frame, no close-up hands, standard photo composition"
-
     const qualitySuffix =
-      "8K ultra high resolution, highly detailed, professional quality, sharp focus, masterpiece, best quality, intricate details, vibrant colors, photorealistic, cinematic lighting"
+      "8K ultra high resolution, highly detailed, professional quality, sharp focus, masterpiece, best quality, intricate details, vibrant colors, cinematic lighting"
 
     const negativePrompt = negativeItems.length > 0 ? negativeItems.join(", ") + ", " : ""
 
-    const fullPrompt = `${compositionPrefix}, ${finalPrompt}, ${qualitySuffix} | AVOID: ${negativePrompt}blurry, low quality, pixelated, bad quality, low resolution, ugly, deformed, distorted, artifacts`
+    const fullPrompt = `${finalPrompt}, ${qualitySuffix} | NEGATIVE: ${negativePrompt}blurry, low quality, pixelated, bad quality, low resolution, ugly, deformed, distorted, artifacts`
 
-    console.log("[v0] 6. Final prompt sent to flux-turbo:", fullPrompt.substring(0, 500) + "...")
+    console.log("[v0] 6. Final prompt for Riverflow:", fullPrompt.substring(0, 500) + "...")
 
-    const seed = Math.floor(Math.random() * 1000000)
-    const pollinationsUrl = `https://gen.pollinations.ai/image/a%20blooming%20flower%20in%20golden%20hour?model=zimage`
+    // Generate using OpenRouter Riverflow v2.5 Pro
+    const imageUrl = await generateImage({
+      prompt: fullPrompt,
+      width,
+      height,
+      numberOfImages: 1,
+    })
 
-    console.log("[v0] 7. Trying Pollinations zimage...")
-
-    // Return the URL directly - Pollinations generates on request
-    return new Response(JSON.stringify({ imageUrl: pollinationsUrl }), {
+    return new Response(JSON.stringify({ imageUrl }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     })
   } catch (error) {
-    console.error("Image generation error:", error)
+    console.error("[v0] Image generation error:", error)
 
     return new Response(
       JSON.stringify({
