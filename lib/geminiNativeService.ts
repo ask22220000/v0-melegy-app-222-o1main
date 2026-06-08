@@ -7,7 +7,65 @@ interface Message {
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-const MODEL = "openai/gpt-4o" // OpenAI GPT-4 Omni model for superior reasoning and multilingual support
+const MODEL_CHAT = "openai/gpt-oss-120b:free" // للردود النصية والدردشة العامة
+const MODEL_FILES = "google/gemma-4-31b-it:free" // لطلب الملفات والعروض التقديمية
+const MODEL_CODE = "z-ai/glm-4.5-air:free" // للكودينج وحلول البرمجة والـ SEO
+const MODEL_EMBED = "nvidia/llama-nemotron-embed-vl-1b-v2:free" // لتوليد الملفات
+
+// دالة لاختيار الموديل المناسب بناءً على نوع الطلب
+export function selectModel(userInput: string): { model: string; isCodeRequest: boolean } {
+  const codeKeywords = [
+    "كود",
+    "code",
+    "برمجة",
+    "programming",
+    "python",
+    "javascript",
+    "typescript",
+    "html",
+    "css",
+    "react",
+    "function",
+    "class",
+    "database",
+    "api",
+    "sql",
+    "seo",
+    "الـ seo",
+    "محرك البحث",
+  ]
+  
+  const fileKeywords = [
+    "ملف",
+    "ملفات",
+    "عرض",
+    "presentation",
+    "word",
+    "excel",
+    "pdf",
+    "document",
+    "slide",
+    "وثيقة",
+  ]
+
+  const isCodeRequest = codeKeywords.some((keyword) =>
+    userInput.toLowerCase().includes(keyword.toLowerCase())
+  )
+
+  const isFileRequest = fileKeywords.some((keyword) =>
+    userInput.toLowerCase().includes(keyword.toLowerCase())
+  )
+
+  if (isCodeRequest) {
+    return { model: MODEL_CODE, isCodeRequest: true }
+  }
+
+  if (isFileRequest) {
+    return { model: MODEL_FILES, isCodeRequest: false }
+  }
+
+  return { model: MODEL_CHAT, isCodeRequest: false }
+}
 
 export async function generateStreamingResponse(
   userInput: string,
@@ -17,11 +75,17 @@ export async function generateStreamingResponse(
     throw new Error("OPENROUTER_API_KEY غير محدد في متغيرات البيئة")
   }
 
+  const { model, isCodeRequest } = selectModel(userInput)
+
   // Prepare messages for OpenRouter API (standard OpenAI format)
+  const systemMessage = isCodeRequest
+    ? "أنت خبير برمجة ممتاز. تكتب كودًا نظيفًا وفعالًا مع شرح واضح. في كل إجابة، قدم الكود أولاً ثم الشرح."
+    : EGYPTIAN_DIALECT_INSTRUCTIONS
+
   const messages = [
     {
       role: "system",
-      content: EGYPTIAN_DIALECT_INSTRUCTIONS,
+      content: systemMessage,
     },
     ...conversationHistory
       .filter((msg) => msg.role === "user" || msg.role === "assistant")
@@ -36,15 +100,15 @@ export async function generateStreamingResponse(
   ]
 
   const requestBody = {
-    model: MODEL,
+    model: model,
     messages,
-    temperature: 0.9,
+    temperature: isCodeRequest ? 0.7 : 0.9,
     top_p: 0.95,
-    max_tokens: 2048,
+    max_tokens: isCodeRequest ? 3000 : 2048,
     stream: true,
   }
 
-  console.log("[v0] Requesting OpenRouter NVIDIA Nemotron 3.5 with", messages.length, "messages")
+  console.log("[v0] استخدام الموديل:", model, "للرد على:", userInput.substring(0, 30))
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
