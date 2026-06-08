@@ -29,11 +29,32 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
 
   useEffect(() => {
+    const initializeGoogle = () => {
+      if (window.google && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+        })
+        
+        const buttonEl = document.getElementById('google-signin-button-login')
+        if (buttonEl) {
+          window.google.accounts.id.renderButton(buttonEl, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            locale: 'ar',
+          })
+        }
+      } else {
+        console.warn('[v0] Google SDK or Client ID not available')
+      }
+    }
+
     if (window.google) {
-      window.google.accounts.id.initialize({
-        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-        callback: handleGoogleCallback,
-      })
+      initializeGoogle()
+    } else {
+      window.addEventListener('load', initializeGoogle)
+      return () => window.removeEventListener('load', initializeGoogle)
     }
   }, [])
 
@@ -79,17 +100,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleGoogleLogin = () => {
-    const googleButton = document.getElementById('google-signin-button-login')
-    if (googleButton && window.google) {
-      window.google.accounts.id.renderButton(googleButton, {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        locale: 'ar',
-      })
-    }
-  }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -156,11 +167,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div id="google-signin-button-login" className="w-full flex justify-center" ref={(el) => {
-            if (el && window.google) {
-              handleGoogleLogin()
-            }
-          }} />
+          <div id="google-signin-button-login" className="w-full flex justify-center" />
 
           {/* Fallback button if Google SDK doesn't load */}
           <Button
@@ -193,15 +200,6 @@ export default function LoginPage() {
         src="https://accounts.google.com/gsi/client" 
         async 
         defer
-        onLoad={() => {
-          if (window.google) {
-            console.log('[v0] Google SDK loaded on login page')
-            window.google.accounts.id.initialize({
-              client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-              callback: handleGoogleCallback,
-            })
-          }
-        }}
       />
     </div>
   )
