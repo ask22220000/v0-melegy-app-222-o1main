@@ -1,4 +1,4 @@
-# Melegy - Egyptian AI Assistant (v2.2)
+# Melegy - Egyptian AI Assistant (v2.4)
 
 مساعد ذكاء اصطناعي مصري متقدم يتحدث باللهجة المصرية ويوفر إمكانيات متعددة.
 
