@@ -5,65 +5,69 @@ interface Message {
   content: string
 }
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const GEMINI_STREAMING_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent"
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+const MODEL = "nvidia/nemotron-3.5-8b" // NVIDIA Nemotron 3.5 Content Safety model
 
 export async function generateStreamingResponse(
   userInput: string,
   conversationHistory: Message[]
 ): Promise<ReadableStream<Uint8Array>> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY غير محدد في متغيرات البيئة")
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY غير محدد في متغيرات البيئة")
   }
 
-  // Prepare messages for Gemini API
-  const geminiMessages = conversationHistory
-    .filter((msg) => msg.role === "user" || msg.role === "assistant")
-    .map((msg) => ({
-      role: msg.role === "assistant" ? "model" : "user",
-      parts: [{ text: msg.content }],
-    }))
-
-  // Add current user message
-  geminiMessages.push({
-    role: "user",
-    parts: [{ text: userInput }],
-  })
+  // Prepare messages for OpenRouter API (standard OpenAI format)
+  const messages = [
+    {
+      role: "system",
+      content: EGYPTIAN_DIALECT_INSTRUCTIONS,
+    },
+    ...conversationHistory
+      .filter((msg) => msg.role === "user" || msg.role === "assistant")
+      .map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+    {
+      role: "user",
+      content: userInput,
+    },
+  ]
 
   const requestBody = {
-    system_instruction: {
-      parts: [{ text: EGYPTIAN_DIALECT_INSTRUCTIONS }],
-    },
-    contents: geminiMessages,
-    generationConfig: {
-      maxOutputTokens: 2048,
-      temperature: 0.9,
-      topP: 0.95,
-      topK: 64,
-    },
+    model: MODEL,
+    messages,
+    temperature: 0.9,
+    top_p: 0.95,
+    max_tokens: 2048,
+    stream: true,
   }
 
-  console.log("[v0] Requesting Gemini streaming API with", geminiMessages.length, "messages")
+  console.log("[v0] Requesting OpenRouter NVIDIA Nemotron 3.5 with", messages.length, "messages")
 
-  const response = await fetch(`${GEMINI_STREAMING_URL}?key=${GEMINI_API_KEY}`, {
+  const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      "HTTP-Referer": typeof window !== "undefined" ? window.location.href : "http://localhost:3000",
+      "X-Title": "Melegy App",
     },
     body: JSON.stringify(requestBody),
   })
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error("[v0] Gemini API error:", response.status, errorText)
-    throw new Error(`Gemini API error ${response.status}: ${errorText}`)
+    console.error("[v0] OpenRouter API error:", response.status, errorText)
+    throw new Error(`OpenRouter API error ${response.status}: ${errorText}`)
   }
 
   if (!response.body) {
-    throw new Error("No response body from Gemini API")
+    throw new Error("No response body from OpenRouter API")
   }
 
-  // Create a readable stream that processes the streaming response
+  // Create a readable stream that processes OpenAI-format streaming response
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
@@ -81,62 +85,33 @@ export async function generateStreamingResponse(
           // Process all complete lines
           for (let i = 0; i < lines.length - 1; i++) {
             const line = lines[i].trim()
-            if (line.startsWith("data: ") || line === "") {
-              try {
-                if (line.startsWith("data: ")) {
-                  const jsonStr = line.substring(6)
-                  const chunk = JSON.parse(jsonStr)
 
-                  if (
-                    chunk.candidates &&
-                    chunk.candidates[0] &&
-                    chunk.candidates[0].content &&
-                    chunk.candidates[0].content.parts &&
-                    chunk.candidates[0].content.parts[0]
-                  ) {
-                    const text = chunk.candidates[0].content.parts[0].text
-                    if (text) {
-                      const cleaned = cleanResponse(text)
-                      if (cleaned) {
-                        controller.enqueue(new TextEncoder().encode(cleaned))
-                      }
+            if (line === "" || line === "[DONE]") {
+              continue
+            }
+
+            if (line.startsWith("data: ")) {
+              try {
+                const jsonStr = line.substring(6)
+                const chunk = JSON.parse(jsonStr)
+
+                if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+                  const text = chunk.choices[0].delta.content
+                  if (text) {
+                    const cleaned = cleanResponse(text)
+                    if (cleaned) {
+                      controller.enqueue(new TextEncoder().encode(cleaned))
                     }
                   }
                 }
               } catch (parseError) {
-                console.error("[v0] Error parsing Gemini chunk:", parseError)
+                console.error("[v0] Error parsing OpenRouter chunk:", parseError)
               }
             }
           }
 
           // Keep the last incomplete line in buffer
           buffer = lines[lines.length - 1]
-        }
-
-        // Process any remaining buffer
-        if (buffer.trim().startsWith("data: ")) {
-          try {
-            const jsonStr = buffer.trim().substring(6)
-            const chunk = JSON.parse(jsonStr)
-
-            if (
-              chunk.candidates &&
-              chunk.candidates[0] &&
-              chunk.candidates[0].content &&
-              chunk.candidates[0].content.parts &&
-              chunk.candidates[0].content.parts[0]
-            ) {
-              const text = chunk.candidates[0].content.parts[0].text
-              if (text) {
-                const cleaned = cleanResponse(text)
-                if (cleaned) {
-                  controller.enqueue(new TextEncoder().encode(cleaned))
-                }
-              }
-            }
-          } catch (parseError) {
-            console.error("[v0] Error parsing final Gemini chunk:", parseError)
-          }
         }
 
         controller.close()
