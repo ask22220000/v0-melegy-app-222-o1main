@@ -16,7 +16,6 @@ declare global {
         id: {
           initialize: (config: any) => void
           renderButton: (element: HTMLElement, config: any) => void
-          oneTap: (config: any) => void
         }
       }
     }
@@ -84,6 +83,13 @@ export default function SignupPage() {
       return
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      setValidationError('صيغة البريد الإلكتروني غير صحيحة')
+      return
+    }
+
     if (formData.password.length < 6) {
       setValidationError('كلمة المرور يجب أن تكون على الأقل 6 أحرف')
       return
@@ -107,6 +113,7 @@ export default function SignupPage() {
       const errorMessage = err instanceof Error ? err.message : error || 'فشل إنشاء الحساب'
       setValidationError(errorMessage)
       toast.error(errorMessage)
+      console.log('[v0] Signup error:', errorMessage)
     }
   }
 

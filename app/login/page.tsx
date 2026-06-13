@@ -27,6 +27,7 @@ export default function LoginPage() {
   const { logIn, signInWithGoogle, loading, error } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [localError, setLocalError] = useState('')
 
   useEffect(() => {
     const initializeGoogle = () => {
@@ -60,12 +61,23 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLocalError('')
+    
+    // Validation
+    if (!email || !password) {
+      setLocalError('البريد الإلكتروني وكلمة المرور مطلوبان')
+      return
+    }
+
     try {
       await logIn(email, password)
       toast.success('تم تسجيل الدخول بنجاح')
       router.push('/')
     } catch (err) {
-      toast.error(error || 'فشل تسجيل الدخول')
+      const errorMessage = err instanceof Error ? err.message : error || 'فشل تسجيل الدخول'
+      setLocalError(errorMessage)
+      toast.error(errorMessage)
+      console.log('[v0] Login error:', errorMessage)
     }
   }
 
@@ -143,9 +155,9 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && (
+            {(error || localError) && (
               <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-600 text-sm">
-                {error}
+                {localError || error}
               </div>
             )}
 

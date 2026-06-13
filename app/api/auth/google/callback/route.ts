@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
-import { getUserByGoogleId, createUser, createSession } from '@/lib/auth-db'
+import { getUserByGoogleId, getUserByEmail, createUser, updateUser, createSession } from '@/lib/auth-db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,12 +20,10 @@ export async function POST(request: NextRequest) {
 
     // If not found by Google ID, try to find by email
     if (!user) {
-      const { getUserByEmail } = await import('@/lib/auth-db')
       const existingUser = await getUserByEmail(email)
       
       if (existingUser) {
         // Link Google account to existing user
-        const { updateUser } = await import('@/lib/auth-db')
         user = await updateUser(existingUser.id, { google_id: googleId })
       } else {
         // Create new user

@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 export interface AuthUser {
   id: number
   email: string
+  password_hash?: string | null
   first_name?: string | null
   last_name?: string | null
   google_id?: string | null

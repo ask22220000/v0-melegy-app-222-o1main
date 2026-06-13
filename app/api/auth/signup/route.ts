@@ -15,6 +15,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'صيغة البريد الإلكتروني غير صحيحة' },
+        { status: 400 }
+      )
+    }
+
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'كلمة المرور يجب أن تكون على الأقل 6 أحرف' },
@@ -47,6 +56,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(userResponse, { status: 201 })
   } catch (error) {
     console.error('[v0] Signup error:', error)
+    
+    // Check for specific database errors
+    if (error instanceof Error) {
+      if (error.message.includes('duplicate') || error.message.includes('UNIQUE')) {
+        return NextResponse.json(
+          { error: 'هذا البريد الإلكتروني مسجل بالفعل' },
+          { status: 409 }
+        )
+      }
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'فشل إنشاء الحساب'
     return NextResponse.json(
       { error: errorMessage || 'فشل إنشاء الحساب' },

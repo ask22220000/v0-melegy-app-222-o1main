@@ -18,9 +18,18 @@ export async function POST(request: NextRequest) {
 
     // Find user
     const user = await getUserByEmail(email)
-    if (!user || !user.password_hash) {
+    
+    // For users without password_hash (Google accounts), give a specific error
+    if (!user) {
       return NextResponse.json(
         { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
+        { status: 401 }
+      )
+    }
+
+    if (!user.password_hash) {
+      return NextResponse.json(
+        { error: 'يبدو أنك سجلت دخولك عبر Google. الرجاء استخدام Google للدخول' },
         { status: 401 }
       )
     }
