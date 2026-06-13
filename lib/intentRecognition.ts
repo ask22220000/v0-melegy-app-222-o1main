@@ -8,14 +8,9 @@ export class IntentRecognizer {
   recognizeIntent(text: string): Intent {
     const lowerText = text.toLowerCase()
 
-    // نوايا الأسئلة
-    if (this.isQuestion(lowerText)) {
-      return { type: "question", confidence: 0.9, entities: this.extractQuestionType(lowerText) }
-    }
-
-    // نوايا الطلبات
-    if (this.isRequest(lowerText)) {
-      return { type: "request", confidence: 0.85, entities: this.extractRequestType(lowerText) }
+    // نوايا الإحباط/المشاكل - أولاً عشان هي مهمة
+    if (this.isFrustration(lowerText)) {
+      return { type: "frustration", confidence: 0.9, entities: { issue: this.extractIssue(lowerText) } }
     }
 
     // نوايا التحية
@@ -28,9 +23,14 @@ export class IntentRecognizer {
       return { type: "thank", confidence: 0.9, entities: {} }
     }
 
-    // نوايا الإحباط/المشاكل
-    if (this.isFrustration(lowerText)) {
-      return { type: "frustration", confidence: 0.8, entities: {} }
+    // نوايا الأسئلة
+    if (this.isQuestion(lowerText)) {
+      return { type: "question", confidence: 0.9, entities: this.extractQuestionType(lowerText) }
+    }
+
+    // نوايا الطلبات
+    if (this.isRequest(lowerText)) {
+      return { type: "request", confidence: 0.85, entities: this.extractRequestType(lowerText) }
     }
 
     return { type: "unknown", confidence: 0.5, entities: {} }
@@ -72,7 +72,32 @@ export class IntentRecognizer {
   }
 
   private isFrustration(text: string): boolean {
-    return this.containsWords(text, ["مش فاهم", "مش شغال", "مش نافع", "مشكلة", "خربان"])
+    return this.containsWords(text, [
+      "مش فاهم",
+      "مش شغال",
+      "مش نافع",
+      "مشكلة",
+      "خربان",
+      "فاهمش",
+      "فهمش",
+      "متفهمش",
+      "عايز اتعلم",
+      "محتاج شرح",
+      "مستغبي",
+      "مش واضح",
+      "لخبطت",
+      "التبس",
+    ])
+  }
+
+  private extractIssue(text: string): string {
+    // Extract the main issue the user is frustrated about
+    if (text.includes("فهم")) return "understanding"
+    if (text.includes("شغال") || text.includes("نافع")) return "functionality"
+    if (text.includes("صورة")) return "image"
+    if (text.includes("فيديو")) return "video"
+    if (text.includes("جدول") || text.includes("excel")) return "data"
+    return "general"
   }
 
   private containsWords(text: string, words: string[]): boolean {

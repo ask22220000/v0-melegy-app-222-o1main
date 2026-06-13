@@ -3,7 +3,6 @@ import type { Metadata } from "next"
 import Script from "next/script"
 import { Cairo, Geist_Mono } from "next/font/google"
 import { AppProvider } from "@/lib/contexts/AppContext"
-import { AuthProvider } from "@/lib/contexts/AuthContext"
 import { SessionTracker } from "@/components/session-tracker"
 import "./globals.css"
 
@@ -105,12 +104,10 @@ export default function RootLayout({
         <Script src="/register-sw.js" strategy="lazyOnload" />
       </head>
       <body className={`${cairo.className} antialiased`} suppressHydrationWarning>
-        <AuthProvider>
-          <AppProvider>
-            <SessionTracker />
-            {children}
-          </AppProvider>
-        </AuthProvider>
+        <AppProvider>
+          <SessionTracker />
+          {children}
+        </AppProvider>
       </body>
     </html>
   )
