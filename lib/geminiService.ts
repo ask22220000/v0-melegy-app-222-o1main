@@ -1,4 +1,4 @@
-import { generateText } from "ai"
+import { generateWithFalRouter } from "./falRouterService"
 import { EGYPTIAN_DIALECT_INSTRUCTIONS } from "./egyptianDialect"
 
 interface Message {
@@ -11,9 +11,9 @@ export async function generateGeminiResponse(userInput: string, conversationHist
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Google Gemini 3 Flash via Vercel AI Gateway`)
+      console.log(`[v0] Attempt ${attempt + 1}/${MAX_RETRIES} - Using Fal OpenRouter`)
 
-      const messages: any[] = []
+      const messages: Message[] = []
 
       // Add conversation history (last 5 messages)
       const recentHistory = conversationHistory.slice(-5)
@@ -40,18 +40,15 @@ export async function generateGeminiResponse(userInput: string, conversationHist
         content: userInput,
       })
 
-      console.log("[v0] Sending request to Gemini with", messages.length, "messages")
+      console.log("[v0] Sending request to Fal OpenRouter with", messages.length, "messages")
 
-      const result = await generateText({
-        model: "google/gemini-3-flash",
-        system: EGYPTIAN_DIALECT_INSTRUCTIONS,
+      let generatedText = await generateWithFalRouter(
+        EGYPTIAN_DIALECT_INSTRUCTIONS,
         messages,
-        maxTokens: 500,
-        temperature: 0.7,
-      })
+        { maxTokens: 500, temperature: 0.7 }
+      )
 
-      let generatedText = result.text
-      console.log("[v0] ✅ Received response from Gemini successfully")
+      console.log("[v0] Received response from Fal OpenRouter successfully")
 
       if (!generatedText || generatedText.length < 3) {
         console.log("[v0] Empty response from Gemini, retrying...")
@@ -96,10 +93,12 @@ export async function generateStreamingResponse(
       try {
         const response = await generateGeminiResponse(userInput, conversationHistory)
 
-        // Stream the response character by character
-        for (let i = 0; i < response.length; i++) {
-          controller.enqueue(encoder.encode(response[i]))
-          await new Promise((resolve) => setTimeout(resolve, 1))
+        // Stream the response in chunks for faster perceived speed
+        const chunkSize = Math.floor(Math.random() * 3) + 3
+        for (let i = 0; i < response.length; i += chunkSize) {
+          const chunk = response.slice(i, i + chunkSize)
+          controller.enqueue(encoder.encode(chunk))
+          await new Promise((resolve) => setTimeout(resolve, 10))
         }
 
         controller.close()

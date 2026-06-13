@@ -1,8 +1,10 @@
 // خدمة الذكاء العاطفي لميليجي
 import { getServiceRoleClient } from "./supabase/server"
 
-// Use shared singleton from supabase/server
-const supabase = getServiceRoleClient()
+// Lazy getter — avoids top-level instantiation during build (env vars not available at build time)
+function getSupabase() {
+  return getServiceRoleClient()
+}
 
 // قاموس المشاعر العربي والمصري
 const emotionKeywords: Record<string, string[]> = {
@@ -262,7 +264,7 @@ export async function saveUserMemory(
 ): Promise<void> {
   try {
     // جلب الذاكرة الحالية
-    const { data: existing } = await supabase.from("user_memory").select("*").eq("visitor_id", visitorId).maybeSingle()
+    const { data: existing } = await getSupabase().from("user_memory").select("*").eq("visitor_id", visitorId).maybeSingle()
 
     if (existing) {
       // تحديث الذاكرة الموجودة
@@ -294,10 +296,10 @@ export async function saveUserMemory(
         updates.emotional_history = emotions.slice(-50) // آخر 50 مشاعر
       }
 
-      await supabase.from("user_memory").update(updates).eq("visitor_id", visitorId)
+      await getSupabase().from("user_memory").update(updates).eq("visitor_id", visitorId)
     } else {
       // إنشاء ذاكرة جديدة
-      await supabase.from("user_memory").insert({
+      await getSupabase().from("user_memory").insert({
         visitor_id: visitorId,
         user_name: data.userName,
         interests: data.interest ? [data.interest] : [],
@@ -322,7 +324,7 @@ export async function getUserMemory(visitorId: string): Promise<{
   isReturningUser: boolean
 } | null> {
   try {
-    const { data } = await supabase.from("user_memory").select("*").eq("visitor_id", visitorId).maybeSingle()
+    const { data } = await getSupabase().from("user_memory").select("*").eq("visitor_id", visitorId).maybeSingle()
 
     if (!data) return null
 

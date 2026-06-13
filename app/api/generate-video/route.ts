@@ -1,34 +1,42 @@
-import Groq from "groq-sdk"
+import { headers } from "next/headers"
+import { getDailyUsage, getEffectivePlan, todayEgypt } from "@/lib/db"
+import { PLAN_LIMITS } from "@/lib/usage-tracker"
 
-function getGroqClient() {
-  return new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
-}
+const FREE_VIDEO_LIMIT = PLAN_LIMITS.free.animatedVideosPerDay
 
-async function translateToEnglish(prompt: string): Promise<string> {
-  const groq = getGroqClient()
-  const hasArabic = /[\u0600-\u06FF]/.test(prompt)
-  if (!hasArabic) return prompt
+async function checkVideoLimit(ip: string): Promise<{ allowed: boolean; reason?: string }> {
   try {
-    const res = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a professional translator. Translate the following Arabic text (including Egyptian dialect) to English. Return ONLY the English translation — no explanations, no extra text.",
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 300,
-    })
-    return res.choices[0]?.message?.content?.trim() || prompt
+    const plan = await getEffectivePlan(ip)
+    if (plan !== "free") return { allowed: true }
+    const usage = await getDailyUsage(ip, todayEgypt())
+    if (usage.animated_videos >= FREE_VIDEO_LIMIT) {
+      return {
+        allowed: false,
+        reason: `لقد وصلت للحد الأقصى (${FREE_VIDEO_LIMIT} فيديو/يوم) في الخطة المجانية. قم بالترقية للمزيد!`,
+      }
+    }
+    return { allowed: true }
   } catch {
-    return prompt
+    return { allowed: true }
   }
 }
 
 export async function POST(req: Request) {
   try {
+    const headersList = await headers()
+    const ip =
+      (headersList.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+      headersList.get("x-real-ip") ||
+      "unknown"
+
+    const limitCheck = await checkVideoLimit(ip)
+    if (!limitCheck.allowed) {
+      return new Response(JSON.stringify({ error: limitCheck.reason }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
     const { prompt } = await req.json()
 
     if (!prompt) {
@@ -38,28 +46,28 @@ export async function POST(req: Request) {
       })
     }
 
-    const englishPrompt = await translateToEnglish(prompt)
-
     // Build video URL with proper query parameters
     const params = new URLSearchParams({
       model: "veo", // Video model
-      duration: "10", // 10 seconds for paid plans
+      duration: "5", // 5 seconds default
       aspect_ratio: "16:9", // Widescreen format
       private: "true", // Don't add to public feed
       enhance: "true", // Enhance the prompt
       nofeed: "true",
     })
 
-    // Encode the translated prompt
-    const encodedPrompt = encodeURIComponent(englishPrompt)
+    // Encode the prompt properly
+    const encodedPrompt = encodeURIComponent(prompt)
 
     // Pollinations video generation endpoint
     const videoUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?${params.toString()}`
 
+    console.log("[v0] Video URL generated:", videoUrl)
+
     return new Response(
       JSON.stringify({
         url: videoUrl,
-        prompt: englishPrompt,
+        prompt: prompt,
       }),
       {
         status: 200,

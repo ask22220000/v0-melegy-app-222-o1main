@@ -122,7 +122,6 @@ const arabicToEnglishDictionary: Record<string, string> = {
   // Actions and verbs - removed as filler words
   عاوز: "",
   اعمل: "",
-  ولد: "",
   ارسم: "",
   صور: "",
   اكتب: "",

@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServiceRoleClient } from "@/lib/supabase/server"
 
+// Lazy getter — avoids top-level instantiation during build
+function getSupabase() {
+  return getServiceRoleClient()
+}
+
 // Plan limits
 const PLAN_LIMITS = {
   free: 3, // 3 times total (trial)
@@ -25,7 +30,6 @@ function getMonthStartDate(): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const visitorId = searchParams.get("visitorId")
     const planType = searchParams.get("planType") || "free"
@@ -36,6 +40,7 @@ export async function GET(request: NextRequest) {
 
     const limit = PLAN_LIMITS[planType as keyof typeof PLAN_LIMITS] || 3
 
+    const supabase = getSupabase()
     let query = supabase
       .from("feature_usage")
       .select("id", { count: "exact" })
@@ -93,7 +98,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getServiceRoleClient()
     const body = await request.json()
     const { visitorId, planType = "free", action } = body
 
@@ -104,6 +108,7 @@ export async function POST(request: NextRequest) {
     const limit = PLAN_LIMITS[planType as keyof typeof PLAN_LIMITS] || 3
 
     if (action === "increment") {
+      const supabase = getSupabase()
       let query = supabase
         .from("feature_usage")
         .select("id", { count: "exact" })
@@ -138,7 +143,7 @@ export async function POST(request: NextRequest) {
         const availableTokens = totalPurchased - totalUsed
 
         if (availableTokens > 0) {
-          await supabase.from("feature_usage").insert({
+          await getSupabase().from("feature_usage").insert({
             user_id: visitorId,
             feature_name: "token_used",
             used_at: new Date().toISOString(),
@@ -160,7 +165,7 @@ export async function POST(request: NextRequest) {
       }
 
       const currentMonth = getCurrentMonthYear()
-      await supabase.from("feature_usage").insert({
+      await getSupabase().from("feature_usage").insert({
         user_id: visitorId,
         feature_name: `image_edit_${planType}_${currentMonth}`,
         used_at: new Date().toISOString(),
@@ -174,7 +179,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "addTokens") {
-      await supabase.from("feature_usage").insert({
+      await getSupabase().from("feature_usage").insert({
         user_id: visitorId,
         feature_name: "token_purchase",
         used_at: new Date().toISOString(),

@@ -1,109 +1,67 @@
-import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import {
+  getConversations,
+  saveConversation,
+  updateConversationMessages,
+  ensureUserMeta,
+} from "@/lib/db"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+export const runtime = "nodejs"
 
-// GET /api/save-chat?user_id=<auth_uuid> — load all saved chats for the user
+// GET /api/save-chat?user_id=mlg_xxx
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("user_id")
 
-    if (!userId) {
-      return NextResponse.json({ histories: [] })
-    }
+    if (!userId) return NextResponse.json({ histories: [] })
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    const { data, error } = await supabase
-      .from("melegy_history")
-      .select("id, chat_title, chat_date, messages, created_at, updated_at")
-      .eq("auth_user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(50)
-
-    if (error) {
-      console.error("[save-chat GET] error:", error.message)
-      return NextResponse.json({ histories: [], _error: error.message })
-    }
-
-    const histories = (data || []).map((row: any) => ({
-      id: row.id,
-      title: row.chat_title ?? "محادثة",
-      date: row.chat_date ?? row.created_at?.slice(0, 10) ?? "",
-      messages: typeof row.messages === "string" ? JSON.parse(row.messages) : (row.messages ?? []),
+    const conversations = await getConversations(userId, 100)
+    const histories = conversations.map((c) => ({
+      id: c.SK ?? c.id,
+      title: c.title ?? "محادثة",
+      date: c.date ?? c.createdAt?.slice(0, 10) ?? "",
+      messages: Array.isArray(c.messages) ? c.messages : [],
     }))
 
     return NextResponse.json({ histories })
   } catch (err: any) {
-    console.error("[save-chat GET] exception:", err.message)
+    console.error("[save-chat] GET error:", err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
 
-// POST /api/save-chat — save or update a conversation linked to auth_user_id
+// POST /api/save-chat
 export async function POST(request: Request) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    const body = await request.json()
-    const { chat_title, chat_date, messages, user_id } = body
+    const { chat_title, chat_date, messages, mlg_user_id } = await request.json()
 
-    if (!user_id) {
-      return NextResponse.json({ error: "Missing user_id" }, { status: 400 })
+    if (!mlg_user_id) {
+      return NextResponse.json({ error: "Missing mlg_user_id" }, { status: 400 })
     }
 
-    const resolvedUserId = user_id
+    await ensureUserMeta(mlg_user_id)
 
-    const messagesValue = typeof messages === "string" ? JSON.parse(messages) : messages
-    const now = new Date().toISOString()
+    // Check if conversation with same title+date already exists
+    const existing = await getConversations(mlg_user_id, 200)
+    const match = existing.find((c) => c.title === chat_title && c.date === chat_date)
 
-    // Check if this chat already exists for this user
-    const { data: existing } = await supabase
-      .from("melegy_history")
-      .select("id")
-      .eq("auth_user_id", resolvedUserId)
-      .eq("chat_title", chat_title)
-      .eq("chat_date", chat_date)
-      .maybeSingle()
-
-    if (existing?.id) {
-      // Update existing
-      const { error: updateError } = await supabase
-        .from("melegy_history")
-        .update({ messages: messagesValue, updated_at: now })
-        .eq("id", existing.id)
-
-      if (updateError) {
-        console.error("[save-chat POST] update error:", updateError.message)
-        return NextResponse.json({ error: updateError.message }, { status: 500 })
-      }
-      return NextResponse.json({ success: true, id: existing.id })
+    if (match?.SK) {
+      await updateConversationMessages(mlg_user_id, match.SK, messages)
+      return NextResponse.json({ success: true, id: match.SK })
     }
 
-    // Insert new
-    const { data: inserted, error: insertError } = await supabase
-      .from("melegy_history")
-      .insert({
-        auth_user_id: resolvedUserId,
-        chat_title,
-        chat_date,
-        messages: messagesValue,
-        created_at: now,
-        updated_at: now,
-      })
-      .select("id")
-      .single()
+    const id = await saveConversation({
+      userId: mlg_user_id,
+      title: chat_title,
+      date: chat_date,
+      messages,
+    })
 
-    if (insertError) {
-      console.error("[save-chat POST] insert error:", insertError.message)
-      return NextResponse.json({ error: insertError.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ success: true, id: inserted?.id ?? null })
+    return NextResponse.json({ success: true, id })
   } catch (err: any) {
-    console.error("[save-chat POST] exception:", err.message)
+    console.error("[save-chat] POST error:", err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

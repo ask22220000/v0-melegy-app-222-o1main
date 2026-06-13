@@ -1,70 +1,75 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServiceRoleClient } from "@/lib/supabase/server"
+import { getConversations, updateConversationMessages, getUserConversations } from "@/lib/db"
 
-// GET /api/user/messages?conversation_id=xxx
+export const runtime = "nodejs"
+
+// GET /api/user/messages?conversation_id=CHAT%23...&user_id=mlg_xxx
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const conversationId = searchParams.get("conversation_id")
-    if (!conversationId) {
-      return NextResponse.json({ error: "Missing conversation_id" }, { status: 400 })
+    const conversationSK = searchParams.get("conversation_id")
+    const userId = searchParams.get("user_id")
+
+    if (!conversationSK || !userId) {
+      return NextResponse.json({ error: "Missing conversation_id or user_id" }, { status: 400 })
     }
-    const supabase = getServiceRoleClient()
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .select("id, role, content, media_urls, created_at")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ messages: data || [] })
+
+    const convs = await getConversations(userId, 200)
+    const match = convs.find((c) => c.SK === conversationSK || c.id === conversationSK)
+
+    if (!match) return NextResponse.json({ messages: [] })
+
+    const messages = (match.messages ?? []).map((m: any, i: number) => ({
+      id: String(i),
+      role: m.role,
+      content: m.content,
+      media_urls: m.imageUrl
+        ? [{ type: "image", url: m.imageUrl }]
+        : m.videoUrl
+        ? [{ type: "video", url: m.videoUrl }]
+        : [],
+      created_at: m.timestamp ? new Date(m.timestamp).toISOString() : new Date().toISOString(),
+    }))
+
+    return NextResponse.json({ messages })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
 
-// POST /api/user/messages — save a message
+// POST /api/user/messages — append a message to a conversation
 export async function POST(request: NextRequest) {
   try {
-    const { conversation_id, user_id, role, content, imageUrl, videoUrl } = await request.json()
+    const { conversation_id, mlg_user_id, role, content, imageUrl, videoUrl } = await request.json()
 
-    if (!conversation_id || !role || !content) {
+    if (!conversation_id || !mlg_user_id || !role || !content) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const supabase = getServiceRoleClient()
+    // Load existing messages
+    const convs = await getConversations(mlg_user_id, 200)
+    const match = convs.find((c) => c.SK === conversation_id || c.id === conversation_id)
 
-    const media_urls: { type: string; url: string }[] = []
-    if (imageUrl) media_urls.push({ type: "image", url: imageUrl })
-    if (videoUrl) media_urls.push({ type: "video", url: videoUrl })
-
-    const insertPayload: any = {
-      conversation_id,
+    const existingMessages: any[] = match?.messages ?? []
+    const newMsg = {
       role,
       content,
-      created_at: new Date().toISOString(),
+      timestamp: Date.now(),
+      ...(imageUrl ? { imageUrl } : {}),
+      ...(videoUrl ? { videoUrl } : {}),
     }
-    if (media_urls.length > 0) insertPayload.media_urls = media_urls
+    const updated = [...existingMessages, newMsg]
 
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .insert(insertPayload)
-      .select("id, role, content, media_urls, created_at")
-      .single()
+    await updateConversationMessages(mlg_user_id, conversation_id, updated)
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-    // Update melegy_history updated_at
-    if (user_id) {
-      await supabase
-        .from("melegy_history")
-        .update({ updated_at: new Date().toISOString() })
-        .eq("auth_user_id", user_id)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .catch(() => {})
-    }
-
-    return NextResponse.json({ message: data })
+    return NextResponse.json({
+      message: {
+        id: String(updated.length - 1),
+        role,
+        content,
+        created_at: new Date().toISOString(),
+      },
+    })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

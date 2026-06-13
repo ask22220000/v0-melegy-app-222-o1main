@@ -1,4 +1,4 @@
-import { generateText } from "ai"
+import { generateWithFalRouter } from "./falRouterService"
 import { EGYPTIAN_DIALECT_INSTRUCTIONS } from "./egyptianDialect"
 import { SearchService } from "./searchService"
 import { detectSearchQuery } from "./webSearch"
@@ -78,23 +78,22 @@ export async function generatePerplexityResponse(userInput: string, conversation
         content: userInput + enhancedContext,
       })
 
-      console.log("[v0] Sending request to Gemini with", messages.length, "messages")
+      console.log("[v0] Sending request to Fal OpenRouter with", messages.length, "messages")
 
-      const result = await Promise.race([
-        generateText({
-          model: "google/gemini-3-flash",
-          system: EGYPTIAN_DIALECT_INSTRUCTIONS + "\n\nرد بسرعة وبشكل مباشر ومختصر.",
-          messages,
-          maxTokens: 300, // Reduced for faster responses
-          temperature: 0.7,
-        }),
-        new Promise((_, reject) => 
+      const generatedTextPromise = generateWithFalRouter(
+        EGYPTIAN_DIALECT_INSTRUCTIONS + "\n\nرد بسرعة وبشكل مباشر ومختصر.",
+        messages,
+        { maxTokens: 300, temperature: 0.7 }
+      )
+
+      let generatedText = await Promise.race([
+        generatedTextPromise,
+        new Promise<string>((_, reject) => 
           setTimeout(() => reject(new Error("Response timeout")), 8000)
         )
-      ]) as any
+      ])
 
-      let generatedText = result.text
-      console.log("[v0] ✅ Received response from Gemini successfully")
+      console.log("[v0] Received response from Fal OpenRouter successfully")
 
       if (!generatedText || generatedText.length < 3) {
         console.log("[v0] Empty response from Gemini, retrying...")

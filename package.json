@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.0",
+    "@aws-sdk/rds-signer": "^3.1063.0",
     "@fal-ai/client": "1.7.2",
-    "@fal-ai/serverless-client": "latest",
     "@google/generative-ai": "0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "1.2.2",
@@ -45,9 +45,11 @@
     "@supabase/supabase-js": "latest",
     "@vercel/analytics": "latest",
     "@vercel/blob": "^2.3.1",
+    "@vercel/functions": "^3.6.2",
     "abort-controller": "3.0.0",
     "ai": "^6.0.0",
     "autoprefixer": "^10.4.20",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
@@ -65,15 +67,15 @@
     "pdf-parse": "^1.1.1",
     "pg": "^8.19.0",
     "postgres": "^3.4.8",
-    "react": "19.2.0",
+    "react": "19.2.1",
     "react-day-picker": "9.8.0",
-    "react-dom": "19.2.0",
+    "react-dom": "19.2.1",
     "react-hook-form": "^7.60.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.4",
     "sharp": "^0.33.2",
     "sonner": "^1.7.4",
-    "tailwind-merge": "^2.5.5",
+    "tailwind-merge": "^2.6.1",
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "latest",
     "undici": "^7.22.0",
@@ -95,7 +97,9 @@
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "typescript": "^5",
+ask22220000-patch-1
     "webpack": "^5.105.4",
     "webpack-cli": "^5.1.4"
+ main
   }
 }

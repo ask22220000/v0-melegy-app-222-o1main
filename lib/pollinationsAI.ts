@@ -1,4 +1,4 @@
-import { generateText } from "ai"
+import { generateWithFalRouter } from "./falRouterService"
 import { getDailyTip, checkIfDailyTipRequest } from "./dailyTips"
 
 const ULTRA_SHORT_PROMPT = `أنت ميليجي - مساعد ذكي مصري ودود.
@@ -32,7 +32,7 @@ interface Message {
 
 export async function generatePollinationsResponse(userInput: string, conversationHistory: Message[]): Promise<string> {
   try {
-    console.log("[v0] Generating response with Google Gemini 3 Flash...")
+    console.log("[v0] Generating response with Fal OpenRouter...")
 
     if (checkIfDailyTipRequest(userInput)) {
       const dailyTip = getDailyTip()
@@ -47,17 +47,15 @@ export async function generatePollinationsResponse(userInput: string, conversati
       },
     ]
 
-    const result = await generateText({
-      model: "google/gemini-3-flash",
-      system: ULTRA_SHORT_PROMPT,
+    const resultText = await generateWithFalRouter(
+      ULTRA_SHORT_PROMPT,
       messages,
-      maxTokens: 150,
-      temperature: 0.7,
-    })
+      { maxTokens: 150, temperature: 0.7 }
+    )
 
     console.log("[v0] Response generated successfully")
 
-    let cleanedResponse = result.text
+    let cleanedResponse = resultText
       .replace(/\*\*/g, "")
       .replace(/\*/g, "")
       .replace(/###/g, "")
