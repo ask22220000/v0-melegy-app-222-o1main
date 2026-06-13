@@ -85,6 +85,12 @@
     "xlsx": "latest",
     "zod": "3.25.76"
   },
+ "scripts": {
+    "dev": "next dev",
+    "build": "webpack --mode production",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
@@ -94,5 +100,9 @@
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "typescript": "^5",
+ask22220000-patch-1
+    "webpack": "^5.105.4",
+    "webpack-cli": "^5.1.4"
+ main
   }
 }
