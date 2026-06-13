@@ -73,7 +73,7 @@ function VerifyPaymentContent() {
             const redirectMap: Record<string, string> = {
               startup: "/chat-starter",
               pro: "/chat-pro",
-              vip: "/chat-advanced",
+              vip: "/chat-vip",
             }
             redirectUrl = redirectMap[plan] || "/chat"
           }

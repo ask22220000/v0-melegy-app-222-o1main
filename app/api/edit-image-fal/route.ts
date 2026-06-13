@@ -1,22 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { fal } from "@fal-ai/client"
-import { processPromptForImageEditing, NEGATIVE_PROMPT_CONSTANTS } from "@/lib/prompt-enhancer"
+import { falRun } from "@/lib/fal-config"
+import { processPromptForImageEditing } from "@/lib/prompt-enhancer"
 
 // Increase body size limit for base64 images (50MB)
 export const maxDuration = 60 // Maximum allowed by Vercel
+export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {
-    // Validate environment variables at runtime
-    if (!process.env.FAL_KEY) {
-      return NextResponse.json({ error: "FAL_KEY is not configured in environment" }, { status: 500 })
-    }
-
-    // Configure FAL client
-    fal.config({
-      credentials: process.env.FAL_KEY!,
-    })
-
     const { imageUrl, imageUrls, prompt } = await request.json()
 
     // Support both single imageUrl and multiple imageUrls
@@ -46,24 +37,21 @@ export async function POST(request: NextRequest) {
     // Step 2: Use Gemini 3 Flash as Prompt Engineer — translate + preserve subject features
     const enhancedPrompt = await processPromptForImageEditing(prompt)
 
-    // Step 3: Edit image via fal-ai/nano-banana/edit for fast, efficient editing
-    // Using Nano Banana with optimized settings
+    // Step 3: Edit image via fal-ai/flux-2/turbo/edit
+    // Required: prompt + image_urls (array). No strength/num_inference_steps in this model.
     let result: any
     try {
-      result = await fal.subscribe("fal-ai/nano-banana/edit", {
-        input: {
-          prompt: enhancedPrompt,
-          image_urls: finalImageUrls,
-          num_images: 1,
-          output_format: "jpeg",
-          safety_tolerance: "4",
-          aspect_ratio: "auto",
-        },
+      result = await falRun("fal-ai/nano-banana/edit", {
+        prompt: enhancedPrompt,
+        image_urls: finalImageUrls,
+        num_images: 1,
+        output_format: "jpeg",
+        safety_tolerance: "4",
       })
     } catch (falError: any) {
       console.error("[edit] FAL API error:", falError)
 
-      if (falError.status === 403) {
+      if (falError.status === 403 && falError.body?.detail?.includes("Exhausted balance")) {
         throw new Error("رصيد FAL انتهى. يرجى شحن الرصيد من fal.ai/dashboard/billing")
       }
       if (falError.status === 413 || falError.message?.includes("payload too large")) {
@@ -81,9 +69,8 @@ export async function POST(request: NextRequest) {
       throw new Error(`فشل تعديل الصورة: ${errorMsg}`)
     }
 
-    // fal JS client: images at result.images or result.data.images
-    const editedImageUrl: string | undefined =
-      result?.images?.[0]?.url ?? result?.data?.images?.[0]?.url
+    // fal JS client wraps response in result.data — images are at result.data.images
+    const editedImageUrl: string | undefined = result?.images?.[0]?.url
 
     if (!editedImageUrl) {
       throw new Error("FAL API did not return an edited image")

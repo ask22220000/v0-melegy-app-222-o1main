@@ -26,6 +26,3 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env
-
-# proxy file causes Next.js 16 crash - not needed
-proxy.ts

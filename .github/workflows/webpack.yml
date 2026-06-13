@@ -10,12 +10,56 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+ ask22220000-patch-6
+
     strategy:
       matrix:
+ask22220000-patch-5
+        node-version: [22.x]
+
+
         node-version: [18.x, 20.x, 22.x]
 
+ main
+ main
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+ ask22220000-patch-5
+
+ ask22220000-patch-6
+ main
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+ ask22220000-patch-5
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Force Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 
+        run: pnpm run build
 
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
@@ -26,3 +70,5 @@ jobs:
       run: |
         npm install
         npx webpack
+ main
+ main

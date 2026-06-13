@@ -1,6 +1,6 @@
 import { getServiceRoleClient } from "./supabase/server"
 
-// Lazy getter for getSupabase() client to prevent build-time errors
+// Lazy getter — avoids top-level instantiation during build (env vars not available at build time)
 function getSupabase() {
   return getServiceRoleClient()
 }
@@ -68,7 +68,7 @@ export class MLLearningService {
       const patternKey = this.generatePatternKey(triggerPhrases)
 
       // Check if pattern already exists
-      const { data: existing } = await getSupabase()
+      const { data: existing } = await supabase
         .from("learned_patterns")
         .select("*")
         .eq("pattern_key", patternKey)
@@ -76,7 +76,7 @@ export class MLLearningService {
 
       if (existing) {
         // Update existing pattern
-        await getSupabase()
+        await supabase
           .from("learned_patterns")
           .update({
             correct_response: data.correctedAnswer,
@@ -96,7 +96,7 @@ export class MLLearningService {
       }
 
       // Mark correction as learned
-      await getSupabase()
+      await supabase
         .from("learning_corrections")
         .update({ learned: true })
         .eq("original_question", data.originalQuestion)
@@ -111,7 +111,7 @@ export class MLLearningService {
     try {
       const keywords = this.extractTriggerPhrases(question)
 
-      const { data: patterns } = await getSupabase()
+      const { data: patterns } = await supabase
         .from("learned_patterns")
         .select("*")
         .eq("is_active", true)
@@ -163,14 +163,14 @@ export class MLLearningService {
   // Record a common mistake
   static async recordMistake(mistakePattern: string, correctPattern: string, category: string): Promise<void> {
     try {
-      const { data: existing } = await getSupabase()
+      const { data: existing } = await supabase
         .from("common_mistakes")
         .select("*")
         .eq("mistake_pattern", mistakePattern)
         .single()
 
       if (existing) {
-        await getSupabase()
+        await supabase
           .from("common_mistakes")
           .update({ frequency: existing.frequency + 1 })
           .eq("mistake_pattern", mistakePattern)
@@ -189,7 +189,7 @@ export class MLLearningService {
   // Get common mistakes to avoid
   static async getCommonMistakes(): Promise<Array<{ mistake: string; correct: string }>> {
     try {
-      const { data } = await getSupabase()
+      const { data } = await supabase
         .from("common_mistakes")
         .select("mistake_pattern, correct_pattern")
         .order("frequency", { ascending: false })

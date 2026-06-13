@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useApp } from "@/lib/contexts/AppContext"
-import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
@@ -68,7 +68,15 @@ interface ChatHistory {
 
 export default function ChatPage() {
   const { translations, language, setLanguage } = useApp()
+  const { user, loading } = useAuth()
   const router = useRouter()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -92,8 +100,7 @@ export default function ChatPage() {
   const [showFunctionsMenu, setShowFunctionsMenu] = useState(false)
   const [showUsageCard, setShowUsageCard] = useState(true)
   const [theme, setTheme] = useState<"light" | "dark">("dark")
-  const [mlgUserId, setMlgUserId] = useState<string | null>(null)
-  const [mlgPlan, setMlgPlan] = useState<string>("free")
+
   // Animate-image states
   const [showAnimateModal, setShowAnimateModal] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
@@ -190,17 +197,18 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // Load conversations from Supabase when user ID is set
+  // Load conversations from server when user is authenticated
   const loadConversationsFromServer = async (userId: string) => {
     try {
-      const res = await fetch(`/api/save-chat?user_id=${userId}`)
+      const res = await fetch(`/api/conversations?user_id=${userId}`)
       const data = await res.json()
-      if (data.histories && data.histories.length > 0) {
-        const histories: ChatHistory[] = data.histories.map((h: any) => ({
-          id: h.id,
-          title: h.title,
-          date: h.date,
-          messages: h.messages ?? [],
+      if (data.conversations && data.conversations.length > 0) {
+        const histories: ChatHistory[] = data.conversations.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          date: new Date(c.created_at).toLocaleDateString("ar-EG"),
+          messages: [], // lazy-load messages when user clicks
+          conversationId: c.id,
         }))
         setChatHistories(histories)
       }
@@ -209,20 +217,12 @@ export default function ChatPage() {
     }
   }
 
-  // Initialize user via Supabase Auth
+  // Load user conversations when authenticated
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (error || !data.user) {
-        window.location.href = "/auth/login"
-        return
-      }
-      const user = data.user
-      setMlgUserId(user.id)
-      setMlgPlan("free") // Default to free, check subscriptions from DB
+    if (user?.id) {
       loadConversationsFromServer(user.id)
-    })
-  }, [])
+    }
+  }, [user?.id])
 
   useEffect(() => {
     fetch("/api/usage", { cache: "no-store" })
@@ -313,7 +313,7 @@ export default function ChatPage() {
     if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
       toast({
         title: "غير مدعوم",
-        description: "المتصفح ده مش بيدعم التعرف على الصو��",
+        description: "المتصفح ده مش بيدعم التعرف على الصوت",
         variant: "destructive",
       })
       return
@@ -608,10 +608,7 @@ export default function ChatPage() {
           }),
         })
 
-        if (!editResponse.ok) {
-          const errData = await editResponse.json().catch(() => ({}))
-          throw new Error(errData.error || "فشل تعديل الصورة")
-        }
+        if (!editResponse.ok) throw new Error("فشل تعديل الصورة")
 
         const { editedImageUrl } = await editResponse.json()
 
@@ -642,10 +639,10 @@ export default function ChatPage() {
         }
 
         await incrementImageUsage()
-      } catch (error: any) {
+      } catch (error) {
         toast({
           title: "خطأ في تعديل الصورة",
-          description: error?.message || "حاول مرة تانية",
+          description: "حاول مرة تانية",
           variant: "destructive",
         })
       }
@@ -865,26 +862,39 @@ export default function ChatPage() {
         .join(" | ") || "محادثة بدون عنوان"
 
     try {
-      const chatDate = new Date().toLocaleDateString("ar-EG")
-
-      const res = await fetch("/api/save-chat", {
+      // 1. Create conversation in Supabase
+      const convRes = await fetch("/api/user/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: mlgUserId,
-          chat_title: title.substring(0, 80),
-          chat_date: chatDate,
-          messages: messages.filter((m) => m.id !== "welcome"),
-        }),
+        body: JSON.stringify({ mlg_user_id: mlgUserId, title: title.substring(0, 80) }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "فشل الحفظ")
+      const convData = await convRes.json()
+      if (!convRes.ok) throw new Error(convData.error || "فشل إنشاء المحادثة")
 
-      // Update local state
+      const conversationId = convData.conversation.id
+
+      // 2. Save all messages — pass imageUrl/videoUrl as dedicated fields
+      for (const msg of messages) {
+        if (msg.id === "welcome") continue
+        await fetch("/api/user/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversation_id: conversationId,
+            mlg_user_id: mlgUserId,
+            role: msg.role,
+            content: msg.content || "",
+            imageUrl: msg.imageUrl || null,
+            videoUrl: msg.videoUrl || null,
+          }),
+        })
+      }
+
+      // 3. Update local state
       const newChat: ChatHistory = {
-        id: data.id ?? String(Date.now()),
+        id: conversationId,
         title: title.substring(0, 50),
-        date: chatDate,
+        date: new Date().toLocaleDateString("ar-EG"),
         messages: messages,
       }
       setChatHistories((prev) => [newChat, ...prev])
@@ -1053,20 +1063,6 @@ export default function ChatPage() {
             >
               <Languages className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="hidden xs:inline">{translations.languageToggle}</span>
-            </button>
-            <button
-              onClick={async () => {
-                const supabase = createClient()
-                await supabase.auth.signOut()
-                router.push("/auth/login")
-              }}
-              className="bg-card border-2 border-border text-foreground px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-lg transition-all duration-300 hover:bg-red-900/40 hover:border-red-700 hover:scale-105 flex items-center cursor-pointer"
-              aria-label="تسجيل الخروج"
-              title="تسجيل الخروج"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 sm:h-4 sm:w-4">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
             </button>
             <button
               onClick={() => setShowUsageCard(!showUsageCard)}
@@ -1498,6 +1494,17 @@ export default function ChatPage() {
               <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: "Cairo, sans-serif" }}>
                 {animateMode === "i2v" ? "الصورة هتتحرك بشكل سلس (10 ثانية)" : "الشخصية هتظهر في مشهد جديد حسب البرومبت (10 ثانية)"}
               </p>
+            </div>
+
+            {/* Audio toggle */}
+            <div className="mb-4 flex items-center justify-between bg-gray-800 rounded-lg px-4 py-3 border border-gray-600">
+              <span className="text-sm text-gray-300" style={{ fontFamily: "Cairo, sans-serif" }}>توليد صوت مع الفيديو</span>
+              <button
+                onClick={() => setAnimateAudio((v) => !v)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${animateAudio ? "bg-purple-600" : "bg-gray-600"}`}
+              >
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${animateAudio ? "right-1" : "left-1"}`} />
+              </button>
             </div>
 
             {/* Prompt */}

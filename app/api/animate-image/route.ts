@@ -1,24 +1,45 @@
 import { NextResponse } from "next/server"
-import * as fal from "@fal-ai/serverless-client"
+import { headers } from "next/headers"
+import { falRun } from "@/lib/fal-config"
 import { put } from "@vercel/blob"
 import Groq from "groq-sdk"
+import { getDailyUsage, getEffectivePlan, todayEgypt } from "@/lib/db"
+import { PLAN_LIMITS } from "@/lib/usage-tracker"
+
+const FREE_VIDEO_LIMIT = PLAN_LIMITS.free.animatedVideosPerDay
+
+async function checkVideoLimit(ip: string): Promise<{ allowed: boolean; reason?: string }> {
+  try {
+    const plan = await getEffectivePlan(ip)
+    if (plan !== "free") return { allowed: true }
+    const usage = await getDailyUsage(ip, todayEgypt())
+    if (usage.animated_videos >= FREE_VIDEO_LIMIT) {
+      return {
+        allowed: false,
+        reason: `لقد وصلت للحد الأقصى (${FREE_VIDEO_LIMIT} فيديو/يوم) في الخطة المجانية. قم بالترقية للمزيد!`,
+      }
+    }
+    return { allowed: true }
+  } catch {
+    return { allowed: true }
+  }
+}
 
 export const maxDuration = 300
 
-// Configure fal at module level — prevents AI Gateway override
-fal.config({ credentials: process.env.FAL_KEY })
+// fal is configured in lib/fal-config.ts
 
-function getGroqClient() {
-  return new Groq({ apiKey: process.env.GROQ_API_KEY || "" })
+// Lazy — avoids top-level instantiation during build
+function getGroq() {
+  return new Groq({ apiKey: process.env.GROQ_API_KEY })
 }
 
 async function translateToEnglish(prompt: string): Promise<string> {
-  const groq = getGroqClient()
   const hasArabic = /[\u0600-\u06FF]/.test(prompt)
   if (!hasArabic) return prompt
   try {
-    const res = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+    const res = await getGroq().chat.completions.create({
+      model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
@@ -27,37 +48,11 @@ async function translateToEnglish(prompt: string): Promise<string> {
         },
         { role: "user", content: prompt },
       ],
-      max_tokens: 300,
+      max_tokens: 200,
     })
     return res.choices[0]?.message?.content?.trim() || prompt
   } catch {
     return prompt
-  }
-}
-
-async function describeSubjectFromImage(imageUrl: string): Promise<string> {
-  // Uses Groq vision to extract precise details of the person or product in the image
-  const groq = getGroqClient()
-  try {
-    const res = await groq.chat.completions.create({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Describe in detail the main subject of this image (person or product). Include: exact appearance, clothing/outfit color and style, hair color and style, skin tone, face features, body proportions, product shape/color/logo/material. Be very specific and concise — max 80 words. Return ONLY the description, no intro.",
-            },
-            { type: "image_url", image_url: { url: imageUrl } },
-          ],
-        },
-      ],
-      max_tokens: 150,
-    })
-    return res.choices[0]?.message?.content?.trim() || ""
-  } catch {
-    return ""
   }
 }
 
@@ -92,7 +87,18 @@ async function ensurePublicBlobUrl(imageUrl: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, prompt, mode = "i2v" } = await req.json()
+    const headersList = await headers()
+    const ip =
+      (headersList.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+      headersList.get("x-real-ip") ||
+      "unknown"
+
+    const limitCheck = await checkVideoLimit(ip)
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.reason }, { status: 429 })
+    }
+
+    const { imageUrl, prompt, generateAudio } = await req.json()
 
     if (!imageUrl) return NextResponse.json({ error: "imageUrl مطلوب" }, { status: 400 })
     if (!prompt) return NextResponse.json({ error: "prompt مطلوب" }, { status: 400 })
@@ -103,49 +109,29 @@ export async function POST(req: Request) {
     // 2. Ensure image is publicly accessible
     const publicImageUrl = await ensurePublicBlobUrl(imageUrl)
 
-    let rawVideoUrl: string | undefined
+    // 3. Fixed prompt suffix — preserve faces/people/products identity 100%
+    const FACE_PRESERVE_SUFFIX =
+      "preserve exact facial features and identity of all people and products, photorealistic, consistent appearance, natural smooth cinematic motion, subtle gentle movement, no face distortion, no morphing, no warping, high fidelity"
 
-    if (mode === "r2v") {
-      // ===== مشهد جديد (مرجع) =====
-      // 1. Extract precise subject details from the reference image using vision
-      // 2. Build a rich prompt: user scene description + locked subject details
-      // 3. Generate video using hailuo-02-fast with the enriched prompt
-      const subjectDescription = await describeSubjectFromImage(publicImageUrl)
+    const NEGATIVE_PROMPT =
+      "face distortion, face morphing, identity change, different person, altered appearance, deformed face, blurry face, low quality, watermark, text, duplicate, ugly, mutation, extra limbs, unrealistic motion, jerky motion"
 
-      const finalR2VPrompt = subjectDescription
-        ? `${englishPrompt}. The main subject must look EXACTLY like this: ${subjectDescription}. Do NOT alter any physical detail of the subject — only the scene, background, and action change. Photorealistic, high fidelity, cinematic.`
-        : `${englishPrompt}. Preserve the exact appearance, clothing, and all physical details of the subject from the reference image. Photorealistic, high fidelity, cinematic.`
+    const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
 
-      const result = await fal.subscribe("fal-ai/minimax/hailuo-02-fast/image-to-video", {
-        input: {
-          image_url: publicImageUrl,
-          prompt: finalR2VPrompt,
-          prompt_optimizer: false,
-          duration: "10",
-        },
-      }) as any
-      rawVideoUrl = result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
-    } else {
-      // ===== تحريك الصورة (i2v) =====
-      // Uses image_url as the FIRST FRAME — animates the existing image.
-      const FACE_PRESERVE_SUFFIX =
-        "preserve exact facial features and identity, photorealistic, smooth cinematic motion, no face distortion, no morphing, high fidelity"
-      const finalPrompt = `${englishPrompt}, ${FACE_PRESERVE_SUFFIX}`
+    // 4. Generate video via fal.ai — hailuo-02-fast image-to-video
+    const result = await falRun("fal-ai/minimax/hailuo-02-fast/image-to-video", {
+      image_url: publicImageUrl,
+      prompt: finalPrompt,
+      duration: "6",
+      prompt_optimizer: true,
+    }) as any
 
-      const result = await fal.subscribe("fal-ai/minimax/hailuo-02-fast/image-to-video", {
-        input: {
-          image_url: publicImageUrl,
-          prompt: finalPrompt,
-          prompt_optimizer: true,
-          duration: "10",
-        },
-      }) as any
-      rawVideoUrl = result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
-    }
+    const rawVideoUrl: string | undefined =
+      result?.video?.url ?? result?.data?.video?.url ?? result?.videos?.[0]?.url
 
     if (!rawVideoUrl) throw new Error("No video URL returned from model")
 
-    // Save to Vercel Blob
+    // 5. Fetch and save to Vercel Blob
     const vidRes = await fetch(rawVideoUrl)
     if (!vidRes.ok) throw new Error(`Cannot fetch video: ${vidRes.status}`)
     const vidBuffer = await vidRes.arrayBuffer()
