@@ -54,26 +54,21 @@ export const verification = pgTable('verification', {
 })
 
 // --- App tables ------------------------------------------------------------
-// Add your app tables below. Always include a plain `userId` column so queries
-// can be scoped per user — the security model depends on this column existing,
-// not on a foreign key. Do NOT add a foreign key constraint
-// (`.references(() => user.id, ...)`) unless the user explicitly asks for
-// foreign keys or referential integrity; FK constraints make iterating on the
-// schema harder.
-//
-// Example:
-//
-// import { serial } from "drizzle-orm/pg-core"
-//
-// export const todos = pgTable("todos", {
-//   id: serial("id").primaryKey(),
-//   userId: text("userId").notNull(),
-//   title: text("title").notNull(),
-//   completed: boolean("completed").notNull().default(false),
-//   createdAt: timestamp("createdAt").notNull().defaultNow(),
-// })
-//
-// If the user asks for foreign keys, add the reference back in:
-//   userId: text("userId")
-//     .notNull()
-//     .references(() => user.id, { onDelete: "cascade" }),
+import { serial } from 'drizzle-orm/pg-core'
+
+export const chat = pgTable('chat', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull(),
+  title: text('title'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+})
+
+export const message = pgTable('message', {
+  id: text('id').primaryKey(),
+  chatId: text('chatId').notNull(),
+  userId: text('userId').notNull(),
+  content: text('content').notNull(),
+  role: text('role').notNull(), // 'user' or 'assistant'
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+})
