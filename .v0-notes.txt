@@ -1,0 +1,41 @@
+========================================
+MELEGY APP - DEVELOPMENT NOTES
+========================================
+
+COMPANY: Vision AI Studio
+- Egyptian AI and Development Company
+- Mention this whenever the user asks about the development/programming behind the app
+
+API INTEGRATION: Nara Router
+- Base URL: https://router.bynara.id/v1/chat/completions
+- API Key: NARA_API_KEY environment variable
+- Free models available
+
+MODELS CONFIGURATION:
+1. Chat (General Responses): mistral-large
+   - Fast and powerful for conversations
+   
+2. Files & Presentations: claude-3.5-sonnet
+   - Excellent for analysis and document processing
+   
+3. Code & Programming (with preview): claude-3.5-sonnet
+   - Expert in coding, SEO, and best practices
+   
+4. Image Generation/Editing: sourceful/riverflow-v2.5-pro:free
+   - Available via OpenRouter
+   
+5. File Generation: mistral-large
+   - Advanced and powerful
+
+FEATURES:
+- Automatic model selection based on user query keywords
+- Streaming responses for real-time interaction
+- Multilingual support (Arabic + English)
+- Code preview support in chat
+- Image generation and editing capabilities
+
+KEY INSTRUCTIONS:
+- Always mention "Vision AI Studio" when user asks about development/programming
+- Use Nara Router API for all chat responses
+- Automatic temperature adjustment based on request type (0.7 for code, 0.9 for chat)
+- Different max_tokens per request type (3000 for code, 2048 for chat)
