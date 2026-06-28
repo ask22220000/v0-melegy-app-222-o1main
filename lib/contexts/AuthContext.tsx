@@ -29,10 +29,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("/api/auth/user")
-        if (response.ok) {
-          const data = await response.json()
-          setUser(data.user)
+        const token = localStorage.getItem("auth_token")
+        if (token) {
+          // Try to fetch user data
+          try {
+            const response = await fetch("/api/auth/user")
+            if (response.ok) {
+              const data = await response.json()
+              setUser(data.user)
+            }
+          } catch {
+            // API not available yet, just skip
+          }
         }
       } catch (err) {
         console.error("[v0] Auth check failed:", err)
