@@ -2,7 +2,6 @@
 
 import { MessageSquare, Home, Moon, Sun, Languages } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useApp } from "@/lib/contexts/AppContext"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 
@@ -13,7 +12,7 @@ type HeaderProps = {
 }
 
 export function Header({ showChatHistory = false, onChatHistoryClick, showHomeButton = false }: HeaderProps) {
-  const { translations, language, setLanguage } = useApp()
+  const language = "ar"
   // Default to "dark" — synced from localStorage after mount so no flash
   const [theme, setTheme] = useState<"light" | "dark">("dark")
 

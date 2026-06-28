@@ -2,10 +2,8 @@
 
 import { Linkedin, Instagram, Facebook, MessageCircle } from "lucide-react"
 import Link from "next/link"
-import { useApp } from "@/lib/contexts/AppContext"
 
 export function Footer() {
-  const { translations } = useApp()
 
   return (
     <footer className="container mx-auto px-6 py-12 border-t border-slate-800/50">

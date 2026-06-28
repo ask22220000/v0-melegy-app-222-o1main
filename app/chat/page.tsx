@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useApp } from "@/lib/contexts/AppContext"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
@@ -66,8 +65,21 @@ interface ChatHistory {
 }
 
 export default function ChatPage() {
-  const { translations, language, setLanguage } = useApp()
   const router = useRouter()
+  
+  // Default translations
+  const language = "ar"
+  const translations = {
+    fn_image: "توليد صورة",
+    fn_editImage: "تعديل صورة",
+    fn_animateImage: "تحريك صورة",
+    fn_attachFile: "إرفاق ملف",
+    fn_write: "كتابة",
+    fn_excel: "جدول Excel",
+    fn_idea: "فكرة",
+    fn_help: "مساعدة",
+    fn_chat: "دردشة",
+  }
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -1041,12 +1053,11 @@ export default function ChatPage() {
               {theme === "dark" ? <Sun className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Moon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </button>
             <button
-              onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
               className="bg-card border-2 border-border text-foreground px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-lg transition-all duration-300 hover:bg-accent hover:border-accent-foreground/50 hover:shadow-lg hover:scale-105 flex items-center gap-1 cursor-pointer font-bold text-xs sm:text-sm"
-              aria-label="Toggle language"
+              aria-label="Language"
             >
               <Languages className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">{translations.languageToggle}</span>
+              <span className="hidden xs:inline">عربي</span>
             </button>
             <button
               onClick={() => setShowUsageCard(!showUsageCard)}

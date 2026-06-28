@@ -3,11 +3,9 @@
 import { MessageCircle, X } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
-import { useApp } from "@/lib/contexts/AppContext"
 
 export function FloatingWhatsApp() {
   const [isExpanded, setIsExpanded] = useState(false)
-  const { translations } = useApp()
 
   return (
     <div className="fixed bottom-6 left-6 z-50">

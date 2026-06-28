@@ -98,8 +98,7 @@ export default function RootLayout({
         <link rel="icon" type="image/jpeg" sizes="512x512" href="/images/logo.jpg" />
         <link rel="shortcut icon" href="/images/logo.jpg" />
 
-        {/* Service Worker Registration */}
-        <Script src="/register-sw.js" strategy="lazyOnload" />
+
       </head>
       <body className={`${cairo.className} antialiased`} suppressHydrationWarning>
         {children}

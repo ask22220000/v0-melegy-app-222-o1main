@@ -1,17 +1,16 @@
-import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
-
-export default async function Home() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) redirect('/sign-in')
-
-  // Fetch app data scoped to session.user.id and render your dashboard here.
+export default function Home() {
   return (
-    <main className="min-h-svh bg-background p-8">
-      <p className="text-sm text-muted-foreground">
-        Signed in as {session.user.email}
-      </p>
-    </main>
+    <div style={{ 
+      minHeight: "100vh", 
+      display: "flex", 
+      alignItems: "center", 
+      justifyContent: "center",
+      backgroundColor: "#fff"
+    }}>
+      <div style={{ textAlign: "center" }}>
+        <h1>أهلاً بك في ميليجي</h1>
+        <p>مساعدك الذكي</p>
+      </div>
+    </div>
   )
 }
