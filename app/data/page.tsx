@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -158,6 +160,7 @@ export default function DataPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
+        <Header />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="flex flex-col items-center gap-4">
             <RefreshCw className="animate-spin text-blue-400 h-8 w-8" />
@@ -171,6 +174,7 @@ export default function DataPage() {
   if (!data) {
     return (
       <div className="min-h-screen bg-background">
+        <Header />
         <div className="flex items-center justify-center min-h-[60vh]">
           <p className="text-red-400">تعذّر تحميل البيانات. حاول مرة أخرى.</p>
         </div>
@@ -212,6 +216,8 @@ export default function DataPage() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
+      <Header />
+
       <main className="container mx-auto px-4 py-10 max-w-7xl">
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">

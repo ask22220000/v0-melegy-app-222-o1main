@@ -32,43 +32,15 @@ export async function urlToInlinePart(url: string) {
 
 /** Strip markdown formatting from AI text */
 export function stripMarkdown(text: string): string {
-  let cleaned = text
-    // Remove tables completely - markdown tables with pipes
-    .replace(/^\|(.+)\|(.+\|)+\s*$/gm, "")
-    .replace(/^\|?-+\|(-+\|)+\s*$/gm, "")
-    .replace(/^\|\s*-+\s*\|\s*(-+\s*\|)+\s*$/gm, "")
-    
-    // Remove bold/italic
+  return text
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
     .replace(/_{1,2}(.+?)_{1,2}/g, "$1")
-    
-    // Remove headers but keep content
     .replace(/^#{1,6}\s+/gm, "")
-    
-    // Remove inline code blocks
     .replace(/`{1,3}[^`]*`{1,3}/g, "")
-    
-    // Remove bullet points and numbering from start of lines
     .replace(/^[\s]*[-*•]\s+/gm, "")
     .replace(/^\d+\.\s+/gm, "")
-    
-    // Remove footnote references
     .replace(/\[\d+\]/g, "")
-    
-    // Clean up excessive line breaks
-    .replace(/\n{3,}/g, "\n\n")
-    
-    .trim()
-
-  // Remove completely empty lines in tables
-  cleaned = cleaned
-    .split('\n')
-    .filter(line => !line.match(/^\s*\|\s*-+\s*\|\s*(-+\s*\|)*\s*$/))
-    .filter(line => !line.match(/^\s*\|[\s\|]*$/))
-    .join('\n')
     .replace(/\n{3,}/g, "\n\n")
     .trim()
-
-  return cleaned
 }

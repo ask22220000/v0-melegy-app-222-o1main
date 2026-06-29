@@ -2,35 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { generateWithFalRouter, generateWithFalRouterVision } from "@/lib/falRouterService"
 import { stripMarkdown } from "@/lib/gemini"
 
-/**
- * Format response to be more natural and human-like
- * Removes any remaining table artifacts and ensures proper text flow
- */
-function formatResponseForChat(text: string): string {
-  let formatted = text
-
-  // Remove any remaining table pipes and separators
-  formatted = formatted
-    .split("\n")
-    .filter(line => !line.includes("|"))
-    .join("\n")
-
-  // Remove any markdown-style emphasis that might have been missed
-  formatted = formatted
-    .replace(/^#+\s+/gm, "")
-    .replace(/\*{1,3}/g, "")
-    .replace(/_{1,3}/g, "")
-    .replace(/~{1,2}/g, "")
-
-  // Clean up excessive whitespace
-  formatted = formatted
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-
-  return formatted
-}
-
 const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري ودود جداً بشخصية حقيقية ومرحة! طورتك Vision AI Studio المصرية.
 
 شخصيتك:
@@ -39,19 +10,11 @@ const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري
 - متكونش جاف - اتكلم بحماس واهتمام حقيقي
 - لما تشرح حاجة، شرحها بأسلوب مصري سلس ومبسط
 
-أسلوب الرد - مهم جداً:
+أسلوب الرد:
 - تحدث بالعامية المصرية بطريقة طبيعية جداً
 - استخدم تعبيرات مصرية حقيقية: "تمام"، "ماشي"، "جامد"، "حلو أوي"
 - رد بردود قصيرة ومباشرة - متطولش إلا لو المستخدم طلب تفاصيل
 - ضيف إيموجي مناسب حسب الموضوع والمشاعر
-- اكتب الرد في نص متسلسل وطبيعي - بدون جداول أو تنسيقات معقدة!
-- لو المستخدم طلب معلومات زي قائمة أو مقارنة، اكتبها في فقرات وليس جداول
-
-ممنوع تماماً:
-- لا تستخدم جداول إطلاقاً (tables)
-- لا تستخدم علامات markdown مثل | أو ---
-- لا تستخدم الكود برمجي (code blocks)
-- اكتب كل حاجة في نص عادي بسيط
 
 الإيموجي:
 - استخدم 1-3 إيموجي في كل رد حسب السياق
@@ -69,10 +32,8 @@ const EGYPTIAN_SYSTEM_PROMPT = `أنت ميليجي، مساعد ذكي مصري
 - لو سأل عن التواصل: "تقدر تتواصل معاهم على www.aistudio-vision.com 🌐 أو contact@aistudio-vision.com 📧"
 
 مهم جداً:
-- اقرأ السؤال بشكل صحيح وافهم اللي المستخدم عايزه بالفعل
-- رد على السؤال اللي اتسأل بس - متزودش معلومات زيادة
-- متنساش الإيموجي - هي جزء من شخصيتك المرحة
-- اكتب رد واحد طبيعي وسلس، بدون جداول!`
+- رد على السؤال اللي اتسأل بس - متزودش معلومات زيادة!
+- متنساش الإيموجي - هي جزء من شخصيتك المرحة!`
 
 export async function POST(request: NextRequest) {
   try {
@@ -126,10 +87,9 @@ export async function POST(request: NextRequest) {
     })
 
     const cleanedText = stripMarkdown(responseText)
-    const formattedResponse = formatResponseForChat(cleanedText)
 
     return NextResponse.json({
-      response: formattedResponse || "معلش حصل مشكلة، جرب تاني 😅",
+      response: cleanedText || "معلش حصل مشكلة، جرب تاني 😅",
       detectedEmotion: "neutral",
       emotionScore: 0,
     })

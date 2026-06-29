@@ -5,87 +5,23 @@ interface Message {
   content: string
 }
 
-const NARA_API_KEY = process.env.NARA_API_KEY || process.env.OPENROUTER_API_KEY
-const NARA_API_URL = "https://router.bynara.id/v1/chat/completions"
-const MODEL_CHAT = "mistral-large" // للردود النصية والدردشة العامة - قوي وسريع
-const MODEL_FILES = "claude-3.5-sonnet" // لطلب الملفات والعروض التقديمية - ممتاز في التحليل
-const MODEL_CODE = "claude-3.5-sonnet" // للكودينج وحلول البرمجة والـ SEO - خبير برمجة
-const MODEL_EMBED = "mistral-large" // لتوليد الملفات - متقدم وقوي
-
-// دالة لاختيار الموديل المناسب بناءً على نوع الطلب
-export function selectModel(userInput: string): { model: string; isCodeRequest: boolean } {
-  const codeKeywords = [
-    "كود",
-    "code",
-    "برمجة",
-    "programming",
-    "python",
-    "javascript",
-    "typescript",
-    "html",
-    "css",
-    "react",
-    "function",
-    "class",
-    "database",
-    "api",
-    "sql",
-    "seo",
-    "الـ seo",
-    "محرك البحث",
-  ]
-  
-  const fileKeywords = [
-    "ملف",
-    "ملفات",
-    "عرض",
-    "presentation",
-    "word",
-    "excel",
-    "pdf",
-    "document",
-    "slide",
-    "وثيقة",
-  ]
-
-  const isCodeRequest = codeKeywords.some((keyword) =>
-    userInput.toLowerCase().includes(keyword.toLowerCase())
-  )
-
-  const isFileRequest = fileKeywords.some((keyword) =>
-    userInput.toLowerCase().includes(keyword.toLowerCase())
-  )
-
-  if (isCodeRequest) {
-    return { model: MODEL_CODE, isCodeRequest: true }
-  }
-
-  if (isFileRequest) {
-    return { model: MODEL_FILES, isCodeRequest: false }
-  }
-
-  return { model: MODEL_CHAT, isCodeRequest: false }
-}
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+const MODEL = "openai/gpt-4o" // OpenAI GPT-4 Omni model for superior reasoning and multilingual support
 
 export async function generateStreamingResponse(
   userInput: string,
   conversationHistory: Message[]
 ): Promise<ReadableStream<Uint8Array>> {
-  if (!NARA_API_KEY) {
-    throw new Error("NARA_API_KEY غير محدد في متغيرات البيئة")
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY غير محدد في متغيرات البيئة")
   }
 
-  const { model, isCodeRequest } = selectModel(userInput)
-
-  // Prepare messages for Nara Router API (OpenAI compatible format)
-  const systemMessage = isCodeRequest
-    ? "أنت خبير برمجة ممتاز. تكتب كودًا نظيفًا وفعالًا مع شرح واضح. في كل إجابة، قدم الكود أولاً ثم الشرح."
-    : EGYPTIAN_DIALECT_INSTRUCTIONS
-
+  // Prepare messages for OpenRouter API (standard OpenAI format)
   const messages = [
     {
       role: "system",
-      content: systemMessage,
+      content: EGYPTIAN_DIALECT_INSTRUCTIONS,
     },
     ...conversationHistory
       .filter((msg) => msg.role === "user" || msg.role === "assistant")
@@ -100,33 +36,35 @@ export async function generateStreamingResponse(
   ]
 
   const requestBody = {
-    model: model,
+    model: MODEL,
     messages,
-    temperature: isCodeRequest ? 0.7 : 0.9,
+    temperature: 0.9,
     top_p: 0.95,
-    max_tokens: isCodeRequest ? 3000 : 2048,
+    max_tokens: 2048,
     stream: true,
   }
 
-  console.log("[v0] Nara Router - استخدام الموديل:", model, "للرد على:", userInput.substring(0, 30))
+  console.log("[v0] Requesting OpenRouter NVIDIA Nemotron 3.5 with", messages.length, "messages")
 
-  const response = await fetch(NARA_API_URL, {
+  const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${NARA_API_KEY}`,
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      "HTTP-Referer": typeof window !== "undefined" ? window.location.href : "http://localhost:3000",
+      "X-Title": "Melegy App",
     },
     body: JSON.stringify(requestBody),
   })
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error("[v0] Nara Router API error:", response.status, errorText)
-    throw new Error(`Nara Router API error ${response.status}: ${errorText}`)
+    console.error("[v0] OpenRouter API error:", response.status, errorText)
+    throw new Error(`OpenRouter API error ${response.status}: ${errorText}`)
   }
 
   if (!response.body) {
-    throw new Error("No response body from Nara Router API")
+    throw new Error("No response body from OpenRouter API")
   }
 
   // Create a readable stream that processes OpenAI-format streaming response
@@ -167,7 +105,7 @@ export async function generateStreamingResponse(
                   }
                 }
               } catch (parseError) {
-                console.error("[v0] Error parsing Nara Router chunk:", parseError)
+                console.error("[v0] Error parsing OpenRouter chunk:", parseError)
               }
             }
           }

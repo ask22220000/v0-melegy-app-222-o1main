@@ -1,9 +1,10 @@
 "use client"
 
 import { ImageIcon } from "lucide-react"
+import { useApp } from "@/lib/contexts/AppContext"
 
 export function Features() {
-  const language = "ar"
+  const { translations, language } = useApp()
 
   const features = [
     { icon: "🖼️", key: "imageAnalysis" as const },

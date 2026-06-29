@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button"
 import { MessageSquare, ArrowDown, Smartphone, Apple, X, Share, PlusSquare } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useApp } from "@/lib/contexts/AppContext"
+import { useAuth } from "@/lib/contexts/AuthContext"
 
 export function Hero() {
-  const language = "ar"
+  const { translations, language } = useApp()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [installed, setInstalled] = useState(false)

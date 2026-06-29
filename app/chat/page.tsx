@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useApp } from "@/lib/contexts/AppContext"
+import { useAuth } from "@/lib/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
@@ -65,21 +67,16 @@ interface ChatHistory {
 }
 
 export default function ChatPage() {
+  const { translations, language, setLanguage } = useApp()
+  const { user, loading } = useAuth()
   const router = useRouter()
-  
-  // Default translations
-  const language = "ar"
-  const translations = {
-    fn_image: "توليد صورة",
-    fn_editImage: "تعديل صورة",
-    fn_animateImage: "تحريك صورة",
-    fn_attachFile: "إرفاق ملف",
-    fn_write: "كتابة",
-    fn_excel: "جدول Excel",
-    fn_idea: "فكرة",
-    fn_help: "مساعدة",
-    fn_chat: "دردشة",
-  }
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -219,6 +216,13 @@ export default function ChatPage() {
       // silently fail — user still sees empty history
     }
   }
+
+  // Load user conversations when authenticated
+  useEffect(() => {
+    if (user?.id) {
+      loadConversationsFromServer(user.id)
+    }
+  }, [user?.id])
 
   useEffect(() => {
     fetch("/api/usage", { cache: "no-store" })
@@ -1053,11 +1057,12 @@ export default function ChatPage() {
               {theme === "dark" ? <Sun className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Moon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </button>
             <button
+              onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
               className="bg-card border-2 border-border text-foreground px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-lg transition-all duration-300 hover:bg-accent hover:border-accent-foreground/50 hover:shadow-lg hover:scale-105 flex items-center gap-1 cursor-pointer font-bold text-xs sm:text-sm"
-              aria-label="Language"
+              aria-label="Toggle language"
             >
               <Languages className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">عربي</span>
+              <span className="hidden xs:inline">{translations.languageToggle}</span>
             </button>
             <button
               onClick={() => setShowUsageCard(!showUsageCard)}
